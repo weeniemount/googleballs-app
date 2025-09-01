@@ -1,7 +1,9 @@
-# Tauri + Vanilla
+# google balls desktop app!!!
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+google balls!! that one doodle from 2010! yeah its a desktop app
 
-## Recommended IDE Setup
+# how 2 compile electron
+go into ``electron`` run npm install and then you can do whatever you want it it like run it from source with ``npm start`` or build it with ``npm dist``
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+# how 2 compile tauri
+its unfinisehed so idk
