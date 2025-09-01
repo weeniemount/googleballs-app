@@ -6,4 +6,4 @@ google balls!! that one doodle from 2010! yeah its a desktop app
 go into ``electron`` run npm install and then you can do whatever you want it it like run it from source with ``npm start`` or build it with ``npm dist``
 
 # how 2 compile tauri
-its unfinisehed so idk
+go into ``tauri`` and then ``npm install`` and then ``npm run tauri dev``!!!!
