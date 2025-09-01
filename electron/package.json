@@ -1,0 +1,49 @@
+{
+  "name": "googleballs-desktop",
+  "version": "1.0.0",
+  "description": "Google Balls Desktop App Real!!!!!!!!!!!",
+  "main": "src/index.js",
+  "devDependencies": {
+    "electron": "^13.6.9",
+    "electron-builder": "^26.0.12"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "dist": "electron-builder --ia32"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weeniemount/googleballs-desktop-app.git"
+  },
+  "author": "weenie",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/weeniemount/googleballs-desktop-app/issues"
+  },
+  "homepage": "https://github.com/weeniemount/googleballs-desktop-app#readme",
+  "build": {
+		"appId": "com.weenie.googleballsdesktop",
+		"productName": "Google Balls Desktop",
+    "afterPack": "src/removeUnneededFiles.js",
+		"directories": {
+			"output": "dist"
+		},
+		"files": [
+      "**/*"
+    ],
+		"win": {
+			"target": [
+				"nsis"
+      ],
+			"icon": "src/icons/balls.ico"
+		},
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			],
+			"icon": "src/icons/balls.png"
+		}
+	}
+}
