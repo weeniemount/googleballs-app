@@ -133,17 +133,16 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, ubuntu-latest]
-        
-    runs-on: ${{ matrix.platform }}
-    permissions:
-      contents: write
     
+    runs-on: ${{ matrix.platform }}
     container: ${{ matrix.platform == 'ubuntu-latest' && 'rockylinux:9' || '' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Linux Dependencies for Electron Build
+      - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           # Install EPEL and development tools
@@ -151,67 +150,34 @@ jobs:
           dnf groupinstall -y "Development Tools"
           dnf config-manager --set-enabled crb
           
-          # Install Node.js 20
+          # Install Node.js 20 and basic build requirements
           dnf install -y nodejs npm gcc-c++ make python3
           
-          # Install RPM build requirements and other dependencies
-          dnf install -y rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel rubygems ruby-devel gcc zlib-devel curl
-          
-          # Install FPM
-          gem install fpm -v 1.15.1
-          
-          # Create RPM build directory structure
-          rpmdev-setuptree
-          
-          export USE_SYSTEM_FPM=true
-          # Enable EPEL repository for additional packages
-          yum install -y epel-release
-          
-          # Install development tools and RPM build requirements
-          yum groupinstall -y "Development Tools"
-          yum install -y --skip-broken --nobest --allowerasing rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel
-          
-          # Install newer version of Ruby and FPM
-          wget https://cache.ruby-lang.org/pub/ruby/2.7/ruby-2.7.8.tar.gz
-          tar xzf ruby-2.7.8.tar.gz
-          cd ruby-2.7.8
-          ./configure
-          make -j$(nproc)
-          make install
-          
-          # Update GEM paths
-          export PATH="/usr/local/bin:$PATH"
-          export GEM_HOME="/usr/local/gems"
-          export PATH="$GEM_HOME/bin:$PATH"
-          
-          # Install FPM
-          gem install fpm -v 1.15.1
-          
-          # Create RPM build directory structure
-          rpmdev-setuptree
-          
-          export USE_SYSTEM_FPM=true
-          
-      - name: Setup GitHub token
+          # Install RPM build requirements
+          dnf install -y rpm-build rpmdevtools
+
+      - name: Set up Node.js (Windows)
         if: matrix.platform == 'windows-latest'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "GH_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
           
-      - name: Install Dependencies (Electron)
-        run: |
-          cd electron
-          npm install
+      - name: Install npm Dependencies
+        working-directory: electron
+        run: npm install
           
-      - name: Build Electron App
-        run: |
-          cd electron
-          npm run dist
+      - name: Build RPM Package (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        working-directory: electron
+        run: npm run dist -- --linux --x64
+
+      - name: Build Windows Package
+        if: matrix.platform == 'windows-latest'
+        working-directory: electron
+        run: npm run dist
           
-      - name: Upload Electron Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: electron-${{ matrix.platform }}
+          name: googleballs-desktop-${{ matrix.platform }}
           path: electron/dist/
