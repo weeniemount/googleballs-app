@@ -31,7 +31,6 @@ tauri/*.local
 native/*.exe
 
 # Build artifacts (C/C/C++)
-*.o
 *.obj
 *.a
 *.la
@@ -43,7 +42,6 @@ native/*.exe
 
 # Native GTK build artifacts
 native-gtk/build/
-native-gtk/*.o
 native-gtk/*.obj
 native-gtk/*.exe
 native-gtk/*.dll

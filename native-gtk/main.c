@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "icon/balls.h"
 
 typedef struct {
     double x, y, z;
@@ -286,8 +287,24 @@ int main(int argc, char** argv) {
     app.running = TRUE;
 
     app.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(app.window), "Google Balls Desktop (GTK3)");
+    gtk_window_set_title(GTK_WINDOW(app.window), "Google Balls Desktop");
     gtk_window_set_default_size(GTK_WINDOW(app.window), app.width, app.height);
+
+    // Load icon from embedded data
+    GInputStream *stream = g_memory_input_stream_new_from_data(
+        icon, icon_size, NULL);
+    
+    GError *error = NULL;
+    GdkPixbuf *icon_pixbuf = gdk_pixbuf_new_from_stream(stream, NULL, &error);
+    g_object_unref(stream);
+    
+    if (icon_pixbuf) {
+        gtk_window_set_icon(GTK_WINDOW(app.window), icon_pixbuf);
+        g_object_unref(icon_pixbuf);
+    } else if (error) {
+        g_warning("Failed to load icon: %s", error->message);
+        g_error_free(error);
+    }
 
     app.drawing_area = gtk_drawing_area_new();
     gtk_widget_set_hexpand(app.drawing_area, TRUE);

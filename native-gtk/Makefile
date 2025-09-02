@@ -3,6 +3,13 @@ CC            ?= gcc
 PKG_CONFIG    ?= pkg-config
 PKGS          := gtk+-3.0
 
+ifeq ($(OS),Windows_NT)
+	WINDOWS := 1
+	WINDRES := windres
+else
+	WINDOWS := 0
+endif
+
 # Build config
 CSTD          ?= c11
 WARNINGS      ?= -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror
@@ -10,7 +17,16 @@ OPT_RELEASE   ?= -O2 -DNDEBUG
 OPT_DEBUG     ?= -O0 -g3
 
 # Sources
-SRC           := main.c
+SRC           := main.c icon/balls.c
+
+# Windows-specific additions
+ifeq ($(WINDOWS),1)
+	RESOURCE := icon/resource.o
+	SRC := $(SRC) $(RESOURCE)
+	LINK_FLAGS := -mwindows
+else
+	LINK_FLAGS :=
+endif
 
 # Build directories and outputs
 BUILD_DIR     ?= build
@@ -39,10 +55,13 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(OUT_RELEASE): $(SRC) | $(BUILD_DIR)
-	$(CC) -std=$(CSTD) $(WARNINGS) $(CFLAGS) $(OPT_RELEASE) $(PKG_CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CC) -std=$(CSTD) $(WARNINGS) $(CFLAGS) $(OPT_RELEASE) $(PKG_CFLAGS) -o $@ $(SRC) $(LDFLAGS) $(LIBS) $(LINK_FLAGS)
 
 $(OUT_DEBUG): $(SRC) | $(BUILD_DIR)
-	$(CC) -std=$(CSTD) $(WARNINGS) $(CFLAGS) $(OPT_DEBUG) $(PKG_CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CC) -std=$(CSTD) $(WARNINGS) $(CFLAGS) $(OPT_DEBUG) $(PKG_CFLAGS) -o $@ $(SRC) $(LDFLAGS) $(LIBS) $(LINK_FLAGS)
 
 clean:
 	rm -rf $(BUILD_DIR)
+ifeq ($(WINDOWS),1)
+	rm -f icon/resource.o
+endif
