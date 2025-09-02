@@ -6,8 +6,16 @@ permissions:
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - **/*.md
+      - **/*.MD
+      - .gitignore
   pull_request:
     branches: [ "master" ]
+    paths-ignore:
+      - **/*.md
+      - **/*.MD
+      - .gitignore
   workflow_dispatch:
 
 jobs:
@@ -233,79 +241,3 @@ jobs:
         with:
           name: googleballs-desktop-${{ matrix.platform }}
           path: electron/dist/
-
-  # Uses the hash of the commit that triggered it for the name
-  # cuz im lazy to do anything else, ill update it later
-  # trust:tm:
-  release:
-    needs: [build-native, build-native-gtk, build-tauri, build-electron]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout (full history for tags)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download Native (Ubuntu)
-        uses: actions/download-artifact@v4
-        with:
-          name: native-ubuntu-latest
-          path: dist/native/ubuntu
-
-      - name: Download Native (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: native-windows-latest
-          path: dist/native/windows
-
-      - name: Download Native-GTK (Ubuntu)
-        uses: actions/download-artifact@v4
-        with:
-          name: native-gtk-ubuntu-latest
-          path: dist/native-gtk/ubuntu
-
-      - name: Download Native-GTK (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: native-gtk-windows-latest
-          path: dist/native-gtk/windows
-
-      - name: Download Tauri (Ubuntu)
-        uses: actions/download-artifact@v4
-        with:
-          name: tauri-ubuntu-latest
-          path: dist/tauri/ubuntu
-
-      - name: Download Tauri (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: tauri-windows-latest
-          path: dist/tauri/windows
-
-      - name: Download Electron (Ubuntu)
-        uses: actions/download-artifact@v4
-        with:
-          name: googleballs-desktop-ubuntu-latest
-          path: dist/electron/ubuntu
-
-      - name: Download Electron (Windows)
-        uses: actions/download-artifact@v4
-        with:
-          name: googleballs-desktop-windows-latest
-          path: dist/electron/windows
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: "build-${{ github.sha }}"
-          name: "googleballs-desktop-app Build from Commit ${{ github.sha }}"
-          body: |
-            This release was built from commit `${{ github.sha }}`.
-            View the changes here: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
