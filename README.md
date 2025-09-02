@@ -18,6 +18,7 @@ go into ``electron`` run npm install and then you can do whatever you want it it
 go into ``tauri`` and then ``npm install`` and then run ``npm run tauri build`` to build it or run ``cargo run --release
 `` inside of ``src-tauri`` to run it!!!!!
 
-# how 2 comple native
+# how 2 compile native
 go inside of ``native`` and if ur on windows you have to install msys and install sdl2. for linux just install sdl2. on either os run .sh/.bat respectively.
+
 
