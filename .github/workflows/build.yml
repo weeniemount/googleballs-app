@@ -54,7 +54,7 @@ jobs:
           7z x SDL2.zip
           # Copy headers and libs to MinGW directories
           mkdir C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2
-          xcopy /E /I /Y SDL2-2.28.5\x86_64-w64-mingw32\include\SDL2 C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2\
+          xcopy /E /I /Y SDL2-2.28.5\x86_64-w64-mingw32\include\SDL2\* C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2\
           copy SDL2-2.28.5\x86_64-w64-mingw32\lib\*.a C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\
           # Also copy SDL2.dll to the build directory
           copy SDL2-2.28.5\x86_64-w64-mingw32\bin\SDL2.dll native\
