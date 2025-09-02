@@ -25,7 +25,6 @@
   "build": {
 		"appId": "com.weenie.googleballsdesktop",
 		"productName": "Google Balls Desktop",
-    "afterPack": "src/removeUnneededFiles.js",
 		"directories": {
 			"output": "dist"
 		},
