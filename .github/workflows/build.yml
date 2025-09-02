@@ -12,27 +12,56 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest]
+        platform: [windows-latest, ubuntu-latest, fedora-latest]
+        include:
+          - platform: fedora-latest
+            container: 'fedora:latest'
         
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform == 'fedora-latest' && 'ubuntu-latest' || matrix.platform }}
+    container: ${{ matrix.container }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install SDL2 (Linux)
+      - name: Install SDL2 (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev g++ build-essential
+          # Build static SDL2 from source
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
+          tar xzf SDL2-2.28.5.tar.gz
+          cd SDL2-2.28.5
+          ./configure --prefix=/usr/local --enable-static --disable-shared
+          make -j$(nproc)
+          sudo make install
+          
+      - name: Install SDL2 (Fedora)
+        if: matrix.platform == 'fedora-latest'
+        run: |
+          dnf install -y gcc-c++ make wget tar
+          # Build static SDL2 from source
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
+          tar xzf SDL2-2.28.5.tar.gz
+          cd SDL2-2.28.5
+          ./configure --prefix=/usr/local --enable-static --disable-shared
+          make -j$(nproc)
+          make install
           
       - name: Install MinGW (Windows)
         if: matrix.platform == 'windows-latest'
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
+        run: |
+          choco install mingw --version=8.1.0 -y
           
-      - name: Build Native App (Linux)
+      - name: Build Native App (Linux - Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native
+          chmod +x compile.sh
+          ./compile.sh
+          
+      - name: Build Native App (Linux - Fedora)
+        if: matrix.platform == 'fedora-latest'
         run: |
           cd native
           chmod +x compile.sh
@@ -40,8 +69,10 @@ jobs:
           
       - name: Build Native App (Windows)
         if: matrix.platform == 'windows-latest'
+        shell: cmd
         run: |
           cd native
+          set PATH=C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;%PATH%
           compile.bat
           
       - name: Upload Native Artifacts
