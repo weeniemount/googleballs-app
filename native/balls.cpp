@@ -5,17 +5,17 @@
 #include <algorithm>
 
 struct Vector3 {
-    float x, y, z;
+    double x, y, z;
     
-    Vector3(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
+    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
     
-    void set(float newX, float newY, float newZ = 0) {
+    void set(double newX, double newY, double newZ = 0) {
         x = newX; y = newY; z = newZ;
     }
     
-    void addX(float dx) { x += dx; }
-    void addY(float dy) { y += dy; }
-    void addZ(float dz) { z += dz; }
+    void addX(double dx) { x += dx; }
+    void addY(double dy) { y += dy; }
+    void addZ(double dz) { z += dz; }
 };
 
 struct Color {
@@ -38,11 +38,11 @@ class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    float radius, size;
-    float friction = 0.8f;
-    float springStrength = 0.1f;
+    double radius, size;
+    double friction = 0.8;
+    double springStrength = 0.1;
     
-    Point(float x, float y, float z, float size, const std::string& colorHex)
+    Point(double x, double y, double z, double size, const std::string& colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
           velocity(0, 0, 0), size(size), radius(size) {
         color = Color::fromHex(colorHex);
@@ -50,31 +50,52 @@ public:
     
     void update() {
         // X axis spring physics
-        float dx = targetPos.x - curPos.x;
-        float ax = dx * springStrength;
+        double dx = targetPos.x - curPos.x;
+        double ax = dx * springStrength;
         velocity.x += ax;
         velocity.x *= friction;
-        curPos.x += velocity.x;
+        
+        // Stop small oscillations
+        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+            curPos.x = targetPos.x;
+            velocity.x = 0;
+        } else {
+            curPos.x += velocity.x;
+        }
         
         // Y axis spring physics
-        float dy = targetPos.y - curPos.y;
-        float ay = dy * springStrength;
+        double dy = targetPos.y - curPos.y;
+        double ay = dy * springStrength;
         velocity.y += ay;
         velocity.y *= friction;
-        curPos.y += velocity.y;
+        
+        // Stop small oscillations
+        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+            curPos.y = targetPos.y;
+            velocity.y = 0;
+        } else {
+            curPos.y += velocity.y;
+        }
         
         // Z axis (depth) based on distance from original position
-        float dox = originalPos.x - curPos.x;
-        float doy = originalPos.y - curPos.y;
-        float dd = (dox * dox) + (doy * doy);
-        float d = std::sqrt(dd);
+        double dox = originalPos.x - curPos.x;
+        double doy = originalPos.y - curPos.y;
+        double dd = (dox * dox) + (doy * doy);
+        double d = std::sqrt(dd);
         
-        targetPos.z = d / 100.0f + 1.0f;
-        float dz = targetPos.z - curPos.z;
-        float az = dz * springStrength;
+        targetPos.z = d / 100.0 + 1.0;
+        double dz = targetPos.z - curPos.z;
+        double az = dz * springStrength;
         velocity.z += az;
         velocity.z *= friction;
-        curPos.z += velocity.z;
+        
+        // Stop small Z oscillations
+        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+            curPos.z = targetPos.z;
+            velocity.z = 0;
+        } else {
+            curPos.z += velocity.z;
+        }
         
         // Update radius based on depth
         radius = size * curPos.z;
@@ -87,27 +108,27 @@ public:
         // Anti-aliased filled circle using multiple samples
         int x0 = static_cast<int>(curPos.x);
         int y0 = static_cast<int>(curPos.y);
-        float r = radius;
+        double r = radius;
         
         // Use subpixel sampling for anti-aliasing
         for (int x = static_cast<int>(-r - 1); x <= static_cast<int>(r + 1); x++) {
             for (int y = static_cast<int>(-r - 1); y <= static_cast<int>(r + 1); y++) {
-                float coverage = 0.0f;
+                double coverage = 0.0;
                 const int samples = 4; // 4x4 subpixel sampling
                 
                 for (int sx = 0; sx < samples; sx++) {
                     for (int sy = 0; sy < samples; sy++) {
-                        float px = x + (sx + 0.5f) / samples - 0.5f;
-                        float py = y + (sy + 0.5f) / samples - 0.5f;
-                        float dist = std::sqrt(px * px + py * py);
+                        double px = x + (sx + 0.5) / samples - 0.5;
+                        double py = y + (sy + 0.5) / samples - 0.5;
+                        double dist = std::sqrt(px * px + py * py);
                         
                         if (dist <= r) {
-                            coverage += 1.0f / (samples * samples);
+                            coverage += 1.0 / (samples * samples);
                         }
                     }
                 }
                 
-                if (coverage > 0.0f) {
+                if (coverage > 0.0) {
                     Uint8 alpha = static_cast<Uint8>(coverage * color.a);
                     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
                     SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
@@ -124,18 +145,19 @@ public:
     
     PointCollection() : mousePos(0, 0, 0) {}
     
-    void addPoint(float x, float y, float z, float size, const std::string& color) {
+    void addPoint(double x, double y, double z, double size, const std::string& color) {
         points.emplace_back(x, y, z, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            float dx = mousePos.x - point.curPos.x;
-            float dy = mousePos.y - point.curPos.y;
-            float dd = (dx * dx) + (dy * dy);
-            float d = std::sqrt(dd);
+            double dx = mousePos.x - point.curPos.x;
+            double dy = mousePos.y - point.curPos.y;
+            double dd = (dx * dx) + (dy * dy);
+            double d = std::sqrt(dd);
             
             if (d < 150) {
+                // Fixed: Match JavaScript logic exactly
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -231,9 +253,9 @@ public:
         
         // Center the points
         for (const auto& data : pointData) {
-            float x = (windowWidth/2 - 180) + data.x;
-            float y = (windowHeight/2 - 65) + data.y;
-            pointCollection.addPoint(x, y, 0.0f, static_cast<float>(data.size), data.color);
+            double x = (windowWidth/2 - 180) + data.x;
+            double y = (windowHeight/2 - 65) + data.y;
+            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
         }
     }
     
@@ -253,8 +275,8 @@ public:
                         windowHeight = e.window.data2;
                         // Recenter points on resize
                         for (auto& point : pointCollection.points) {
-                            float relX = point.originalPos.x - (windowWidth/2 - 180);
-                            float relY = point.originalPos.y - (windowHeight/2 - 65);
+                            double relX = point.originalPos.x - (windowWidth/2 - 180);
+                            double relY = point.originalPos.y - (windowHeight/2 - 65);
                             point.originalPos.x = (windowWidth/2 - 180) + relX;
                             point.originalPos.y = (windowHeight/2 - 65) + relY;
                             point.curPos.x = point.originalPos.x;
@@ -280,8 +302,7 @@ public:
     }
     
     void run() {
-        const int FPS = 40;  // Set to 24 fps as requested
-        const int frameDelay = 1000 / FPS;
+        const int frameDelay = 30;  // Match JavaScript exactly (30ms timeout)
         
         Uint32 frameStart;
         int frameTime;
