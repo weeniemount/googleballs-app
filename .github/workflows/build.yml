@@ -31,8 +31,17 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-6.0-dev libappindicator3-dev librsvg2-dev patchelf
-          sudo apt-get install -y webkit2gtk-4.0 build-essential curl wget file libssl-dev libgtk-3-dev
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-6.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
       
       - name: Install Dependencies (Tauri)
         run: |
@@ -58,6 +67,8 @@ jobs:
         platform: [windows-latest, ubuntu-latest]
         
     runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
     
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +77,14 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+          
+      - name: Setup GitHub token
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "GH_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
           
       - name: Install Dependencies (Electron)
         run: |
