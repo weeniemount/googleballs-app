@@ -337,7 +337,6 @@ public:
     }
 };
 
-#undef main  // Fix SDL2 main redefinition on Windows
 int main(int argc, char* args[]) {
     App app;
     
