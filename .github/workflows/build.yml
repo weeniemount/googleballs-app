@@ -1,10 +1,25 @@
 name: Build Apps
 
+permissions:
+  contents: write
+
+# NOTE: path-ignore will be needed to be manually updated
+# when a new file that isnt required is added
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - .github/**
+      - .gitignore
+      - **/*.md
+      - **/*.MD
   pull_request:
     branches: [ "master" ]
+    paths-ignore:
+      - .github/**
+      - .gitignore
+      - **/*.md
+      - **/*.MD
   workflow_dispatch:
 
 jobs:
@@ -13,12 +28,12 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, ubuntu-latest]
-        
+
     runs-on: ${{ matrix.platform }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install SDL2 and X11 Dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -44,7 +59,7 @@ jobs:
           ./configure --prefix=/usr/local --enable-static --disable-shared
           make -j$(nproc)
           sudo make install
-          
+
       - name: Setup MSYS2 and Dependencies (Windows)
         if: matrix.platform == 'windows-latest'
         uses: msys2/setup-msys2@v2
@@ -55,21 +70,21 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-SDL2
             make
-          
+
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           cd native
           chmod +x compile.sh
           ./compile.sh
-          
+
       - name: Build Native App (Windows)
         if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
           cd native
           ./compile.bat
-          
+
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -77,6 +92,55 @@ jobs:
           path: |
             native/googleballs-desktop*
             native/*.exe
+  build-native-gtk:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GTK3 Dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev make
+
+      - name: Setup MSYS2 and GTK3 (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gtk3
+            make
+
+      - name: Build GTK App (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native-gtk
+          make
+
+      - name: Build GTK App (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native-gtk
+          make CC=x86_64-w64-mingw32-gcc PKG_CONFIG=/mingw64/bin/pkg-config
+
+      - name: Upload GTK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gtk-${{ matrix.platform }}
+          path: |
+            native-gtk/build/
+
   build-tauri:
     strategy:
       fail-fast: false
@@ -84,18 +148,18 @@ jobs:
         platform: [windows-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.platform }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          
+
       - name: Install Rust (Stable)
         uses: dtolnay/rust-toolchain@stable
-        
+
       - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -110,38 +174,38 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
-      
+
       - name: Install Dependencies (Tauri)
         run: |
           cd tauri
           npm install
-          
+
       - name: Build Tauri App
         run: |
           cd tauri
           npm run tauri build
-          
+
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
           path: |
             tauri/src-tauri/target/release/bundle/
-            
+
   build-electron:
     strategy:
       fail-fast: false
       matrix:
         platform: [windows-latest, ubuntu-latest]
-    
+
     runs-on: ${{ matrix.platform }}
     container: ${{ matrix.platform == 'ubuntu-latest' && 'rockylinux:9' || '' }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Linux Dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -149,10 +213,10 @@ jobs:
           dnf install -y epel-release
           dnf groupinstall -y "Development Tools"
           dnf config-manager --set-enabled crb
-          
+
           # Install Node.js 20 and basic build requirements
           dnf install -y nodejs npm gcc-c++ make python3
-          
+
           # Install RPM build requirements
           dnf install -y libxcrypt-compat dpkg fakeroot rpmdevtools rpmlint rpm-build fedora-packager ruby rubygems xz p7zip unzip python3 squashfs-tools
 
@@ -161,11 +225,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Install npm Dependencies
         working-directory: electron
         run: npm install
-          
+
       - name: Build RPM Package (Linux)
         if: matrix.platform == 'ubuntu-latest'
         working-directory: electron
@@ -175,9 +239,85 @@ jobs:
         if: matrix.platform == 'windows-latest'
         working-directory: electron
         run: npm run dist
-          
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-desktop-${{ matrix.platform }}
           path: electron/dist/
+
+  # Uses the hash of the commit that triggered it for the name
+  # cuz im lazy to do anything else, ill update it later
+  # trust:tm:
+  release:
+    needs: [build-native, build-native-gtk, build-tauri, build-electron]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history for tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Native (Ubuntu)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-ubuntu-latest
+          path: dist/native/ubuntu
+
+      - name: Download Native (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-windows-latest
+          path: dist/native/windows
+
+      - name: Download Native-GTK (Ubuntu)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-gtk-ubuntu-latest
+          path: dist/native-gtk/ubuntu
+
+      - name: Download Native-GTK (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-gtk-windows-latest
+          path: dist/native-gtk/windows
+
+      - name: Download Tauri (Ubuntu)
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-ubuntu-latest
+          path: dist/tauri/ubuntu
+
+      - name: Download Tauri (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-windows-latest
+          path: dist/tauri/windows
+
+      - name: Download Electron (Ubuntu)
+        uses: actions/download-artifact@v4
+        with:
+          name: googleballs-desktop-ubuntu-latest
+          path: dist/electron/ubuntu
+
+      - name: Download Electron (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: googleballs-desktop-windows-latest
+          path: dist/electron/windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "build-${{ github.sha }}"
+          name: "googleballs-desktop-app Build from Commit ${{ github.sha }}"
+          body: |
+            This release was built from commit `${{ github.sha }}`.
+            View the changes here: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
