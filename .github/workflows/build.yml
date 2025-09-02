@@ -8,6 +8,49 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+        
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install SDL2 (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev g++ build-essential
+          
+      - name: Install MinGW (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+          
+      - name: Build Native App (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native
+          chmod +x compile.sh
+          ./compile.sh
+          
+      - name: Build Native App (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cd native
+          compile.bat
+          
+      - name: Upload Native Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: |
+            native/googleballs-desktop*
+            native/*.exe
   build-tauri:
     strategy:
       fail-fast: false
