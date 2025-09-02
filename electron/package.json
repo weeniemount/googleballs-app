@@ -16,7 +16,10 @@
     "type": "git",
     "url": "git+https://github.com/weeniemount/googleballs-desktop-app.git"
   },
-  "author": "weenie",
+  "author": {
+    "name": "weenie",
+    "email": "weeniemount@garymail.org"
+  },
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/weeniemount/googleballs-desktop-app/issues"
