@@ -154,7 +154,7 @@ jobs:
           dnf install -y nodejs npm gcc-c++ make python3
           
           # Install RPM build requirements
-          dnf install -y rpm-build rpmdevtools
+          dnf install -y libxcrypt-compat rpmbuild dpkg fakeroot rpmdevtools rpmlint rpm-build fedora-packager ruby rubygems xz p7zip unzip python3 squashfs-tools
 
       - name: Set up Node.js (Windows)
         if: matrix.platform == 'windows-latest'
