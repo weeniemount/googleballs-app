@@ -12,13 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest, fedora-latest]
-        include:
-          - platform: fedora-latest
-            container: 'fedora:latest'
+        platform: [windows-latest, ubuntu-latest]
         
-    runs-on: ${{ matrix.platform == 'fedora-latest' && 'ubuntu-latest' || matrix.platform }}
-    container: ${{ matrix.container }}
+    runs-on: ${{ matrix.platform }}
     
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +23,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl2-dev g++ build-essential
-          # Build static SDL2 from source
+          sudo apt-get install -y build-essential
           wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
           tar xzf SDL2-2.28.5.tar.gz
           cd SDL2-2.28.5
@@ -36,32 +31,19 @@ jobs:
           make -j$(nproc)
           sudo make install
           
-      - name: Install SDL2 (Fedora)
-        if: matrix.platform == 'fedora-latest'
-        run: |
-          dnf install -y gcc-c++ make wget tar
-          # Build static SDL2 from source
-          wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
-          tar xzf SDL2-2.28.5.tar.gz
-          cd SDL2-2.28.5
-          ./configure --prefix=/usr/local --enable-static --disable-shared
-          make -j$(nproc)
-          make install
-          
-      - name: Install MinGW (Windows)
+      - name: Setup MinGW and SDL2 (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
           choco install mingw --version=8.1.0 -y
+          # Download and extract SDL2 development files for MinGW
+          curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-mingw.zip -o SDL2.zip
+          7z x SDL2.zip
+          # Copy headers and libs to MinGW directories
+          xcopy /E /I /Y SDL2-2.28.5\x86_64-w64-mingw32\include\SDL2 C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2
+          copy SDL2-2.28.5\x86_64-w64-mingw32\lib\*.a C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\
           
-      - name: Build Native App (Linux - Ubuntu)
+      - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
-        run: |
-          cd native
-          chmod +x compile.sh
-          ./compile.sh
-          
-      - name: Build Native App (Linux - Fedora)
-        if: matrix.platform == 'fedora-latest'
         run: |
           cd native
           chmod +x compile.sh
