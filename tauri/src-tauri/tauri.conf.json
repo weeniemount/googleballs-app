@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "googleballs-desktop",
+        "title": "Google Balls Desktop",
         "width": 800,
         "height": 600
       }
