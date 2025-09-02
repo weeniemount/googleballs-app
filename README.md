@@ -1,5 +1,7 @@
 # google balls desktop app!!!
 
+<img src="balls.png" alt="google balls" width="200"/>
+
 google balls!! that one doodle from 2010! yeah its a desktop app
 
 # how 2 compile electron
