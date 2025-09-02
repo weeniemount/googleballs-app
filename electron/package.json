@@ -35,14 +35,12 @@
       "**/*"
     ],
 		"win": {
-      "publish": "never",
 			"target": [
 				"nsis"
       ],
 			"icon": "src/icons/balls.ico"
 		},
 		"linux": {
-      "publish": "never",
 			"target": [
 				"AppImage",
 				"deb"
