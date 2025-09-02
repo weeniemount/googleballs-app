@@ -5,6 +5,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   build-tauri:
@@ -43,7 +44,7 @@ jobs:
           npm run tauri build
           
       - name: Upload Tauri Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
           path: |
@@ -76,7 +77,7 @@ jobs:
           npm run make
           
       - name: Upload Electron Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: electron-${{ matrix.platform }}
           path: electron/out/make/
