@@ -169,7 +169,7 @@ jobs:
           
           # Install development tools and RPM build requirements
           yum groupinstall -y "Development Tools"
-          yum install -y rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel
+          yum install -y rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel --skip-broken
           
           # Install newer version of Ruby and FPM
           wget https://cache.ruby-lang.org/pub/ruby/2.7/ruby-2.7.8.tar.gz
