@@ -138,7 +138,7 @@ jobs:
     permissions:
       contents: write
     
-    container: ${{ matrix.platform == 'ubuntu-latest' && 'fedora:latest' || '' }}
+    container: ${{ matrix.platform == 'ubuntu-latest' && 'centos:7' || '' }}
     
     steps:
       - uses: actions/checkout@v4
@@ -151,8 +151,32 @@ jobs:
       - name: Install Linux Dependencies for Electron Build
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          dnf install -y node npm libxcrypt-compat rpmbuild dpkg fakeroot rpmdevtools rpmlint rpm-build fedora-packager ruby rubygems xz p7zip unzip python3 squashfs-tools
-          gem install fpm
+          # Enable EPEL repository for additional packages
+          yum install -y epel-release
+          
+          # Install development tools and RPM build requirements
+          yum groupinstall -y "Development Tools"
+          yum install -y rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel
+          
+          # Install newer version of Ruby and FPM
+          wget https://cache.ruby-lang.org/pub/ruby/2.7/ruby-2.7.8.tar.gz
+          tar xzf ruby-2.7.8.tar.gz
+          cd ruby-2.7.8
+          ./configure
+          make -j$(nproc)
+          make install
+          
+          # Update GEM paths
+          export PATH="/usr/local/bin:$PATH"
+          export GEM_HOME="/usr/local/gems"
+          export PATH="$GEM_HOME/bin:$PATH"
+          
+          # Install FPM
+          gem install fpm -v 1.15.1
+          
+          # Create RPM build directory structure
+          rpmdev-setuptree
+          
           export USE_SYSTEM_FPM=true
           
       - name: Setup GitHub token
