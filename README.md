@@ -11,6 +11,9 @@ google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
+# how 2 download:
+click that actions tab, pick the latest build action and download the artifact u need
+
 # how 2 compile electron
 go into ``electron`` run npm install and then you can do whatever you want it it like run it from source with ``npm start`` or build it with ``npm dist``
 
