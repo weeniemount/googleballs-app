@@ -138,19 +138,32 @@ jobs:
     permissions:
       contents: write
     
-    container: ${{ matrix.platform == 'ubuntu-latest' && 'centos:7' || '' }}
+    container: ${{ matrix.platform == 'ubuntu-latest' && 'rockylinux:9' || '' }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
       - name: Install Linux Dependencies for Electron Build
         if: matrix.platform == 'ubuntu-latest'
         run: |
+          # Install EPEL and development tools
+          dnf install -y epel-release
+          dnf groupinstall -y "Development Tools"
+          dnf config-manager --set-enabled crb
+          
+          # Install Node.js 20
+          dnf install -y nodejs npm gcc-c++ make python3
+          
+          # Install RPM build requirements and other dependencies
+          dnf install -y rpm-build rpmdevtools ruby-devel gcc make wget gtk3-devel libnotify-devel nss-devel libXScrnSaver-devel libXtst-devel xdg-utils at-spi2-core libuuid-devel rubygems ruby-devel gcc zlib-devel curl
+          
+          # Install FPM
+          gem install fpm -v 1.15.1
+          
+          # Create RPM build directory structure
+          rpmdev-setuptree
+          
+          export USE_SYSTEM_FPM=true
           # Enable EPEL repository for additional packages
           yum install -y epel-release
           
