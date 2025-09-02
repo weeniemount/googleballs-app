@@ -3,23 +3,11 @@ name: Build Apps
 permissions:
   contents: write
 
-# NOTE: path-ignore will be needed to be manually updated
-# when a new file that isnt required is added
 on:
   push:
     branches: [ "master" ]
-    paths-ignore:
-      - .github/**
-      - .gitignore
-      - **/*.md
-      - **/*.MD
   pull_request:
     branches: [ "master" ]
-    paths-ignore:
-      - .github/**
-      - .gitignore
-      - **/*.md
-      - **/*.MD
   workflow_dispatch:
 
 jobs:
