@@ -1,2 +1,29 @@
 /*/dist
 /*/node_modules
+/*/dist-ssr
+/*/*.local
+
+# Logs
+tauri/logs
+*.log
+tauri/npm-debug.log*
+tauri/yarn-debug.log*
+tauri/yarn-error.log*
+tauri/pnpm-debug.log*
+tauri/lerna-debug.log*
+
+tauri/node_modules
+tauri/dist
+tauri/dist-ssr
+tauri/*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
