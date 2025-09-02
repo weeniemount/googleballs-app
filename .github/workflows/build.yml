@@ -306,12 +306,18 @@ jobs:
           cp /mingw64/bin/libjasper-7.dll . 2>/dev/null || echo "libjasper-7.dll not found"
           cp /mingw64/bin/libwebp-7.dll . 2>/dev/null || echo "libwebp-7.dll not found"
           
-          # other stuff
-          cp /mingw64/bin/libjbig-0.dll . 2>/dev/null || echo "libjbig-0.dll not found"
-          cp /mingw64/bin/libdeflate.dll . 2>/dev/null || echo "libdeflate.dll not found"
-          cp /mingw64/bin/libLerc.dll . 2>/dev/null || echo "libLerc.dll not found"
-          cp /mingw64/bin/libzstd.dll . 2>/dev/null || echo "libzstd.dll not found"
+          # Copy GTK3 themes and icons for proper appearance
+          mkdir -p share/themes
+          mkdir -p share/icons
+          mkdir -p lib/gdk-pixbuf-2.0
+          mkdir -p etc/gtk-3.0
           
+          # Copy default theme
+          cp -r /mingw64/share/themes/Default share/themes/ 2>/dev/null || echo "Default theme not copied"
+          cp -r /mingw64/share/themes/Windows10 share/themes/ 2>/dev/null || echo "Windows10 theme not copied"
+          
+          # Copy Adwaita icons
+          cp -r /mingw64/share/icons/Adwaita share/icons/ 2>/dev/null || echo "Adwaita icons not copied"
           
           # Copy pixbuf loaders
           cp -r /mingw64/lib/gdk-pixbuf-2.0/* lib/gdk-pixbuf-2.0/ 2>/dev/null || echo "GDK pixbuf loaders not copied"
@@ -326,17 +332,51 @@ jobs:
           EOF
           
           # Create a batch file for easy launching
-          cat > launch.bat << 'EOF'
+          cat > launch.bat << EOF
           @echo off
           set GTK_DATA_PREFIX=%~dp0
           set GTK_EXE_PREFIX=%~dp0
           set GTK_PATH=%~dp0
-          set GDK_PIXBUF_MODULE_FILE=%~dp0lib\gdk-pixbuf-2.0\2.10.0\loaders.cache
-          set GDK_PIXBUF_MODULEDIR=%~dp0lib\gdk-pixbuf-2.0\2.10.0\loaders
+          set GDK_PIXBUF_MODULE_FILE=%~dp0lib\\gdk-pixbuf-2.0\\2.10.0\\loaders.cache
+          set GDK_PIXBUF_MODULEDIR=%~dp0lib\\gdk-pixbuf-2.0\\2.10.0\\loaders
           set XDG_DATA_DIRS=%~dp0share
           start "" "%~dp0$EXECUTABLE_NAME"
           EOF
-                    
+          
+          # Create a README for users
+          cat > README.txt << EOF
+          GTK3 Application Bundle for Windows
+          ==================================
+          
+          This package contains a self-contained GTK3 application for Windows.
+          
+          To run the application:
+          1. Extract all files to a directory
+          2. Double-click: launch.bat
+          
+          Or alternatively, double-click directly on: $EXECUTABLE_NAME
+          
+          All required GTK3 libraries and themes are included.
+          The application should run without installing GTK3 separately.
+          EOF
+          
+          # Create a README for users
+          cat > README.txt << EOF
+          GTK3 Application Bundle for Windows
+          ==================================
+          
+          This package contains a self-contained GTK3 application for Windows.
+          
+          To run the application:
+          1. Extract all files to a directory
+          2. Double-click: launch.bat
+          
+          Or alternatively, double-click directly on: $EXECUTABLE_NAME
+          
+          All required GTK3 libraries and themes are included.
+          The application should run without installing GTK3 separately.
+          EOF
+          
           echo "Windows GTK3 libraries bundled successfully"
           echo "Bundled DLLs:"
           ls -la *.dll | head -20
