@@ -68,7 +68,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cd native
-          ./compile.sh
+          ./compile.bat
           
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
