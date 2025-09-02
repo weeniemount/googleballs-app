@@ -88,6 +88,7 @@ jobs:
           path: |
             native/googleballs-desktop*
             native/*.exe
+
   build-native-gtk:
     strategy:
       fail-fast: false
@@ -115,6 +116,7 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-ntldd
             make
 
       - name: Build GTK App (Linux)
@@ -130,12 +132,262 @@ jobs:
           cd native-gtk
           make CC=x86_64-w64-mingw32-gcc PKG_CONFIG=/mingw64/bin/pkg-config
 
+      - name: Bundle GTK Libraries (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native-gtk/build
+          
+          # Create libs directory
+          mkdir -p libs
+          
+          # Get the executable name (adjust pattern as needed for your executable)
+          EXECUTABLE=$(find . -maxdepth 1 -type f -executable ! -name "*.sh" ! -name "launch.sh" | head -1)
+          EXECUTABLE_NAME=$(basename "$EXECUTABLE")
+          
+          echo "Bundling libraries for executable: $EXECUTABLE_NAME"
+          
+          # Function to copy library and its dependencies
+          copy_lib_deps() {
+            local pattern="$1"
+            ldd "$EXECUTABLE" | grep "$pattern" | while read line; do
+              lib_path=$(echo "$line" | awk '{print $3}')
+              if [ -n "$lib_path" ] && [ -f "$lib_path" ] && [ ! -f "libs/$(basename "$lib_path")" ]; then
+                cp "$lib_path" libs/
+                echo "Copied: $(basename "$lib_path")"
+              fi
+            done
+          }
+          
+          # Copy GTK3 and related libraries
+          copy_lib_deps "libgtk-3"
+          copy_lib_deps "libgdk-3"
+          copy_lib_deps "libgio-2"
+          copy_lib_deps "libglib-2"
+          copy_lib_deps "libgobject-2"
+          copy_lib_deps "libgmodule-2"
+          copy_lib_deps "libgthread-2"
+          copy_lib_deps "libcairo"
+          copy_lib_deps "libpango"
+          copy_lib_deps "libatk-1"
+          copy_lib_deps "libgdk_pixbuf"
+          copy_lib_deps "libfontconfig"
+          copy_lib_deps "libfreetype"
+          copy_lib_deps "libharfbuzz"
+          copy_lib_deps "libffi"
+          copy_lib_deps "libpcre"
+          copy_lib_deps "libmount"
+          copy_lib_deps "libblkid"
+          copy_lib_deps "libuuid"
+          copy_lib_deps "libselinux"
+          copy_lib_deps "libexpat"
+          copy_lib_deps "libpng"
+          copy_lib_deps "libz"
+          copy_lib_deps "libintl"
+          copy_lib_deps "libiconv"
+          copy_lib_deps "libfribidi"
+          copy_lib_deps "libpixman"
+          copy_lib_deps "libthai"
+          copy_lib_deps "libdatrie"
+          copy_lib_deps "libbrotli"
+          copy_lib_deps "libbz2"
+          
+          # Copy any additional system libraries that might be needed
+          copy_lib_deps "libX11"
+          copy_lib_deps "libXext"
+          copy_lib_deps "libXrender"
+          copy_lib_deps "libXi"
+          copy_lib_deps "libXfixes"
+          copy_lib_deps "libXcursor"
+          copy_lib_deps "libXdamage"
+          copy_lib_deps "libXcomposite"
+          copy_lib_deps "libXrandr"
+          copy_lib_deps "libXinerama"
+          
+          # Create a launch script that sets LD_LIBRARY_PATH
+          cat > launch.sh << EOF
+          #!/bin/bash
+          SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+          export LD_LIBRARY_PATH="\$SCRIPT_DIR/libs:\$LD_LIBRARY_PATH"
+          exec "\$SCRIPT_DIR/$EXECUTABLE_NAME" "\$@"
+          EOF
+          chmod +x launch.sh
+          
+          # Create a README for users
+          cat > README.txt << EOF
+          GTK3 Application Bundle
+          ======================
+          
+          This package contains a self-contained GTK3 application.
+          
+          To run the application:
+          1. Extract all files to a directory
+          2. Run: ./launch.sh
+          
+          Or alternatively, set LD_LIBRARY_PATH manually:
+          export LD_LIBRARY_PATH=./libs:\$LD_LIBRARY_PATH
+          ./$EXECUTABLE_NAME
+          
+          All required GTK3 libraries are included in the libs/ directory.
+          EOF
+          
+          echo "Linux GTK3 libraries bundled successfully"
+          echo "Bundled libraries:"
+          ls -la libs/
+
+      - name: Bundle GTK Libraries (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native-gtk/build
+          
+          # Get the executable name
+          EXECUTABLE=$(ls *.exe | head -1)
+          EXECUTABLE_NAME="$EXECUTABLE"
+          
+          echo "Bundling libraries for executable: $EXECUTABLE_NAME"
+          
+          # Core GTK3 libraries
+          cp /mingw64/bin/libgtk-3-0.dll . 2>/dev/null || echo "libgtk-3-0.dll not found"
+          cp /mingw64/bin/libgdk-3-0.dll . 2>/dev/null || echo "libgdk-3-0.dll not found"
+          cp /mingw64/bin/libgio-2.0-0.dll . 2>/dev/null || echo "libgio-2.0-0.dll not found"
+          cp /mingw64/bin/libglib-2.0-0.dll . 2>/dev/null || echo "libglib-2.0-0.dll not found"
+          cp /mingw64/bin/libgobject-2.0-0.dll . 2>/dev/null || echo "libgobject-2.0-0.dll not found"
+          cp /mingw64/bin/libgmodule-2.0-0.dll . 2>/dev/null || echo "libgmodule-2.0-0.dll not found"
+          
+          # Cairo and Pango
+          cp /mingw64/bin/libcairo-2.dll . 2>/dev/null || echo "libcairo-2.dll not found"
+          cp /mingw64/bin/libcairo-gobject-2.dll . 2>/dev/null || echo "libcairo-gobject-2.dll not found"
+          cp /mingw64/bin/libpango-1.0-0.dll . 2>/dev/null || echo "libpango-1.0-0.dll not found"
+          cp /mingw64/bin/libpangocairo-1.0-0.dll . 2>/dev/null || echo "libpangocairo-1.0-0.dll not found"
+          cp /mingw64/bin/libpangowin32-1.0-0.dll . 2>/dev/null || echo "libpangowin32-1.0-0.dll not found"
+          cp /mingw64/bin/libpangoft2-1.0-0.dll . 2>/dev/null || echo "libpangoft2-1.0-0.dll not found"
+          
+          # ATK and GDK Pixbuf
+          cp /mingw64/bin/libatk-1.0-0.dll . 2>/dev/null || echo "libatk-1.0-0.dll not found"
+          cp /mingw64/bin/libgdk_pixbuf-2.0-0.dll . 2>/dev/null || echo "libgdk_pixbuf-2.0-0.dll not found"
+          
+          # Font and text rendering
+          cp /mingw64/bin/libfontconfig-1.dll . 2>/dev/null || echo "libfontconfig-1.dll not found"
+          cp /mingw64/bin/libfreetype-6.dll . 2>/dev/null || echo "libfreetype-6.dll not found"
+          cp /mingw64/bin/libharfbuzz-0.dll . 2>/dev/null || echo "libharfbuzz-0.dll not found"
+          cp /mingw64/bin/libfribidi-0.dll . 2>/dev/null || echo "libfribidi-0.dll not found"
+          
+          # Core system libraries
+          cp /mingw64/bin/libffi-8.dll . 2>/dev/null || echo "libffi-8.dll not found"
+          cp /mingw64/bin/libpcre2-8-0.dll . 2>/dev/null || echo "libpcre2-8-0.dll not found"
+          cp /mingw64/bin/libintl-8.dll . 2>/dev/null || echo "libintl-8.dll not found"
+          cp /mingw64/bin/libiconv-2.dll . 2>/dev/null || echo "libiconv-2.dll not found"
+          
+          # Threading and runtime
+          cp /mingw64/bin/libwinpthread-1.dll . 2>/dev/null || echo "libwinpthread-1.dll not found"
+          cp /mingw64/bin/libgcc_s_seh-1.dll . 2>/dev/null || echo "libgcc_s_seh-1.dll not found"
+          cp /mingw64/bin/libstdc++-6.dll . 2>/dev/null || echo "libstdc++-6.dll not found"
+          
+          # Image and compression libraries
+          cp /mingw64/bin/libexpat-1.dll . 2>/dev/null || echo "libexpat-1.dll not found"
+          cp /mingw64/bin/libpng16-16.dll . 2>/dev/null || echo "libpng16-16.dll not found"
+          cp /mingw64/bin/zlib1.dll . 2>/dev/null || echo "zlib1.dll not found"
+          cp /mingw64/bin/libbz2-1.dll . 2>/dev/null || echo "libbz2-1.dll not found"
+          cp /mingw64/bin/libbrotlidec.dll . 2>/dev/null || echo "libbrotlidec.dll not found"
+          cp /mingw64/bin/libbrotlicommon.dll . 2>/dev/null || echo "libbrotlicommon.dll not found"
+          cp /mingw64/bin/libjpeg-8.dll . 2>/dev/null || echo "libjpeg-8.dll not found"
+          cp /mingw64/bin/libtiff-6.dll . 2>/dev/null || echo "libtiff-6.dll not found"
+          
+          # Text processing
+          cp /mingw64/bin/libdatrie-1.dll . 2>/dev/null || echo "libdatrie-1.dll not found"
+          cp /mingw64/bin/libthai-0.dll . 2>/dev/null || echo "libthai-0.dll not found"
+          cp /mingw64/bin/libpixman-1-0.dll . 2>/dev/null || echo "libpixman-1-0.dll not found"
+          
+          # Additional libraries that might be needed
+          cp /mingw64/bin/libepoxy-0.dll . 2>/dev/null || echo "libepoxy-0.dll not found"
+          cp /mingw64/bin/libgraphite2.dll . 2>/dev/null || echo "libgraphite2.dll not found"
+          cp /mingw64/bin/liblzma-5.dll . 2>/dev/null || echo "liblzma-5.dll not found"
+          cp /mingw64/bin/libxml2-2.dll . 2>/dev/null || echo "libxml2-2.dll not found"
+          cp /mingw64/bin/libjasper-7.dll . 2>/dev/null || echo "libjasper-7.dll not found"
+          cp /mingw64/bin/libwebp-7.dll . 2>/dev/null || echo "libwebp-7.dll not found"
+          
+          # Copy GTK3 themes and icons for proper appearance
+          mkdir -p share/themes
+          mkdir -p share/icons
+          mkdir -p lib/gdk-pixbuf-2.0
+          mkdir -p etc/gtk-3.0
+          
+          # Copy default theme
+          cp -r /mingw64/share/themes/Default share/themes/ 2>/dev/null || echo "Default theme not copied"
+          cp -r /mingw64/share/themes/Windows10 share/themes/ 2>/dev/null || echo "Windows10 theme not copied"
+          
+          # Copy Adwaita icons
+          cp -r /mingw64/share/icons/Adwaita share/icons/ 2>/dev/null || echo "Adwaita icons not copied"
+          
+          # Copy pixbuf loaders
+          cp -r /mingw64/lib/gdk-pixbuf-2.0/* lib/gdk-pixbuf-2.0/ 2>/dev/null || echo "GDK pixbuf loaders not copied"
+          
+          # Create a settings.ini for GTK
+          cat > etc/gtk-3.0/settings.ini << 'EOF'
+          [Settings]
+          gtk-theme-name=Default
+          gtk-icon-theme-name=Adwaita
+          gtk-font-name=Segoe UI 9
+          gtk-cursor-theme-name=Adwaita
+          EOF
+          
+          # Create a batch file for easy launching
+          cat > launch.bat << 'EOF'
+          @echo off
+          set GTK_DATA_PREFIX=%~dp0
+          set GTK_EXE_PREFIX=%~dp0
+          set GTK_PATH=%~dp0
+          set GDK_PIXBUF_MODULE_FILE=%~dp0lib\gdk-pixbuf-2.0\2.10.0\loaders.cache
+          set GDK_PIXBUF_MODULEDIR=%~dp0lib\gdk-pixbuf-2.0\2.10.0\loaders
+          set XDG_DATA_DIRS=%~dp0share
+          start "" "%~dp0$EXECUTABLE_NAME"
+          EOF
+          
+          # Create a README for users
+          cat > README.txt << EOF
+          GTK3 Application Bundle for Windows
+          ==================================
+          
+          This package contains a self-contained GTK3 application for Windows.
+          
+          To run the application:
+          1. Extract all files to a directory
+          2. Double-click: launch.bat
+          
+          Or alternatively, double-click directly on: $EXECUTABLE_NAME
+          
+          All required GTK3 libraries and themes are included.
+          The application should run without installing GTK3 separately.
+          EOF
+          
+          echo "Windows GTK3 libraries bundled successfully"
+          echo "Bundled DLLs:"
+          ls -la *.dll | head -20
+          echo "... and more"
+
+      - name: Create Distribution Archives
+        run: |
+          cd native-gtk/build
+          
+          # Create platform-specific archive names
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+            ARCHIVE_NAME="gtk-app-linux-x64"
+            tar -czf "../${ARCHIVE_NAME}.tar.gz" .
+            echo "Created: ${ARCHIVE_NAME}.tar.gz"
+          else
+            ARCHIVE_NAME="gtk-app-windows-x64"
+            # Use tar for consistency, but you could also use zip
+            tar -czf "../${ARCHIVE_NAME}.tar.gz" .
+            echo "Created: ${ARCHIVE_NAME}.tar.gz"
+          fi
+
       - name: Upload GTK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: native-gtk-${{ matrix.platform }}
           path: |
             native-gtk/build/
+            native-gtk/*.tar.gz
 
   build-tauri:
     strategy:
