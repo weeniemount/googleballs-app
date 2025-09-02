@@ -138,6 +138,8 @@ jobs:
     permissions:
       contents: write
     
+    container: ${{ matrix.platform == 'ubuntu-latest' && 'fedora:latest' || '' }}
+    
     steps:
       - uses: actions/checkout@v4
       
@@ -145,6 +147,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+
+      - name: Install Linux Dependencies for Electron Build
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          dnf install -y node npm libxcrypt-compat rpmbuild dpkg fakeroot rpmdevtools rpmlint rpm-build fedora-packager ruby rubygems xz p7zip unzip python3 squashfs-tools
+          gem install fpm
+          export USE_SYSTEM_FPM=true
           
       - name: Setup GitHub token
         if: matrix.platform == 'windows-latest'
