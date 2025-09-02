@@ -365,21 +365,22 @@ jobs:
           ls -la *.dll | head -20
           echo "... and more"
 
-      - name: Create Distribution Archives
+      - name: Create Distribution Archives (Linux)
+        if: matrix.platform == 'ubuntu-latest'
         run: |
           cd native-gtk/build
-          
-          # Create platform-specific archive names
-          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
-            ARCHIVE_NAME="gtk-app-linux-x64"
-            tar -czf "../${ARCHIVE_NAME}.tar.gz" .
-            echo "Created: ${ARCHIVE_NAME}.tar.gz"
-          else
-            ARCHIVE_NAME="gtk-app-windows-x64"
-            # Use tar for consistency, but you could also use zip
-            tar -czf "../${ARCHIVE_NAME}.tar.gz" .
-            echo "Created: ${ARCHIVE_NAME}.tar.gz"
-          fi
+          ARCHIVE_NAME="gtk-app-linux-x64"
+          tar -czf "../${ARCHIVE_NAME}.tar.gz" .
+          echo "Created: ${ARCHIVE_NAME}.tar.gz"
+
+      - name: Create Distribution Archives (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native-gtk/build
+          ARCHIVE_NAME="gtk-app-windows-x64"
+          tar -czf "../${ARCHIVE_NAME}.tar.gz" .
+          echo "Created: ${ARCHIVE_NAME}.tar.gz"
 
       - name: Upload GTK Artifacts
         uses: actions/upload-artifact@v4
