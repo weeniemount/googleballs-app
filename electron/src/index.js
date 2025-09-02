@@ -18,6 +18,7 @@ app.whenReady().then(() => {
         height: 600,
         title: "Google Balls Desktop",
         autoHideMenuBar: true,
+        useContentSize: true,
         icon: iconPath,
     });
     mainWindow.loadFile(path.join(__dirname, 'balls', 'index.html'));
