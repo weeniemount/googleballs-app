@@ -27,3 +27,5 @@ tauri/*.local
 *.njsproj
 *.sln
 *.sw?
+
+native/*.exe
