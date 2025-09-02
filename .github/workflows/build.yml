@@ -19,11 +19,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install SDL2 (Ubuntu)
+      - name: Install SDL2 and X11 Dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y build-essential \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libxxf86vm-dev \
+            libwayland-dev \
+            libwayland-client0 \
+            libwayland-cursor0 \
+            libwayland-egl1 \
+            libxkbcommon-dev \
+            wayland-protocols
           wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
           tar xzf SDL2-2.28.5.tar.gz
           cd SDL2-2.28.5
@@ -39,8 +53,11 @@ jobs:
           curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-mingw.zip -o SDL2.zip
           7z x SDL2.zip
           # Copy headers and libs to MinGW directories
-          xcopy /E /I /Y SDL2-2.28.5\x86_64-w64-mingw32\include\SDL2 C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2
+          mkdir C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2
+          xcopy /E /I /Y SDL2-2.28.5\x86_64-w64-mingw32\include\SDL2 C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\include\SDL2\
           copy SDL2-2.28.5\x86_64-w64-mingw32\lib\*.a C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\
+          # Also copy SDL2.dll to the build directory
+          copy SDL2-2.28.5\x86_64-w64-mingw32\bin\SDL2.dll native\
           
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
