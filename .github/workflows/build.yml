@@ -435,3 +435,46 @@ jobs:
         with:
           name: googleballs-desktop-${{ matrix.platform }}
           path: electron/dist/
+  create-release:
+    needs: [build-native, build-native-gtk, build-tauri, build-electron]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate SHA256 Hashes
+        run: |
+          cd artifacts
+          for file in *; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" >> SHA256SUMS.txt
+            fi
+          done
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/Google.Balls.Desktop-*
+            artifacts/googleballs-desktop*
+            artifacts/gtk-app-*
+            artifacts/SHA256SUMS.txt
+          body: |
+            ## Release v${{ github.run_number }}
+            
+            ### Checksums
+            ```
+            $(cat artifacts/SHA256SUMS.txt)
+            ```
