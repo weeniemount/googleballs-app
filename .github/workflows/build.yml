@@ -469,6 +469,9 @@ jobs:
           files: |
             artifacts/Google.Balls.Desktop-*
             artifacts/googleballs-desktop*
+            artifacts/Google Balls*
+            artifacts/*.msi
+            artifacts/Google*
             artifacts/gtk-app-*
             artifacts/SHA256SUMS.txt
           body: |
