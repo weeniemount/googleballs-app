@@ -447,6 +447,9 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: bye blockmap 👋
+        run: rm -f artifacts/*.blockmap
+
       - name: Generate SHA256 Hashes
         run: |
           cd artifacts
@@ -474,7 +477,6 @@ jobs:
             artifacts/Google*
             artifacts/gtk-app-*
             artifacts/SHA256SUMS.txt
-            !artifacts/*.blockmap
           body: |
             ## Release v${{ github.run_number }}
             
