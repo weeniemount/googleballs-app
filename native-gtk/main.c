@@ -37,7 +37,55 @@ typedef struct {
     int height;
 } App;
 
-static const double TWO_PI = 6.283185307179586;
+typedef struct {
+    int x, y;
+    int size;
+    const char* color;
+} PointData;
+
+static const double PI = 3.14159265359; // why not just pi :sob: (and then just multiply it)
+
+static const PointData pointData[] = {
+    {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
+    {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
+    {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"},
+    {73, 83, 9, "#3355d8"}, {294, 6, 9, "#36b641"}, {235, 62, 9, "#2e5def"},
+    {353, 42, 8, "#d53747"}, {336, 52, 8, "#eb676f"}, {208, 41, 8, "#f9b125"},
+    {321, 70, 8, "#de3646"}, {8, 60, 8, "#2a59f0"}, {180, 81, 8, "#eb9c31"},
+    {146, 65, 8, "#c41731"}, {145, 49, 8, "#d82038"}, {246, 34, 8, "#5f8af8"},
+    {169, 69, 8, "#efa11e"}, {273, 99, 8, "#2e55e2"}, {248, 120, 8, "#4167e4"},
+    {294, 41, 8, "#0b991a"}, {267, 114, 8, "#4869e3"}, {78, 67, 8, "#3059e3"},
+    {294, 23, 8, "#10a11d"}, {117, 83, 8, "#cf4055"}, {137, 80, 8, "#cd4359"},
+    {14, 71, 8, "#2855ea"}, {331, 80, 8, "#ca273c"}, {25, 82, 8, "#2650e1"},
+    {233, 46, 8, "#4a7bf9"}, {73, 13, 8, "#3d65e7"}, {327, 35, 6, "#f47875"},
+    {319, 46, 6, "#f36764"}, {256, 81, 6, "#1d4eeb"}, {244, 88, 6, "#698bf1"},
+    {194, 32, 6, "#fac652"}, {97, 56, 6, "#ee5257"}, {105, 75, 6, "#cf2a3f"},
+    {42, 4, 6, "#5681f5"}, {10, 27, 6, "#4577f6"}, {166, 55, 6, "#f7b326"},
+    {266, 88, 6, "#2b58e8"}, {178, 34, 6, "#facb5e"}, {100, 65, 6, "#e02e3d"},
+    {343, 32, 6, "#f16d6f"}, {59, 5, 6, "#507bf2"}, {27, 9, 6, "#5683f7"},
+    {233, 116, 6, "#3158e2"}, {123, 32, 6, "#f0696c"}, {6, 38, 6, "#3769f6"},
+    {63, 62, 6, "#6084ef"}, {6, 49, 6, "#2a5cf4"}, {108, 36, 6, "#f4716e"},
+    {169, 43, 6, "#f8c247"}, {137, 37, 6, "#e74653"}, {318, 58, 6, "#ec4147"},
+    {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"},
+    {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
+};
+static const size_t N = sizeof(pointData) / sizeof(pointData[0]);
+
+// Logo size calculation shit (TO FUCKING MAKE IT CENTERED AND RESPONSIVE FUCK)
+static void compute_pointdata_bounds(double* w, double* h) {
+    int minX = 9999, maxX = -9999;
+    int minY = 9999, maxY = -9999;
+
+    for (size_t i = 0; i < N; i++) {
+        if (pointData[i].x < minX) minX = pointData[i].x;
+        if (pointData[i].x > maxX) maxX = pointData[i].x;
+        if (pointData[i].y < minY) minY = pointData[i].y;
+        if (pointData[i].y > maxY) maxY = pointData[i].y;
+    }
+
+    *w = maxX - minX;
+    *h = maxY - minY;
+}
 
 // Utilities
 static Color color_from_hex(const char* hex) {
@@ -112,7 +160,7 @@ static void point_draw(Point* p, cairo_t* cr) {
     cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
     cairo_set_source_rgba(cr, p->color.r, p->color.g, p->color.b, p->color.a);
     cairo_new_path(cr);
-    cairo_arc(cr, p->curPos.x, p->curPos.y, p->radius, 0, TWO_PI);
+    cairo_arc(cr, p->curPos.x, p->curPos.y, p->radius, 0, PI*2);
     cairo_fill(cr);
 }
 
@@ -143,44 +191,16 @@ static void point_collection_draw(PointCollection* pc, cairo_t* cr) {
 }
 
 // App setup
-static void app_init_points(App* app) {
-    typedef struct {
-        int x, y;
-        int size;
-        const char* color;
-    } PointData;
-
-    static const PointData pointData[] = {
-        {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
-        {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
-        {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"},
-        {73, 83, 9, "#3355d8"}, {294, 6, 9, "#36b641"}, {235, 62, 9, "#2e5def"},
-        {353, 42, 8, "#d53747"}, {336, 52, 8, "#eb676f"}, {208, 41, 8, "#f9b125"},
-        {321, 70, 8, "#de3646"}, {8, 60, 8, "#2a59f0"}, {180, 81, 8, "#eb9c31"},
-        {146, 65, 8, "#c41731"}, {145, 49, 8, "#d82038"}, {246, 34, 8, "#5f8af8"},
-        {169, 69, 8, "#efa11e"}, {273, 99, 8, "#2e55e2"}, {248, 120, 8, "#4167e4"},
-        {294, 41, 8, "#0b991a"}, {267, 114, 8, "#4869e3"}, {78, 67, 8, "#3059e3"},
-        {294, 23, 8, "#10a11d"}, {117, 83, 8, "#cf4055"}, {137, 80, 8, "#cd4359"},
-        {14, 71, 8, "#2855ea"}, {331, 80, 8, "#ca273c"}, {25, 82, 8, "#2650e1"},
-        {233, 46, 8, "#4a7bf9"}, {73, 13, 8, "#3d65e7"}, {327, 35, 6, "#f47875"},
-        {319, 46, 6, "#f36764"}, {256, 81, 6, "#1d4eeb"}, {244, 88, 6, "#698bf1"},
-        {194, 32, 6, "#fac652"}, {97, 56, 6, "#ee5257"}, {105, 75, 6, "#cf2a3f"},
-        {42, 4, 6, "#5681f5"}, {10, 27, 6, "#4577f6"}, {166, 55, 6, "#f7b326"},
-        {266, 88, 6, "#2b58e8"}, {178, 34, 6, "#facb5e"}, {100, 65, 6, "#e02e3d"},
-        {343, 32, 6, "#f16d6f"}, {59, 5, 6, "#507bf2"}, {27, 9, 6, "#5683f7"},
-        {233, 116, 6, "#3158e2"}, {123, 32, 6, "#f0696c"}, {6, 38, 6, "#3769f6"},
-        {63, 62, 6, "#6084ef"}, {6, 49, 6, "#2a5cf4"}, {108, 36, 6, "#f4716e"},
-        {169, 43, 6, "#f8c247"}, {137, 37, 6, "#e74653"}, {318, 58, 6, "#ec4147"},
-        {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"},
-        {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
-    };
-    static const size_t N = sizeof(pointData) / sizeof(pointData[0]);
-
+static void app_init_points(App* app) {    
     app->pc.points = (Point*)calloc(N, sizeof(Point));
     app->pc.count = N;
 
-    double centerX = (app->width / 2.0) - 180.0;
-    double centerY = (app->height / 2.0) - 65.0;
+    double logoW, logoH;
+    compute_pointdata_bounds(&logoW, &logoH);
+
+    // divide it by 2 to be in the center (vewy logic :nerd:)
+    double centerX = (app->width / 2.0) - (logoW / 2.0);
+    double centerY = (app->height / 2.0) - (logoH / 2.0);
 
     for (size_t i = 0; i < N; ++i) {
         Point* p = &app->pc.points[i];
