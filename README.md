@@ -1,4 +1,4 @@
-# google balls desktop app!!!
+# google balls app!!!
 
 <img src="balls.png" alt="google balls" width="200"/>
 
@@ -33,5 +33,6 @@ go inside of ``native`` and if ur on windows you have to install msys and instal
 
 # how 2 compile gtk
 go inside of ``native`` and if ur on windows you have to install msys and install sdl2. for linux just install sdl2. on either os run .sh/.bat respectively.
+
 
 
