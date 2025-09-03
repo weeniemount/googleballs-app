@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest, macos-latest]
+        platform: [windows-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.platform }}
 
@@ -70,11 +70,6 @@ jobs:
             mingw-w64-x86_64-SDL2_image
             make
 
-      - name: Install SDL2 Dependencies (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          brew install sdl2 sdl2_image
-
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -89,13 +84,6 @@ jobs:
           cd native
           ./compile.bat
 
-      - name: Build Native App (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          cd native
-          chmod +x compile-macos.sh
-          ./compile-macos.sh
-
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -103,7 +91,6 @@ jobs:
           path: |
             native/googleballs-desktop*
             native/*.exe
-            native/*.app
 
   build-native-gtk:
     strategy:
