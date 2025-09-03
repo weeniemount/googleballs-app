@@ -96,13 +96,17 @@ jobs:
                 -name "*.ipa" -o \
                 -name "*.tar.gz" -o \
                 -name "googleballs-desktop*" \
-              \) -exec cp {} release-assets/ \;
+              \) ! -name "*.png" ! -name "control.tar.gz" ! -name "data.tar.gz" ! -name "elevate.exe" -exec cp {} release-assets/ \;
               
               # Also handle GTK archives specially
               if [[ "$artifact_name" == "native-gtk-"* ]]; then
                 cd "temp_$artifact_name"
                 if ls *.tar.gz 1> /dev/null 2>&1; then
-                  cp *.tar.gz ../release-assets/
+                  for tar in *.tar.gz; do
+                    if [[ "$tar" != "control.tar.gz" && "$tar" != "data.tar.gz" ]]; then
+                      cp "$tar" ../release-assets/
+                    fi
+                  done
                 else
                   # Create archive if not already present
                   platform=$(echo "$artifact_name" | cut -d'-' -f3)
@@ -135,53 +139,66 @@ jobs:
           |----------|------|------|------|----------|
           EOF
           
+          # Function to url encode
+          url_encode() {
+            local string="\$1"
+            local encoded=""
+            local i=0
+            local length="\${#string}"
+            while [ \$i -lt \$length ]; do
+              local char="\${string:\$i:1}"
+              case "\$char" in
+                [a-zA-Z0-9.~_-])
+                  encoded="\${encoded}\${char}"
+                  ;;
+                ' ')
+                  encoded="\${encoded}%20"
+                  ;;
+                *)
+                  encoded="\${encoded}\$(printf '%%%02X' "'\$char")"
+                  ;;
+              esac
+              i=\$((i+1))
+            done
+            echo "\$encoded"
+          }
+          
           # Function to determine file type based on filename and extension
           get_file_type() {
-            local filename="$1"
-            case "$filename" in
-              *"native"* | *"googleballs-desktop"*)
-                if [[ "$filename" == *".tar.gz" ]] || [[ "$filename" == *"gtk"* ]]; then
-                  echo "GTK3"
-                else
-                  echo "Native"
-                fi
-                ;;
-              *".msi" | *".deb" | *".AppImage")
-                echo "Tauri"
-                ;;
-              *"Setup"* | *"setup"* | *".rpm" | *".dmg" | *"elevate.exe")
-                echo "Electron"
-                ;;
-              *".ipa")
+            local filename="\$1"
+            if [[ "\$filename" == *" "* ]]; then
+              # has space
+              if [[ "\$filename" == *".exe" ]]; then
+                echo "Unknown Executable"
+              elif [[ "\$filename" == *".msi" ]] || [[ "\$filename" == *".dmg" ]]; then
+                echo "Unknown Installer"
+              elif [[ "\$filename" == *".rpm" ]] || [[ "\$filename" == *".deb" ]]; then
+                echo "Unknown Package"
+              else
+                echo "Unknown"
+              fi
+            else
+              # no space
+              if [[ "\$filename" == *".tar.gz" ]] || [[ "\$filename" == *"gtk"* ]]; then
+                echo "GTK Archive"
+              elif [[ "\$filename" == *".exe" ]]; then
+                echo "Native Executable"
+              elif [[ "\$filename" == *".rpm" ]] || [[ "\$filename" == *".deb" ]]; then
+                echo "Native Package"
+              elif [[ "\$filename" == *".ipa" ]]; then
                 echo "Native"
-                ;;
-              *)
-                # Default fallback - try to guess from extension and name patterns
-                if [[ "$filename" == *".msi" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".deb" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".AppImage" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *"tauri"* ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".exe" ]]; then
-                  echo "Electron"
-                elif [[ "$filename" == *".rpm" ]]; then
-                  echo "Electron"
-                elif [[ "$filename" == *".dmg" ]]; then
-                  echo "Electron"
-                else
-                  echo "Unknown"
-                fi
-                ;;
-            esac
+              elif [[ "\$filename" == *".AppImage" ]]; then
+                echo "Native Package"
+              else
+                echo "Unknown"
+              fi
+            fi
           }
           
           # Function to determine platform
           get_platform() {
-            local filename="$1"
-            case "$filename" in
+            local filename="\$1"
+            case "\$filename" in
               *"windows"* | *"win"* | *".exe" | *".msi" | *"x64"* | *"ia32"*)
                 echo "Windows"
                 ;;
@@ -202,53 +219,65 @@ jobs:
           
           # Add all files from release-assets
           for file in release-assets/*; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              filesize=$(ls -lah "$file" | awk '{print $5}')
-              platform=$(get_platform "$filename")
-              filetype=$(get_file_type "$filename")
-              download_url="https://github.com/weeniemount/googleballs-app/releases/download/$TAG_NAME/$filename"
+            if [ -f "\$file" ]; then
+              filename=\$(basename "\$file")
+              filesize=\$(ls -lah "\$file" | awk '{print \$5}')
+              platform=\$(get_platform "\$filename")
+              filetype=\$(get_file_type "\$filename")
+              encoded_filename=\$(url_encode "\$filename")
+              download_url="https://github.com/weeniemount/googleballs-app/releases/download/\$TAG_NAME/\$encoded_filename"
               
               # Determine description based on type and platform
-              case "$filetype" in
-                "Native")
-                  if [[ "$filename" == *".ipa" ]]; then
-                    description="iOS application"
-                  elif [[ "$filename" == *"gtk"* ]]; then
-                    description="$platform GTK3 application with bundled libraries"
-                  else
-                    description="Native $platform executable with SDL2"
-                  fi
+              case "\$filetype" in
+                "GTK Archive")
+                  description="\$platform GTK application archive with bundled libraries"
                   ;;
-                "GTK3")
-                  description="$platform GTK3 application with bundled libraries"
+                "Native Executable")
+                  description="Native \$platform executable"
                   ;;
-                "Tauri")
-                  if [[ "$filename" == *".msi" ]]; then
-                    description="Modern desktop app with web technologies (MSI installer)"
-                  elif [[ "$filename" == *".deb" ]]; then
-                    description="Modern desktop app with web technologies (DEB package)"
-                  elif [[ "$filename" == *".AppImage" ]]; then
-                    description="Modern desktop app with web technologies (AppImage)"
-                  else
-                    description="Modern desktop app with web technologies"
-                  fi
-                  ;;
-                "Electron")
-                  if [[ "$filename" == *".rpm" ]]; then
+                "Native Package")
+                  if [[ "\$filename" == *".rpm" ]]; then
                     description="Cross-platform desktop app with Electron (RPM package)"
-                  elif [[ "$filename" == *".dmg" ]]; then
-                    description="Cross-platform desktop app with Electron"
+                  elif [[ "\$filename" == *".deb" ]]; then
+                    description="Cross-platform desktop app with Electron (DEB package)"
                   else
-                    description="Cross-platform desktop app with Electron"
+                    description="Native \$platform package"
                   fi
+                  ;;
+                "Unknown Package")
+                  if [[ "\$filename" == *".rpm" ]]; then
+                    description="Modern desktop app with web technologies (RPM package)"
+                  elif [[ "\$filename" == *".deb" ]]; then
+                    description="Modern desktop app with web technologies (DEB package)"
+                  else
+                    description="Unknown \$platform package"
+                  fi
+                  ;;
+                "Unknown Executable")
+                  if [[ "\$filename" == *"Setup"* ]]; then
+                    description="Cross-platform desktop app with Electron (Setup executable)"
+                  else
+                    description="Modern desktop app with web technologies (Setup executable)"
+                  fi
+                  ;;
+                "Unknown Installer")
+                  if [[ "\$filename" == *".msi" ]]; then
+                    description="Modern desktop app with web technologies (MSI installer)"
+                  elif [[ "\$filename" == *".dmg" ]]; then
+                    description="Cross-platform desktop app with Electron (DMG installer)"
+                  else
+                    description="Unknown installer"
+                  fi
+                  ;;
+                "Native")
+                  description="Native application"
                   ;;
                 *)
                   description="Application binary"
                   ;;
               esac
               
-              echo "| $platform | $filetype | \`$filename\` | $filesize | [Download]($download_url) |" >> release_notes.md
+              echo "| \$platform | \$filetype | \`\$filename\` | \$filesize | [⬇️ Download](\$download_url) |" >> release_notes.md
             fi
           done
           
