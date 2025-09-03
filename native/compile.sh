@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Compile with static SDL2 but dynamic system libraries
-g++ -O2 balls.cpp -o googleballs-desktop \
+g++ -O2 balls.cpp icon/balls.c -o googleballs-desktop \
     -I/usr/local/include/SDL2 \
     -L/usr/local/lib \
     -static-libgcc -static-libstdc++ \

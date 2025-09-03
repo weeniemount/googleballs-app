@@ -3,6 +3,7 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include "icon/balls.h"
 
 struct Vector3 {
     double x, y, z;
@@ -176,6 +177,23 @@ public:
     }
 };
 
+void set_icon(SDL_Window *window) {
+	SDL_RWops *rw = SDL_RWFromConstMem(icon, icon_size);
+	if (!rw) {
+		SDL_Log("Failed to create RWops: %s", SDL_GetError());
+		return;
+	}
+
+	SDL_Surface *icon = IMG_Load_RW(rw, 1); // 1 = auto-free rw
+	if (!icon) {
+		SDL_Log("Failed to load PNG from memory: %s", IMG_GetError());
+		return;
+	}
+
+	SDL_SetWindowIcon(window, icon);
+	SDL_FreeSurface(icon);
+}
+
 class App {
 private:
     SDL_Window* window;
@@ -213,6 +231,8 @@ public:
         // Enable alpha blending for anti-aliasing
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         
+        set_icon(window);
+
         initPoints();
         running = true;
         return true;
