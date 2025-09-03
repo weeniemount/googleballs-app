@@ -1,119 +1,347 @@
-name: Release
+name: Create Release
 
 permissions:
   contents: write
-  actions: write
+  actions: read
 
 on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_name:
+        description: 'Release name'
+        required: true
+        default: 'Google Balls Desktop'
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
 
 jobs:
-  trigger-build:
+  trigger-builds:
     runs-on: ubuntu-latest
     outputs:
       run-id: ${{ steps.trigger.outputs.run-id }}
+    
     steps:
       - name: Trigger Build Workflow
         id: trigger
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Build Apps
-          ref: refs/heads/master
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get Latest Run ID
-        id: get_run
-        run: |
-          echo "run_id=$(gh run list --workflow='Build Apps' --branch=master --limit=1 --json id --jq '.[0].id')" >> $GITHUB_OUTPUT
-
-
-  wait-for-build:
-    needs: trigger-build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for Build Workflow to Finish
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const runId = parseInt('${{ needs.trigger-build.outputs.run-id }}', 10);
+            const response = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              ref: context.ref
+            });
+            
+            // Wait a moment for the run to be created
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Get the latest workflow run
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-apps.yml',
+              per_page: 1
+            });
+            
+            const runId = runs.data.workflow_runs[0].id;
+            core.setOutput('run-id', runId);
+            console.log(`Triggered build workflow with run ID: ${runId}`);
+            return runId;
+
+      - name: Wait for Build Completion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = '${{ steps.trigger.outputs.run-id }}';
+            console.log(`Waiting for workflow run ${runId} to complete...`);
+            
             let status = 'in_progress';
+            let attempts = 0;
+            const maxAttempts = 60; // 30 minutes max wait time
+            
             while (status === 'in_progress' || status === 'queued') {
-              const { data: run } = await github.rest.actions.getWorkflowRun({
+              if (attempts >= maxAttempts) {
+                throw new Error('Build workflow timed out after 30 minutes');
+              }
+              
+              const run = await github.rest.actions.getWorkflowRun({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 run_id: runId
               });
-              status = run.status;
-              const conclusion = run.conclusion;
+              
+              status = run.data.status;
+              console.log(`Build status: ${status} (${run.data.conclusion || 'running'})`);
+              
               if (status === 'completed') {
-                if (conclusion !== 'success') {
-                  throw new Error(`Build workflow failed with conclusion: ${conclusion}`);
+                if (run.data.conclusion !== 'success') {
+                  throw new Error(`Build workflow failed with conclusion: ${run.data.conclusion}`);
                 }
                 break;
               }
-              console.log(`Waiting for build workflow... status=${status}`);
-              await new Promise(resolve => setTimeout(resolve, 15000)); // 15s
+              
+              await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
+              attempts++;
             }
+            
+            console.log('Build workflow completed successfully!');
 
   create-release:
-    needs: wait-for-build
+    needs: trigger-builds
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Download All Artifacts from Last Build
-        run: |
-          gh run download $(gh run list --workflow="Build Apps" --branch=master --limit=1 --json id --jq '.[0].id') --dir artifacts
+      - uses: actions/checkout@v4
+      
+      - name: Download All Artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = '${{ needs.trigger-builds.outputs.run-id }}';
+            
+            // Get all artifacts from the build run
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId
+            });
+            
+            console.log(`Found ${artifacts.data.artifacts.length} artifacts`);
+            
+            // Download each artifact
+            for (const artifact of artifacts.data.artifacts) {
+              console.log(`Downloading artifact: ${artifact.name}`);
+              
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id,
+                archive_format: 'zip'
+              });
+              
+              const fs = require('fs');
+              fs.writeFileSync(`${artifact.name}.zip`, Buffer.from(download.data));
+            }
 
-      - name: Clean Unpacked Directories
+      - name: Extract and Organize Artifacts
         run: |
-          find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} +
-          find artifacts/ -type d -name 'build' -exec rm -rf {} +
-
-      - name: Generate SHA256 Hashes
-        run: |
-          cd artifacts
-          for file in *; do
-            if [ -f "$file" ]; then
-              sha256sum "$file" >> SHA256SUMS.txt
+          mkdir -p release-assets
+          
+          # Extract all artifact zips and organize them
+          for zip_file in *.zip; do
+            if [ -f "$zip_file" ]; then
+              echo "Processing $zip_file..."
+              artifact_name=$(basename "$zip_file" .zip)
+              mkdir -p "temp_$artifact_name"
+              unzip -q "$zip_file" -d "temp_$artifact_name"
+              
+              # Move files to release-assets with proper naming
+              case "$artifact_name" in
+                "native-windows-latest")
+                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/googleballs-desktop-windows-native.exe \;
+                  ;;
+                "native-ubuntu-latest")
+                  find "temp_$artifact_name" -name "googleballs-desktop*" ! -name "*.exe" -exec cp {} release-assets/googleballs-desktop-linux-native \;
+                  ;;
+                "native-gtk-windows-latest")
+                  cd "temp_$artifact_name" && tar -czf "../release-assets/googleballs-desktop-windows-gtk.tar.gz" . && cd ..
+                  ;;
+                "native-gtk-ubuntu-latest")
+                  find "temp_$artifact_name" -name "*.tar.gz" -exec cp {} release-assets/googleballs-desktop-linux-gtk.tar.gz \;
+                  ;;
+                "tauri-windows-latest")
+                  find "temp_$artifact_name" -name "*.msi" -exec cp {} release-assets/ \;
+                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/ \;
+                  ;;
+                "tauri-ubuntu-latest")
+                  find "temp_$artifact_name" -name "*.deb" -exec cp {} release-assets/ \;
+                  find "temp_$artifact_name" -name "*.AppImage" -exec cp {} release-assets/ \;
+                  ;;
+                "googleballs-desktop-windows-latest")
+                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/ \;
+                  ;;
+                "googleballs-desktop-ubuntu-latest")
+                  find "temp_$artifact_name" -name "*.rpm" -exec cp {} release-assets/ \;
+                  ;;
+                "googleballs-desktop-macos-latest")
+                  find "temp_$artifact_name" -name "*.dmg" -exec cp {} release-assets/ \;
+                  ;;
+                "ios-app")
+                  find "temp_$artifact_name" -name "*.ipa" -exec cp {} release-assets/ \;
+                  ;;
+              esac
+              
+              rm -rf "temp_$artifact_name"
             fi
           done
+          
+          # List all release assets
+          echo "Release assets prepared:"
+          ls -la release-assets/
 
-      - name: Create GitHub Release
-        id: create_release
+      - name: Generate Release Notes with Download Table
+        id: release-notes
+        run: |
+          # Get tag name
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ github.event.inputs.tag_name }}"
+            RELEASE_NAME="${{ github.event.inputs.release_name }}"
+          else
+            TAG_NAME="${{ github.ref_name }}"
+            RELEASE_NAME="Google Balls Desktop $TAG_NAME"
+          fi
+          
+          # Create release notes with download table
+          cat > release_notes.md << 'EOF'
+          # Google Balls Desktop Applications
+          
+          Multiple platform builds available for download:
+          
+          ## 📥 Downloads
+          
+          | Platform | Type | File | Description |
+          |----------|------|------|-------------|
+          EOF
+          
+          # Add download table entries based on available files
+          if [ -f "release-assets/googleballs-desktop-windows-native.exe" ]; then
+            echo "| Windows | Native | \`googleballs-desktop-windows-native.exe\` | Native Windows executable with SDL2 |" >> release_notes.md
+          fi
+          
+          if [ -f "release-assets/googleballs-desktop-linux-native" ]; then
+            echo "| Linux | Native | \`googleballs-desktop-linux-native\` | Native Linux executable with SDL2 |" >> release_notes.md
+          fi
+          
+          if [ -f "release-assets/googleballs-desktop-windows-gtk.tar.gz" ]; then
+            echo "| Windows | GTK3 | \`googleballs-desktop-windows-gtk.tar.gz\` | Windows GTK3 application with bundled libraries |" >> release_notes.md
+          fi
+          
+          if [ -f "release-assets/googleballs-desktop-linux-gtk.tar.gz" ]; then
+            echo "| Linux | GTK3 | \`googleballs-desktop-linux-gtk.tar.gz\` | Linux GTK3 application with bundled libraries |" >> release_notes.md
+          fi
+          
+          # Add Tauri files
+          for file in release-assets/*.msi; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| Windows | Tauri | \`$filename\` | Modern desktop app with web technologies (MSI installer) |" >> release_notes.md
+            fi
+          done
+          
+          for file in release-assets/*tauri*.exe; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| Windows | Tauri | \`$filename\` | Modern desktop app with web technologies (Portable) |" >> release_notes.md
+            fi
+          done
+          
+          for file in release-assets/*.deb; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| Linux | Tauri | \`$filename\` | Modern desktop app with web technologies (DEB package) |" >> release_notes.md
+            fi
+          done
+          
+          for file in release-assets/*.AppImage; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| Linux | Tauri | \`$filename\` | Modern desktop app with web technologies (AppImage) |" >> release_notes.md
+            fi
+          done
+          
+          # Add Electron files
+          for file in release-assets/*.exe; do
+            if [ -f "$file" ] && [[ "$file" != *"tauri"* ]] && [[ "$file" != *"native"* ]]; then
+              filename=$(basename "$file")
+              echo "| Windows | Electron | \`$filename\` | Cross-platform desktop app with Electron |" >> release_notes.md
+            fi
+          done
+          
+          for file in release-assets/*.rpm; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| Linux | Electron | \`$filename\` | Cross-platform desktop app with Electron (RPM package) |" >> release_notes.md
+            fi
+          done
+          
+          for file in release-assets/*.dmg; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| macOS | Electron | \`$filename\` | Cross-platform desktop app with Electron |" >> release_notes.md
+            fi
+          done
+          
+          # Add iOS
+          for file in release-assets/*.ipa; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "| iOS | Native | \`$filename\` | iOS application (unsigned - for development) |" >> release_notes.md
+            fi
+          done
+          
+          # Add installation instructions
+          cat >> release_notes.md << 'EOF'
+          
+          ## 🚀 Installation Instructions
+          
+          ### Native Applications
+          - **Windows Native**: Download and run the `.exe` file directly
+          - **Linux Native**: Download, make executable (`chmod +x`), and run
+          
+          ### GTK3 Applications
+          - **Windows**: Extract the `.tar.gz` file and run the included executable
+          - **Linux**: Extract the `.tar.gz` file and run `./launch.sh`
+          
+          ### Tauri Applications
+          - **Windows**: Install using the `.msi` installer or run the portable `.exe`
+          - **Linux**: Install the `.deb` package or run the `.AppImage` file
+          
+          ### Electron Applications
+          - **Windows**: Run the `.exe` installer
+          - **Linux**: Install the `.rpm` package using your package manager
+          - **macOS**: Mount the `.dmg` file and drag to Applications
+          
+          ### iOS
+          - **Development**: Use development tools to install the `.ipa` file (requires developer account for device installation)
+          
+          ## 📋 System Requirements
+          
+          - **Windows**: Windows 10 or later
+          - **Linux**: Most modern distributions with glibc 2.17+ 
+          - **macOS**: macOS 10.14 or later
+          - **iOS**: iOS 14.0 or later
+          
+          ## 🛠️ Build Information
+          
+          All applications are built from the same source code with different frameworks:
+          - **Native**: Direct system APIs (SDL2/GTK3)
+          - **Tauri**: Rust backend with web frontend
+          - **Electron**: Node.js with web technologies
+          
+          Choose the version that best fits your system and preferences!
+          EOF
+          
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+
+      - name: Create Release
         uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_NAME }}
+          body_path: release_notes.md
+          files: release-assets/*
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          make_latest: ${{ github.event.inputs.prerelease != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/*/*.tar.gz
-            artifacts/*/*.deb
-            artifacts/*/*.rpm
-            artifacts/*/*.exe
-            artifacts/*/*.AppImage
-            artifacts/*/*.zip
-            artifacts/*/*.msi
-            artifacts/*/*.dmg
-            artifacts/*/*.ipa
-
-            artifacts/*.tar.gz
-            artifacts/*.deb
-            artifacts/*.rpm
-            artifacts/*.exe
-            artifacts/*.AppImage
-            artifacts/*.zip
-            artifacts/*.msi
-            artifacts/*.dmg
-            artifacts/*.ipa
-            artifacts/googleballs-desktop
-            artifacts/SHA256SUMS.txt
-          body: |
-            ## Release v${{ github.run_number }}
-            
-            ### Checksums
-            ```
-            $(cat artifacts/SHA256SUMS.txt)
-            ```
