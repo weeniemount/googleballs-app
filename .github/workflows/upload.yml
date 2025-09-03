@@ -17,9 +17,15 @@ jobs:
         id: trigger
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: Build Apps  # must match build.yml name
+          workflow: Build Apps
           ref: refs/heads/master
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Latest Run ID
+        id: get_run
+        run: |
+          echo "run_id=$(gh run list --workflow='Build Apps' --branch=master --limit=1 --json id --jq '.[0].id')" >> $GITHUB_OUTPUT
+
 
   wait-for-build:
     needs: trigger-build
@@ -30,7 +36,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const runId = parseInt('${{ needs.trigger-build.outputs.run-id }}');
+            const runId = parseInt('${{ needs.trigger-build.outputs.run-id }}', 10);
             let status = 'in_progress';
             while (status === 'in_progress' || status === 'queued') {
               const { data: run } = await github.rest.actions.getWorkflowRun({
