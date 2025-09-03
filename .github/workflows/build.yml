@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest]
+        platform: [windows-latest, ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.platform }}
 
@@ -70,6 +70,11 @@ jobs:
             mingw-w64-x86_64-SDL2_image
             make
 
+      - name: Install SDL2 Dependencies (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install sdl2 sdl2_image
+
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -84,6 +89,13 @@ jobs:
           cd native
           ./compile.bat
 
+      - name: Build Native App (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          cd native
+          chmod +x compile-macos.sh
+          ./compile-macos.sh
+
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -91,6 +103,7 @@ jobs:
           path: |
             native/googleballs-desktop*
             native/*.exe
+            native/*.app
 
   build-native-gtk:
     strategy:
@@ -383,12 +396,10 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      # right now, tauri macOS kinda doesnt work. so im commenting this out for now.
-
-      #- name: Install macOS Dependencies
-      #  if: matrix.platform == 'macos-latest'
-      #  run: |
-      #    rustup target add x86_64-apple-darwin
+      - name: Install macOS Dependencies
+        if: matrix.platform == 'macos-latest'
+        run: |
+          rustup target add x86_64-apple-darwin
 
       - name: Install Dependencies (Tauri)
         run: |
@@ -401,11 +412,11 @@ jobs:
           cd tauri
           npm run tauri build
         
-      #- name: Build Tauri App (macOS)
-      #  if: matrix.platform == 'macos-latest'
-      #  run: |
-      #    cd tauri
-      #    npx tauri build --target universal-apple-darwin
+      - name: Build Tauri App (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          cd tauri
+          npx tauri build --target universal-apple-darwin
 
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4
