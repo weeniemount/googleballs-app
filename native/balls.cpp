@@ -261,12 +261,6 @@ public:
     }
     
     void initPoints() {
-        struct PointData {
-            int x, y;
-            int size;
-            std::string color;
-        };
-        
         std::vector<PointData> pointData = {
             {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
             {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
@@ -398,3 +392,4 @@ int main(int argc, char* args[]) {
     return 0;
 
 }
+
