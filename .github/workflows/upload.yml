@@ -1,13 +1,10 @@
-name: Create Release
+name: Create Release (Manual Build)
 
 permissions:
   contents: write
   actions: read
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # Triggers on version tags like v1.0.0
   workflow_dispatch:
     inputs:
       tag_name:
@@ -18,86 +15,16 @@ on:
         description: 'Release name'
         required: true
         default: 'Google Balls Desktop'
+      build_run_id:
+        description: 'Build workflow run ID (get from Actions tab)'
+        required: true
       prerelease:
         description: 'Mark as pre-release'
         type: boolean
         default: false
 
 jobs:
-  trigger-builds:
-    runs-on: ubuntu-latest
-    outputs:
-      run-id: ${{ steps.trigger.outputs.run-id }}
-    
-    steps:
-      - name: Trigger Build Workflow
-        id: trigger
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const response = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'build.yml',
-              ref: context.ref
-            });
-            
-            // Wait a moment for the run to be created
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Get the latest workflow run
-            const runs = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'build-apps.yml',
-              per_page: 1
-            });
-            
-            const runId = runs.data.workflow_runs[0].id;
-            core.setOutput('run-id', runId);
-            console.log(`Triggered build workflow with run ID: ${runId}`);
-            return runId;
-
-      - name: Wait for Build Completion
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const runId = '${{ steps.trigger.outputs.run-id }}';
-            console.log(`Waiting for workflow run ${runId} to complete...`);
-            
-            let status = 'in_progress';
-            let attempts = 0;
-            const maxAttempts = 60; // 30 minutes max wait time
-            
-            while (status === 'in_progress' || status === 'queued') {
-              if (attempts >= maxAttempts) {
-                throw new Error('Build workflow timed out after 30 minutes');
-              }
-              
-              const run = await github.rest.actions.getWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: runId
-              });
-              
-              status = run.data.status;
-              console.log(`Build status: ${status} (${run.data.conclusion || 'running'})`);
-              
-              if (status === 'completed') {
-                if (run.data.conclusion !== 'success') {
-                  throw new Error(`Build workflow failed with conclusion: ${run.data.conclusion}`);
-                }
-                break;
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
-              attempts++;
-            }
-            
-            console.log('Build workflow completed successfully!');
-
   create-release:
-    needs: trigger-builds
     runs-on: ubuntu-latest
     
     steps:
@@ -107,7 +34,20 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const runId = '${{ needs.trigger-builds.outputs.run-id }}';
+            const runId = '${{ github.event.inputs.build_run_id }}';
+            
+            // Verify the run exists and completed successfully
+            const run = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId
+            });
+            
+            if (run.data.conclusion !== 'success') {
+              throw new Error(`Build workflow run ${runId} did not complete successfully. Status: ${run.data.conclusion}`);
+            }
+            
+            console.log(`Using build run: ${run.data.html_url}`);
             
             // Get all artifacts from the build run
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -190,17 +130,7 @@ jobs:
           ls -la release-assets/
 
       - name: Generate Release Notes with Download Table
-        id: release-notes
         run: |
-          # Get tag name
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG_NAME="${{ github.event.inputs.tag_name }}"
-            RELEASE_NAME="${{ github.event.inputs.release_name }}"
-          else
-            TAG_NAME="${{ github.ref_name }}"
-            RELEASE_NAME="Google Balls Desktop $TAG_NAME"
-          fi
-          
           # Create release notes with download table
           cat > release_notes.md << 'EOF'
           # Google Balls Desktop Applications
@@ -319,7 +249,7 @@ jobs:
           - **Windows**: Windows 10 or later
           - **Linux**: Most modern distributions with glibc 2.17+ 
           - **macOS**: macOS 10.14 or later
-          - **iOS**: iOS 14.0 or later
+          - **iOS**: iOS 12.0 or later
           
           ## 🛠️ Build Information
           
@@ -330,18 +260,15 @@ jobs:
           
           Choose the version that best fits your system and preferences!
           EOF
-          
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: ${{ env.RELEASE_NAME }}
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.release_name }}
           body_path: release_notes.md
           files: release-assets/*
-          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease }}
           make_latest: ${{ github.event.inputs.prerelease != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
