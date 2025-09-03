@@ -411,6 +411,8 @@ jobs:
           name: tauri-${{ matrix.platform }}
           path: |
             tauri/src-tauri/target/release/bundle/
+            tauri/src-tauri/target/universal-apple-darwin/release/bundle/
+
 
   build-electron:
     strategy:
