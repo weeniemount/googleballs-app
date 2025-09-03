@@ -13,10 +13,10 @@ google for making the original doodle back in 2010!
 
 # available in 4 flavors!
 we have:
-- Electron (the og but bulky)
-- Tauri (like electorn but not bulky)
-- SDL2 (its sdl2 google balls!)
-- GTK3 (made in gtk3! personally my fav)
+- Electron (the og but bulky) - Windows, Linux
+- Tauri (like electorn but not bulky) - Windows, Linux
+- SDL2 (its sdl2 google balls!) - Windows, Linux
+- GTK3 (made in gtk3! personally my fav) - Windows, Linux
 
 # how 2 download:
 if you want release buids, go to the releases and download the one you want! for the latest builds, click that actions tab, pick the latest build action and download the artifact u need
