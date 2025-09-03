@@ -447,8 +447,8 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: bye blockmap 👋
-        run: rm -f artifacts/*.blockmap
+      - name: bye unpacked 👋
+        run: find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} +
 
       - name: Generate SHA256 Hashes
         run: |
@@ -470,12 +470,21 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/Google.Balls.Desktop-*
-            artifacts/googleballs-desktop*
-            artifacts/Google Balls*
+            artifacts/*/*.tar.gz
+            artifacts/*/*.deb
+            artifacts/*/*.rpm
+            artifacts/*/*.exe
+            artifacts/*/*.AppImage
+            artifacts/*/*.zip
+            artifacts/*/*.msi
+    
+            artifacts/*.tar.gz
+            artifacts/*.deb
+            artifacts/*.rpm
+            artifacts/*.exe
+            artifacts/*.AppImage
+            artifacts/*.zip
             artifacts/*.msi
-            artifacts/Google*
-            artifacts/gtk-app-*
             artifacts/SHA256SUMS.txt
           body: |
             ## Release v${{ github.run_number }}
