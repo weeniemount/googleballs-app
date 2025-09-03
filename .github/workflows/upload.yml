@@ -89,6 +89,8 @@ jobs:
             artifacts/*/*.AppImage
             artifacts/*/*.zip
             artifacts/*/*.msi
+            artifacts/*/*.dmg
+
             artifacts/*.tar.gz
             artifacts/*.deb
             artifacts/*.rpm
@@ -96,6 +98,7 @@ jobs:
             artifacts/*.AppImage
             artifacts/*.zip
             artifacts/*.msi
+            artifacts/*.dmg
             artifacts/googleballs-desktop
             artifacts/SHA256SUMS.txt
           body: |
