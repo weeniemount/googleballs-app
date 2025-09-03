@@ -140,6 +140,27 @@ public:
     }
 };
 
+// Original point data from JavaScript (adjusted for center positioning)
+struct PointData {
+    int x, y;
+    int size;
+    std::string color;
+};
+static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
+    int minX = 99999, maxX = -99999;
+    int minY = 99999, maxY = -99999;
+    
+    for (const auto& p : data) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    }
+    
+    w = maxX - minX;
+    h = maxY - minY;
+}
+
 class PointCollection {
 public:
     Vector3 mousePos;
@@ -240,7 +261,6 @@ public:
     }
     
     void initPoints() {
-        // Original point data from JavaScript (adjusted for center positioning)
         struct PointData {
             int x, y;
             int size;
@@ -271,13 +291,19 @@ public:
             {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"},
             {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
         };
-        
-        // Center the points
-        for (const auto& data : pointData) {
-            double x = (windowWidth/2 - 180) + data.x;
-            double y = (windowHeight/2 - 65) + data.y;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
-        }
+		
+	    double logoW, logoH;
+	    computeBounds(pointData, logoW, logoH);
+	
+	    double offsetX = (windowWidth / 2.0) - (logoW / 2.0);
+	    double offsetY = (windowHeight / 2.0) - (logoH / 2.0);
+
+		// Center the points
+	    for (const auto& data : pointData) {
+	        double x = offsetX + data.x;
+	        double y = offsetY + data.y;
+	        pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
+	    }
     }
     
     void handleEvents() {
@@ -370,4 +396,5 @@ int main(int argc, char* args[]) {
     app.cleanup();
     
     return 0;
+
 }
