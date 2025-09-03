@@ -386,16 +386,21 @@ jobs:
       - name: Install macOS Dependencies
         if: matrix.platform == 'macos-latest'
         run: |
-          # No additional dependencies needed for macOS Tauri builds
-          # Xcode command line tools are already available
-          echo "macOS build environment ready"
+          rustup target add x86_64-apple-darwin
 
       - name: Install Dependencies (Tauri)
         run: |
           cd tauri
           npm install
 
-      - name: Build Tauri App
+      - name: Build Tauri App (Linux and Windows)
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'windows-latest'
+        run: |
+          cd tauri
+          npm run tauri build
+        
+      - name: Build Tauri App (macOS)
+        if: matrix.platform == 'macos-latest'
         run: |
           cd tauri
           npx tauri build --target universal-apple-darwin
