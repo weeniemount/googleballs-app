@@ -494,7 +494,9 @@ jobs:
           EOF
               
               grep "^$platform|" file_info.csv | sort -t'|' -k2,2 -k3,3 | while IFS='|' read plat type category filename size sha256; do
-                echo "| **$type** | $category | \`$filename\` | $size |" >> release_notes.md
+                # Create proper GitHub release download link
+                download_link="https://github.com/${{ github.repository }}/releases/download/${{ needs.validate-inputs.outputs.tag_name }}/$filename"
+                echo "| **$type** | $category | [\`$filename\`]($download_link) | $size |" >> release_notes.md
               done
               
               echo "" >> release_notes.md
