@@ -48,22 +48,48 @@ $(function() {
 
 		draw();
 	};
+	function updateCanvasDimensions() {
+	    canvas.attr({ height: $(window).height(), width: $(window).width() });
+	    canvasWidth = canvas.width();
+	    canvasHeight = canvas.height();
+		
+	    recenterPoints();
+	    draw();
+	};
+
+	function recenterPoints() {
+	    if (!pointCollection) return;
+	
+	    let offsetX = (canvasWidth / 2 - 180);
+	    let offsetY = (canvasHeight / 2 - 65);
+	
+	    for (let i = 0; i < pointCollection.points.length; i++) {
+	        let point = pointCollection.points[i];
+	
+	        let relX = point.originalPos.x - (canvasWidth / 2 - 180);
+	        let relY = point.originalPos.y - (canvasHeight / 2 - 65);
+	
+	        point.originalPos.x = offsetX + relX;
+	        point.originalPos.y = offsetY + relY;
+			
+	        point.curPos.x = point.originalPos.x;
+	        point.curPos.y = point.originalPos.y;
+	    }
+	}
 	
 	function onMove(e) {
-		if (pointCollection)
-			pointCollection.mousePos.set(e.pageX, e.pageY);
+		if (pointCollection) pointCollection.mousePos.set(e.pageX, e.pageY);
 	};
 	
 	function onTouchMove(e) {
-		if (pointCollection)
-			pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
+		if (pointCollection) pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
 	};
 	
 	function timeout() {
 		draw();
 		update();
 		
-		setTimeout(function() { timeout() }, 30);
+		setTimeout(function() { timeout() }, 30); // doing an interval should be easier bruh
 	};
 	
 	function draw() {
@@ -76,13 +102,11 @@ $(function() {
 		ctx = tmpCanvas.getContext('2d');
 		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 		
-		if (pointCollection)
-			pointCollection.draw();
+		if (pointCollection) pointCollection.draw();
 	};
 	
 	function update() {		
-		if (pointCollection)
-			pointCollection.update();
+		if (pointCollection) pointCollection.update();
 	};
 	
 	function Vector(x, y, z) {
@@ -209,7 +233,5 @@ $(function() {
 	init();
 	$("#reload-msg").fadeIn(300);
 
-	setTimeout(function() {
-		$("#reload-msg").fadeOut(300);
-	}, 2000);
+	setTimeout(function() { $("#reload-msg").fadeOut(300); }, 3000);
 });
