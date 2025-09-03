@@ -85,137 +85,170 @@ jobs:
               mkdir -p "temp_$artifact_name"
               unzip -q "$zip_file" -d "temp_$artifact_name"
               
-              # Move files to release-assets with proper naming
-              case "$artifact_name" in
-                "native-windows-latest")
-                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/googleballs-desktop-windows-native.exe \;
-                  ;;
-                "native-ubuntu-latest")
-                  find "temp_$artifact_name" -name "googleballs-desktop*" ! -name "*.exe" -exec cp {} release-assets/googleballs-desktop-linux-native \;
-                  ;;
-                "native-gtk-windows-latest")
-                  cd "temp_$artifact_name" && tar -czf "../release-assets/googleballs-desktop-windows-gtk.tar.gz" . && cd ..
-                  ;;
-                "native-gtk-ubuntu-latest")
-                  find "temp_$artifact_name" -name "*.tar.gz" -exec cp {} release-assets/googleballs-desktop-linux-gtk.tar.gz \;
-                  ;;
-                "tauri-windows-latest")
-                  find "temp_$artifact_name" -name "*.msi" -exec cp {} release-assets/ \;
-                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/ \;
-                  ;;
-                "tauri-ubuntu-latest")
-                  find "temp_$artifact_name" -name "*.deb" -exec cp {} release-assets/ \;
-                  find "temp_$artifact_name" -name "*.AppImage" -exec cp {} release-assets/ \;
-                  ;;
-                "googleballs-desktop-windows-latest")
-                  find "temp_$artifact_name" -name "*.exe" -exec cp {} release-assets/ \;
-                  ;;
-                "googleballs-desktop-ubuntu-latest")
-                  find "temp_$artifact_name" -name "*.rpm" -exec cp {} release-assets/ \;
-                  ;;
-                "googleballs-desktop-macos-latest")
-                  find "temp_$artifact_name" -name "*.dmg" -exec cp {} release-assets/ \;
-                  ;;
-                "ios-app")
-                  find "temp_$artifact_name" -name "*.ipa" -exec cp {} release-assets/ \;
-                  ;;
-              esac
+              # Copy ALL files from each artifact, preserving original names
+              find "temp_$artifact_name" -type f \( \
+                -name "*.exe" -o \
+                -name "*.msi" -o \
+                -name "*.deb" -o \
+                -name "*.rpm" -o \
+                -name "*.dmg" -o \
+                -name "*.AppImage" -o \
+                -name "*.ipa" -o \
+                -name "*.tar.gz" -o \
+                -name "googleballs-desktop*" \
+              \) -exec cp {} release-assets/ \;
+              
+              # Also handle GTK archives specially
+              if [[ "$artifact_name" == "native-gtk-"* ]]; then
+                cd "temp_$artifact_name"
+                if ls *.tar.gz 1> /dev/null 2>&1; then
+                  cp *.tar.gz ../release-assets/
+                else
+                  # Create archive if not already present
+                  platform=$(echo "$artifact_name" | cut -d'-' -f3)
+                  tar -czf "../release-assets/googleballs-desktop-$platform-gtk.tar.gz" .
+                fi
+                cd ..
+              fi
               
               rm -rf "temp_$artifact_name"
             fi
           done
           
-          # List all release assets
+          # List all release assets with sizes
           echo "Release assets prepared:"
-          ls -la release-assets/
+          ls -lah release-assets/
 
       - name: Generate Release Notes with Download Table
         run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          
           # Create release notes with download table
-          cat > release_notes.md << 'EOF'
+          cat > release_notes.md << EOF
           # Google Balls
           
           multiple platform builds available for download:
           
           ## 📥 downloads
           
-          | Platform | Type | File | Description |
-          |----------|------|------|-------------|
+          | Platform | Type | File | Size | Download |
+          |----------|------|------|------|----------|
           EOF
           
-          # Add download table entries based on available files
-          if [ -f "release-assets/googleballs-desktop-windows-native.exe" ]; then
-            echo "| Windows | Native | \`googleballs-desktop-windows-native.exe\` | Native Windows executable with SDL2 |" >> release_notes.md
-          fi
+          # Function to determine file type based on filename and extension
+          get_file_type() {
+            local filename="$1"
+            case "$filename" in
+              *"native"* | *"googleballs-desktop"*)
+                if [[ "$filename" == *".tar.gz" ]] || [[ "$filename" == *"gtk"* ]]; then
+                  echo "GTK3"
+                else
+                  echo "Native"
+                fi
+                ;;
+              *".msi" | *".deb" | *".AppImage")
+                echo "Tauri"
+                ;;
+              *"Setup"* | *"setup"* | *".rpm" | *".dmg" | *"elevate.exe")
+                echo "Electron"
+                ;;
+              *".ipa")
+                echo "Native"
+                ;;
+              *)
+                # Default fallback - try to guess from extension and name patterns
+                if [[ "$filename" == *".msi" ]]; then
+                  echo "Tauri"
+                elif [[ "$filename" == *".deb" ]]; then
+                  echo "Tauri"
+                elif [[ "$filename" == *".AppImage" ]]; then
+                  echo "Tauri"
+                elif [[ "$filename" == *"tauri"* ]]; then
+                  echo "Tauri"
+                elif [[ "$filename" == *".exe" ]]; then
+                  echo "Electron"
+                elif [[ "$filename" == *".rpm" ]]; then
+                  echo "Electron"
+                elif [[ "$filename" == *".dmg" ]]; then
+                  echo "Electron"
+                else
+                  echo "Unknown"
+                fi
+                ;;
+            esac
+          }
           
-          if [ -f "release-assets/googleballs-desktop-linux-native" ]; then
-            echo "| Linux | Native | \`googleballs-desktop-linux-native\` | Native Linux executable with SDL2 |" >> release_notes.md
-          fi
+          # Function to determine platform
+          get_platform() {
+            local filename="$1"
+            case "$filename" in
+              *"windows"* | *"win"* | *".exe" | *".msi" | *"x64"* | *"ia32"*)
+                echo "Windows"
+                ;;
+              *"linux"* | *"ubuntu"* | *".deb" | *".rpm" | *".AppImage" | *"amd64"* | *"x86_64"*)
+                echo "Linux"
+                ;;
+              *"macos"* | *"mac"* | *"darwin"* | *"universal"* | *".dmg")
+                echo "macOS"
+                ;;
+              *".ipa" | *"ios"*)
+                echo "iOS"
+                ;;
+              *)
+                echo "Unknown"
+                ;;
+            esac
+          }
           
-          if [ -f "release-assets/googleballs-desktop-windows-gtk.tar.gz" ]; then
-            echo "| Windows | GTK3 | \`googleballs-desktop-windows-gtk.tar.gz\` | Windows GTK3 application with bundled libraries |" >> release_notes.md
-          fi
-          
-          if [ -f "release-assets/googleballs-desktop-linux-gtk.tar.gz" ]; then
-            echo "| Linux | GTK3 | \`googleballs-desktop-linux-gtk.tar.gz\` | Linux GTK3 application with bundled libraries |" >> release_notes.md
-          fi
-          
-          # Add Tauri files
-          for file in release-assets/*.msi; do
+          # Add all files from release-assets
+          for file in release-assets/*; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
-              echo "| Windows | Tauri | \`$filename\` | Modern desktop app with web technologies (MSI installer) |" >> release_notes.md
-            fi
-          done
-          
-          for file in release-assets/*tauri*.exe; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| Windows | Tauri | \`$filename\` | Modern desktop app with web technologies (Portable) |" >> release_notes.md
-            fi
-          done
-          
-          for file in release-assets/*.deb; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| Linux | Tauri | \`$filename\` | Modern desktop app with web technologies (DEB package) |" >> release_notes.md
-            fi
-          done
-          
-          for file in release-assets/*.AppImage; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| Linux | Tauri | \`$filename\` | Modern desktop app with web technologies (AppImage) |" >> release_notes.md
-            fi
-          done
-          
-          # Add Electron files
-          for file in release-assets/*.exe; do
-            if [ -f "$file" ] && [[ "$file" != *"tauri"* ]] && [[ "$file" != *"native"* ]]; then
-              filename=$(basename "$file")
-              echo "| Windows | Electron | \`$filename\` | Cross-platform desktop app with Electron |" >> release_notes.md
-            fi
-          done
-          
-          for file in release-assets/*.rpm; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| Linux | Electron | \`$filename\` | Cross-platform desktop app with Electron (RPM package) |" >> release_notes.md
-            fi
-          done
-          
-          for file in release-assets/*.dmg; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| macOS | Electron | \`$filename\` | Cross-platform desktop app with Electron |" >> release_notes.md
-            fi
-          done
-          
-          # Add iOS
-          for file in release-assets/*.ipa; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "| iOS | Native | \`$filename\` | iOS application |" >> release_notes.md
+              filesize=$(ls -lah "$file" | awk '{print $5}')
+              platform=$(get_platform "$filename")
+              filetype=$(get_file_type "$filename")
+              download_url="https://github.com/weeniemount/googleballs-app/releases/download/$TAG_NAME/$filename"
+              
+              # Determine description based on type and platform
+              case "$filetype" in
+                "Native")
+                  if [[ "$filename" == *".ipa" ]]; then
+                    description="iOS application"
+                  elif [[ "$filename" == *"gtk"* ]]; then
+                    description="$platform GTK3 application with bundled libraries"
+                  else
+                    description="Native $platform executable with SDL2"
+                  fi
+                  ;;
+                "GTK3")
+                  description="$platform GTK3 application with bundled libraries"
+                  ;;
+                "Tauri")
+                  if [[ "$filename" == *".msi" ]]; then
+                    description="Modern desktop app with web technologies (MSI installer)"
+                  elif [[ "$filename" == *".deb" ]]; then
+                    description="Modern desktop app with web technologies (DEB package)"
+                  elif [[ "$filename" == *".AppImage" ]]; then
+                    description="Modern desktop app with web technologies (AppImage)"
+                  else
+                    description="Modern desktop app with web technologies"
+                  fi
+                  ;;
+                "Electron")
+                  if [[ "$filename" == *".rpm" ]]; then
+                    description="Cross-platform desktop app with Electron (RPM package)"
+                  elif [[ "$filename" == *".dmg" ]]; then
+                    description="Cross-platform desktop app with Electron"
+                  else
+                    description="Cross-platform desktop app with Electron"
+                  fi
+                  ;;
+                *)
+                  description="Application binary"
+                  ;;
+              esac
+              
+              echo "| $platform | $filetype | \`$filename\` | $filesize | [Download]($download_url) |" >> release_notes.md
             fi
           done
           
