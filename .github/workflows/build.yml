@@ -383,10 +383,12 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      - name: Install macOS Dependencies
-        if: matrix.platform == 'macos-latest'
-        run: |
-          rustup target add x86_64-apple-darwin
+      # right now, tauri macOS kinda doesnt work. so im commenting this out for now.
+
+      #- name: Install macOS Dependencies
+      #  if: matrix.platform == 'macos-latest'
+      #  run: |
+      #    rustup target add x86_64-apple-darwin
 
       - name: Install Dependencies (Tauri)
         run: |
@@ -399,11 +401,11 @@ jobs:
           cd tauri
           npm run tauri build
         
-      - name: Build Tauri App (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          cd tauri
-          npx tauri build --target universal-apple-darwin
+      #- name: Build Tauri App (macOS)
+      #  if: matrix.platform == 'macos-latest'
+      #  run: |
+      #    cd tauri
+      #    npx tauri build --target universal-apple-darwin
 
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4
