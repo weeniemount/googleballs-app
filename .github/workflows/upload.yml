@@ -8,55 +8,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger-build:
-    runs-on: ubuntu-latest
-    outputs:
-      run-id: ${{ steps.trigger.outputs.run-id }}
-    steps:
-      - name: Trigger Build Workflow
-        id: trigger
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Build Apps  # must match build.yml name
-          ref: refs/heads/master
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  wait-for-build:
-    needs: trigger-build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for Build Workflow to Finish
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const runId = parseInt('${{ needs.trigger-build.outputs.run-id }}');
-            let status = 'in_progress';
-            while (status === 'in_progress' || status === 'queued') {
-              const { data: run } = await github.rest.actions.getWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: runId
-              });
-              status = run.status;
-              const conclusion = run.conclusion;
-              if (status === 'completed') {
-                if (conclusion !== 'success') {
-                  throw new Error(`Build workflow failed with conclusion: ${conclusion}`);
-                }
-                break;
-              }
-              console.log(`Waiting for build workflow... status=${status}`);
-              await new Promise(resolve => setTimeout(resolve, 15000)); // 15s
-            }
-
   create-release:
-    needs: wait-for-build
     runs-on: ubuntu-latest
     steps:
-      - name: Download All Artifacts from Last Build
+      - name: Download Latest Successful Build Artifacts
         run: |
-          gh run download $(gh run list --workflow="Build Apps" --branch=master --limit=1 --json id --jq '.[0].id') --dir artifacts
+          # Get the latest successful build run
+          latest_run=$(gh run list --workflow="Build Apps" --branch=master --status=success --limit=1 --json id --jq '.[0].id')
+          
+          if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
+            echo "No successful build found. Please run the Build Apps workflow first."
+            exit 1
+          fi
+          
+          echo "Using build run ID: $latest_run"
+          gh run download $latest_run --dir artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -159,15 +125,21 @@ jobs:
           cat > download_table.md << 'EOF'
           ## 📥 Downloads
           
+          Choose the appropriate version for your platform:
+          
           ### Windows
           | Type | File | Size | Download |
           |------|------|------|----------|
           EOF
           
           # Add Windows files
-          grep "^windows" file_info.txt | while IFS='|' read platform type filename size; do
-            echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-          done
+          if grep -q "^windows" file_info.txt 2>/dev/null; then
+            grep "^windows" file_info.txt | while IFS='|' read platform type filename size; do
+              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
+            done
+          else
+            echo "| N/A | No Windows builds available | N/A | N/A |" >> download_table.md
+          fi
           
           cat >> download_table.md << 'EOF'
           
@@ -177,9 +149,13 @@ jobs:
           EOF
           
           # Add Linux files
-          grep "^linux" file_info.txt | while IFS='|' read platform type filename size; do
-            echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-          done
+          if grep -q "^linux" file_info.txt 2>/dev/null; then
+            grep "^linux" file_info.txt | while IFS='|' read platform type filename size; do
+              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
+            done
+          else
+            echo "| N/A | No Linux builds available | N/A | N/A |" >> download_table.md
+          fi
           
           cat >> download_table.md << 'EOF'
           
@@ -189,7 +165,7 @@ jobs:
           EOF
           
           # Add macOS files
-          if grep -q "^macos" file_info.txt; then
+          if grep -q "^macos" file_info.txt 2>/dev/null; then
             grep "^macos" file_info.txt | while IFS='|' read platform type filename size; do
               echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
             done
@@ -205,7 +181,7 @@ jobs:
           EOF
           
           # Add iOS files
-          if grep -q "^ios" file_info.txt; then
+          if grep -q "^ios" file_info.txt 2>/dev/null; then
             grep "^ios" file_info.txt | while IFS='|' read platform type filename size; do
               echo "| iOS | $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
             done
@@ -215,106 +191,80 @@ jobs:
           
           cat >> download_table.md << 'EOF'
           
-          ### Installation Instructions
+          ---
           
-          #### Windows
-          - **Native/GTK**: Extract and run the executable
-          - **Electron**: Run the `.exe` installer or extract the portable version
-          - **Tauri**: Run the `.msi` installer
+          ### 🚀 Quick Start Guide
           
-          #### Linux
-          - **Native/GTK**: Extract `.tar.gz` and run `./launch.sh` (for GTK) or the executable directly
-          - **Electron**: 
-            - Ubuntu/Debian: `sudo dpkg -i package.deb`
-            - RHEL/Fedora: `sudo rpm -i package.rpm`
-            - AppImage: `chmod +x *.AppImage && ./package.AppImage`
-          - **Tauri**: Install the `.deb` or `.rpm` package
+          #### Windows Users
+          - **Recommended**: Download the **Electron** version for the full experience
+          - **Lightweight**: Choose **Tauri** for a smaller download
+          - **Minimal**: Pick **Native** for fastest performance
           
-          #### macOS
-          - **Electron**: Open the `.dmg` and drag to Applications
-          - **Tauri**: Install from the `.dmg` file
+          #### Linux Users
+          - **Easy Install**: Use the **.deb** or **.rpm** packages
+          - **Universal**: Try the **AppImage** (runs anywhere)
+          - **Portable**: Download the **.tar.gz** archive
           
-          #### iOS
-          - **Note**: iOS builds are unsigned and require developer provisioning or jailbroken device
+          #### macOS Users
+          - Download the **.dmg** file and drag to Applications folder
           
-          ### Build Types Explained
+          ### 📋 Installation Instructions
           
-          - **Native**: Lightweight, minimal dependencies, fastest startup
-          - **GTK**: Cross-platform GUI with bundled libraries
-          - **Electron**: Web-based UI, largest size but most features
-          - **Tauri**: Rust-based with web frontend, smaller than Electron
+          <details>
+          <summary><strong>Windows Installation</strong></summary>
+          
+          - **Electron (.exe)**: Double-click to install normally
+          - **Tauri (.msi)**: Right-click → "Install" or double-click
+          - **Native/GTK (.tar.gz)**: Extract and run the executable
+          </details>
+          
+          <details>
+          <summary><strong>Linux Installation</strong></summary>
+          
+          - **Ubuntu/Debian (.deb)**:
+            ```bash
+            sudo dpkg -i googleballs-desktop-*.deb
+            sudo apt-get install -f  # Fix any dependencies
+            ```
+          
+          - **RHEL/Fedora (.rpm)**:
+            ```bash
+            sudo rpm -i googleballs-desktop-*.rpm
+            # or
+            sudo dnf install googleballs-desktop-*.rpm
+            ```
+          
+          - **AppImage**:
+            ```bash
+            chmod +x *.AppImage
+            ./googleballs-desktop-*.AppImage
+            ```
+          
+          - **Tarball (.tar.gz)**:
+            ```bash
+            tar -xzf gtk-app-linux-*.tar.gz
+            cd build/
+            ./launch.sh  # For GTK version
+            ```
+          </details>
+          
+          <details>
+          <summary><strong>macOS Installation</strong></summary>
+          
+          1. Download the `.dmg` file
+          2. Double-click to mount the disk image
+          3. Drag the app to your Applications folder
+          4. You may need to right-click → "Open" the first time (due to Gatekeeper)
+          </details>
+          
+          ### ❓ Build Types Explained
+          
+          - **🖥️ Native**: Pure C/C++ application, smallest size, fastest startup
+          - **🎨 GTK**: Cross-platform GUI with bundled GTK libraries
+          - **⚡ Tauri**: Rust + Web UI, modern and efficient
+          - **🌐 Electron**: Full web technologies, largest but most features
+          - **📱 iOS**: For iPhone/iPad (requires developer certificate)
           
           EOF
-          
-          echo "Generated download table:"
-          cat download_table.md
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          name: Google Balls - Release v${{ github.run_number }}
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/organized/windows/*
-            artifacts/organized/linux/*
-            artifacts/organized/macos/*
-            artifacts/organized/ios/*
-            artifacts/SHA256SUMS.txt
-          body_path: artifacts/download_table.md
-
-      - name: Create Release Summary
-        run: |
-          cd artifacts
-          echo "## Release Summary" >> summary.md
-          echo "" >> summary.md
-          echo "**Release:** v${{ github.run_number }}" >> summary.md
-          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> summary.md
-          echo "**Commit:** ${{ github.sha }}" >> summary.md
-          echo "" >> summary.md
-          echo "### Files Released:" >> summary.md
-          find organized/ -type f | wc -l | xargs echo "**Total Files:**" >> summary.md
-          echo "" >> summary.md
-          echo "### Checksums" >> summary.md
-          echo '```' >> summary.md
-          cat SHA256SUMS.txt >> summary.md
-          echo '```' >> summary.md
-          
-          echo "Created release summary:"
-          cat summary.md
-
-      - name: Update Release Description
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const downloadTable = fs.readFileSync('artifacts/download_table.md', 'utf8');
-            const summary = fs.readFileSync('artifacts/summary.md', 'utf8');
-            
-            const body = downloadTable + '\n\n' + summary;
-            
-            // Get the latest release
-            const releases = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 1
-            });
-            
-            if (releases.data.length > 0) {
-              const latestRelease = releases.data[0];
-              
-              // Update the release
-              await github.rest.repos.updateRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: latestRelease.id,
-                body: body
-              });
-              
-              console.log('Release description updated successfully');
-            }
+      - name:
