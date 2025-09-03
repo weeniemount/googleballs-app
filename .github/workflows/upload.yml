@@ -133,11 +133,11 @@ jobs:
         run: |
           # Create release notes with download table
           cat > release_notes.md << 'EOF'
-          # Google Balls Desktop Applications
+          # Google Balls
           
-          Multiple platform builds available for download:
+          multiple platform builds available for download:
           
-          ## 📥 Downloads
+          ## 📥 downloads
           
           | Platform | Type | File | Description |
           |----------|------|------|-------------|
@@ -215,50 +215,17 @@ jobs:
           for file in release-assets/*.ipa; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
-              echo "| iOS | Native | \`$filename\` | iOS application (unsigned - for development) |" >> release_notes.md
+              echo "| iOS | Native | \`$filename\` | iOS application |" >> release_notes.md
             fi
           done
           
           # Add installation instructions
           cat >> release_notes.md << 'EOF'
           
-          ## 🚀 Installation Instructions
+          wow! google balls!
+
+          for iOS, you can sideload it onto your device by using something like AltStore, Sidestore, Sideloadly or LiveContainer. you can also have a jailbroken device. works on iOS 14.0+
           
-          ### Native Applications
-          - **Windows Native**: Download and run the `.exe` file directly
-          - **Linux Native**: Download, make executable (`chmod +x`), and run
-          
-          ### GTK3 Applications
-          - **Windows**: Extract the `.tar.gz` file and run the included executable
-          - **Linux**: Extract the `.tar.gz` file and run `./launch.sh`
-          
-          ### Tauri Applications
-          - **Windows**: Install using the `.msi` installer or run the portable `.exe`
-          - **Linux**: Install the `.deb` package or run the `.AppImage` file
-          
-          ### Electron Applications
-          - **Windows**: Run the `.exe` installer
-          - **Linux**: Install the `.rpm` package using your package manager
-          - **macOS**: Mount the `.dmg` file and drag to Applications
-          
-          ### iOS
-          - **Development**: Use development tools to install the `.ipa` file (requires developer account for device installation)
-          
-          ## 📋 System Requirements
-          
-          - **Windows**: Windows 10 or later
-          - **Linux**: Most modern distributions with glibc 2.17+ 
-          - **macOS**: macOS 10.14 or later
-          - **iOS**: iOS 12.0 or later
-          
-          ## 🛠️ Build Information
-          
-          All applications are built from the same source code with different frameworks:
-          - **Native**: Direct system APIs (SDL2/GTK3)
-          - **Tauri**: Rust backend with web frontend
-          - **Electron**: Node.js with web technologies
-          
-          Choose the version that best fits your system and preferences!
           EOF
 
       - name: Create Release
