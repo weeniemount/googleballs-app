@@ -1,4 +1,5 @@
 # google balls app!!!
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml)
 
 <img src="balls.png" alt="google balls" width="200"/>
 
@@ -33,6 +34,7 @@ go inside of ``native`` and if ur on windows you have to install msys and instal
 
 # how 2 compile gtk
 go inside of ``native`` and if ur on windows you have to install msys and install sdl2. for linux just install sdl2. on either os run .sh/.bat respectively.
+
 
 
 
