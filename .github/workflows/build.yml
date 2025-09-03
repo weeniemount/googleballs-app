@@ -207,7 +207,7 @@ jobs:
           copy_lib_deps "libXinerama"
 
           # other stuff
-          copy_lib_deps "libjpegso"
+          copy_lib_deps "libjpeg"
           
           # Create a launch script that sets LD_LIBRARY_PATH
           cat > launch.sh << EOF
