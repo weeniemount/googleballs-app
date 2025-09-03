@@ -49,6 +49,14 @@ jobs:
           ./configure --prefix=/usr/local --enable-static --disable-shared
           make -j$(nproc)
           sudo make install
+          cd ..
+          # Build SDL2_image
+          wget https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.3/SDL2_image-2.6.3.tar.gz
+          tar xzf SDL2_image-2.6.3.tar.gz
+          cd SDL2_image-2.6.3
+          ./configure --prefix=/usr/local --enable-static --disable-shared
+          make -j$(nproc)
+          sudo make install
 
       - name: Setup MSYS2 and Dependencies (Windows)
         if: matrix.platform == 'windows-latest'
