@@ -90,6 +90,7 @@ jobs:
             artifacts/*/*.zip
             artifacts/*/*.msi
             artifacts/*/*.dmg
+            artifacts/*/*.ipa
 
             artifacts/*.tar.gz
             artifacts/*.deb
@@ -99,6 +100,7 @@ jobs:
             artifacts/*.zip
             artifacts/*.msi
             artifacts/*.dmg
+            artifacts/*.ipa
             artifacts/googleballs-desktop
             artifacts/SHA256SUMS.txt
           body: |
