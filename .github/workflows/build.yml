@@ -450,6 +450,9 @@ jobs:
       - name: bye unpacked 👋
         run: find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} +
 
+      - name: bye unpacked gtk windows 👋
+        run: find artifacts/ -type d -name 'build' -exec rm -rf {} +
+
       - name: Generate SHA256 Hashes
         run: |
           cd artifacts
@@ -485,6 +488,8 @@ jobs:
             artifacts/*.AppImage
             artifacts/*.zip
             artifacts/*.msi
+            
+            artifacts/googleballs-desktop
             artifacts/SHA256SUMS.txt
           body: |
             ## Release v${{ github.run_number }}
