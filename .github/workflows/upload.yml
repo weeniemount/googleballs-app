@@ -2,6 +2,7 @@ name: Release
 
 permissions:
   contents: write
+  actions: write
 
 on:
   workflow_dispatch:
@@ -56,20 +57,197 @@ jobs:
       - name: Download All Artifacts from Last Build
         run: |
           gh run download $(gh run list --workflow="Build Apps" --branch=master --limit=1 --json id --jq '.[0].id') --dir artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clean Unpacked Directories
         run: |
-          find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} +
-          find artifacts/ -type d -name 'build' -exec rm -rf {} +
+          find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} + 2>/dev/null || true
+          find artifacts/ -type d -name 'build' -exec rm -rf {} + 2>/dev/null || true
 
-      - name: Generate SHA256 Hashes
+      - name: Organize and Generate File Information
         run: |
           cd artifacts
-          for file in *; do
+          
+          # Create organized structure
+          mkdir -p organized/{windows,linux,macos,ios,android}
+          
+          # Function to get file size in human readable format
+          get_size() {
+            local file="$1"
             if [ -f "$file" ]; then
-              sha256sum "$file" >> SHA256SUMS.txt
+              du -h "$file" | cut -f1
+            else
+              echo "N/A"
             fi
+          }
+          
+          # Function to detect file type and move to appropriate directory
+          organize_files() {
+            find . -type f \( \
+              -name "*.exe" -o \
+              -name "*.msi" -o \
+              -name "*.zip" -o \
+              -name "*.tar.gz" -o \
+              -name "*.deb" -o \
+              -name "*.rpm" -o \
+              -name "*.AppImage" -o \
+              -name "*.dmg" -o \
+              -name "*.ipa" -o \
+              -name "googleballs-desktop*" \
+            \) | while read file; do
+              filename=$(basename "$file")
+              size=$(get_size "$file")
+              
+              # Determine platform and type based on filename and extension
+              if [[ "$filename" =~ windows|win|\.exe$|\.msi$ ]]; then
+                platform="windows"
+                if [[ "$filename" =~ electron ]]; then
+                  type="Electron"
+                elif [[ "$filename" =~ tauri ]]; then
+                  type="Tauri"
+                elif [[ "$filename" =~ gtk ]]; then
+                  type="GTK"
+                else
+                  type="Native"
+                fi
+              elif [[ "$filename" =~ linux|ubuntu|\.deb$|\.rpm$|\.AppImage$ ]]; then
+                platform="linux"
+                if [[ "$filename" =~ electron ]]; then
+                  type="Electron"
+                elif [[ "$filename" =~ tauri ]]; then
+                  type="Tauri"
+                elif [[ "$filename" =~ gtk ]]; then
+                  type="GTK"
+                else
+                  type="Native"
+                fi
+              elif [[ "$filename" =~ macos|mac|darwin|\.dmg$ ]]; then
+                platform="macos"
+                if [[ "$filename" =~ electron ]]; then
+                  type="Electron"
+                elif [[ "$filename" =~ tauri ]]; then
+                  type="Tauri"
+                else
+                  type="Native"
+                fi
+              elif [[ "$filename" =~ \.ipa$ ]]; then
+                platform="ios"
+                type="iOS App"
+              else
+                platform="linux" # default fallback
+                type="Unknown"
+              fi
+              
+              # Copy file to organized directory
+              cp "$file" "organized/$platform/"
+              
+              # Record file info
+              echo "$platform|$type|$filename|$size" >> file_info.txt
+            done
+          }
+          
+          organize_files
+          
+          # Generate SHA256 hashes for all files
+          find organized/ -type f -exec sha256sum {} \; | sed 's|organized/||' > SHA256SUMS.txt
+
+      - name: Generate Download Table
+        run: |
+          cd artifacts
+          
+          cat > download_table.md << 'EOF'
+          ## 📥 Downloads
+          
+          ### Windows
+          | Type | File | Size | Download |
+          |------|------|------|----------|
+          EOF
+          
+          # Add Windows files
+          grep "^windows" file_info.txt | while IFS='|' read platform type filename size; do
+            echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
           done
+          
+          cat >> download_table.md << 'EOF'
+          
+          ### Linux
+          | Type | File | Size | Download |
+          |------|------|------|----------|
+          EOF
+          
+          # Add Linux files
+          grep "^linux" file_info.txt | while IFS='|' read platform type filename size; do
+            echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
+          done
+          
+          cat >> download_table.md << 'EOF'
+          
+          ### macOS
+          | Type | File | Size | Download |
+          |------|------|------|----------|
+          EOF
+          
+          # Add macOS files
+          if grep -q "^macos" file_info.txt; then
+            grep "^macos" file_info.txt | while IFS='|' read platform type filename size; do
+              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
+            done
+          else
+            echo "| N/A | No macOS builds available | N/A | N/A |" >> download_table.md
+          fi
+          
+          cat >> download_table.md << 'EOF'
+          
+          ### Mobile
+          | Platform | Type | File | Size | Download |
+          |----------|------|------|------|----------|
+          EOF
+          
+          # Add iOS files
+          if grep -q "^ios" file_info.txt; then
+            grep "^ios" file_info.txt | while IFS='|' read platform type filename size; do
+              echo "| iOS | $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
+            done
+          else
+            echo "| iOS | N/A | No iOS builds available | N/A | N/A |" >> download_table.md
+          fi
+          
+          cat >> download_table.md << 'EOF'
+          
+          ### Installation Instructions
+          
+          #### Windows
+          - **Native/GTK**: Extract and run the executable
+          - **Electron**: Run the `.exe` installer or extract the portable version
+          - **Tauri**: Run the `.msi` installer
+          
+          #### Linux
+          - **Native/GTK**: Extract `.tar.gz` and run `./launch.sh` (for GTK) or the executable directly
+          - **Electron**: 
+            - Ubuntu/Debian: `sudo dpkg -i package.deb`
+            - RHEL/Fedora: `sudo rpm -i package.rpm`
+            - AppImage: `chmod +x *.AppImage && ./package.AppImage`
+          - **Tauri**: Install the `.deb` or `.rpm` package
+          
+          #### macOS
+          - **Electron**: Open the `.dmg` and drag to Applications
+          - **Tauri**: Install from the `.dmg` file
+          
+          #### iOS
+          - **Note**: iOS builds are unsigned and require developer provisioning or jailbroken device
+          
+          ### Build Types Explained
+          
+          - **Native**: Lightweight, minimal dependencies, fastest startup
+          - **GTK**: Cross-platform GUI with bundled libraries
+          - **Electron**: Web-based UI, largest size but most features
+          - **Tauri**: Rust-based with web frontend, smaller than Electron
+          
+          EOF
+          
+          echo "Generated download table:"
+          cat download_table.md
 
       - name: Create GitHub Release
         id: create_release
@@ -78,35 +256,65 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
+          name: Google Balls - Release v${{ github.run_number }}
           draft: false
           prerelease: false
           files: |
-            artifacts/*/*.tar.gz
-            artifacts/*/*.deb
-            artifacts/*/*.rpm
-            artifacts/*/*.exe
-            artifacts/*/*.AppImage
-            artifacts/*/*.zip
-            artifacts/*/*.msi
-            artifacts/*/*.dmg
-            artifacts/*/*.ipa
-
-            artifacts/*.tar.gz
-            artifacts/*.deb
-            artifacts/*.rpm
-            artifacts/*.exe
-            artifacts/*.AppImage
-            artifacts/*.zip
-            artifacts/*.msi
-            artifacts/*.dmg
-            artifacts/*.ipa
-            artifacts/googleballs-desktop
+            artifacts/organized/windows/*
+            artifacts/organized/linux/*
+            artifacts/organized/macos/*
+            artifacts/organized/ios/*
             artifacts/SHA256SUMS.txt
-          body: |
-            ## Release v${{ github.run_number }}
+          body_path: artifacts/download_table.md
+
+      - name: Create Release Summary
+        run: |
+          cd artifacts
+          echo "## Release Summary" >> summary.md
+          echo "" >> summary.md
+          echo "**Release:** v${{ github.run_number }}" >> summary.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> summary.md
+          echo "**Commit:** ${{ github.sha }}" >> summary.md
+          echo "" >> summary.md
+          echo "### Files Released:" >> summary.md
+          find organized/ -type f | wc -l | xargs echo "**Total Files:**" >> summary.md
+          echo "" >> summary.md
+          echo "### Checksums" >> summary.md
+          echo '```' >> summary.md
+          cat SHA256SUMS.txt >> summary.md
+          echo '```' >> summary.md
+          
+          echo "Created release summary:"
+          cat summary.md
+
+      - name: Update Release Description
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const downloadTable = fs.readFileSync('artifacts/download_table.md', 'utf8');
+            const summary = fs.readFileSync('artifacts/summary.md', 'utf8');
             
-            ### Checksums
-            ```
-            $(cat artifacts/SHA256SUMS.txt)
-            ```
+            const body = downloadTable + '\n\n' + summary;
+            
+            // Get the latest release
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1
+            });
+            
+            if (releases.data.length > 0) {
+              const latestRelease = releases.data[0];
+              
+              // Update the release
+              await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: latestRelease.id,
+                body: body
+              });
+              
+              console.log('Release description updated successfully');
+            }
