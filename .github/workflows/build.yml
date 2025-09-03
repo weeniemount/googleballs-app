@@ -398,7 +398,7 @@ jobs:
       - name: Build Tauri App
         run: |
           cd tauri
-          npm run tauri build
+          npx tauri build --target universal-apple-darwin
 
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4

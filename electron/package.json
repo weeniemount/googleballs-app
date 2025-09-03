@@ -1,6 +1,6 @@
 {
   "name": "googleballs-desktop",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Google Balls Desktop App Real!!!!!!!!!!!",
   "main": "src/index.js",
   "devDependencies": {
