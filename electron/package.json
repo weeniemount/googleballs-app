@@ -48,6 +48,12 @@
         "rpm"
 			],
 			"icon": "src/icons/balls.png"
+		},
+    "mac": {
+			"target": [
+				"dmg"
+			],
+			"icon": "src/icons/balls.icns"
 		}
 	}
 }

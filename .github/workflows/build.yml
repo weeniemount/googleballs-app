@@ -353,7 +353,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest]
+        platform: [windows-latest, ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.platform }}
 
@@ -383,6 +383,13 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
+      - name: Install macOS Dependencies
+        if: matrix.platform == 'macos-latest'
+        run: |
+          # No additional dependencies needed for macOS Tauri builds
+          # Xcode command line tools are already available
+          echo "macOS build environment ready"
+
       - name: Install Dependencies (Tauri)
         run: |
           cd tauri
@@ -404,7 +411,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, ubuntu-latest]
+        platform: [windows-latest, ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.platform }}
     container: ${{ matrix.platform == 'ubuntu-latest' && 'rockylinux:9' || '' }}
@@ -434,6 +441,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Set up Node.js (macOS)
+        if: matrix.platform == 'macos-latest'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install npm Dependencies
         working-directory: electron
         run: npm install
@@ -447,6 +460,11 @@ jobs:
         if: matrix.platform == 'windows-latest'
         working-directory: electron
         run: npm run dist
+
+      - name: Build macOS Package
+        if: matrix.platform == 'macos-latest'
+        working-directory: electron
+        run: npm run dist -- --mac --universal
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
