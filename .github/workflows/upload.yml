@@ -282,7 +282,7 @@ jobs:
           fi
           
           echo "📂 Downloaded artifacts:"
-          find artifacts/ -type f -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.dmg" -o -name "*.ipa" -o -name "*.tar.gz" | head -20
+          find artifacts/ -type f | head -20
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -297,10 +297,15 @@ jobs:
           find artifacts/ -type d -name 'win-unpacked' -exec rm -rf {} + 2>/dev/null || true
           find artifacts/ -type d -name 'linux-unpacked' -exec rm -rf {} + 2>/dev/null || true
           
-          # Remove common build artifacts we don't need
+          # Remove common build artifacts we don't need (including PNG files)
           find artifacts/ -name "*.log" -delete 2>/dev/null || true
           find artifacts/ -name "*.tmp" -delete 2>/dev/null || true
+          find artifacts/ -name "*.png" -delete 2>/dev/null || true
+          find artifacts/ -name "*.ico" -delete 2>/dev/null || true
           find artifacts/ -name ".DS_Store" -delete 2>/dev/null || true
+          
+          # Keep only specific tar.gz files
+          find artifacts/ -name "*.tar.gz" | grep -v -E "(gtk-app-windows-x64|gtk-app-linux-x64)" | xargs rm -f 2>/dev/null || true
           
           echo "✅ Cleanup complete"
 
@@ -321,11 +326,52 @@ jobs:
             if [ -f "$file" ]; then
               local bytes=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
               local human=$(du -h "$file" 2>/dev/null | cut -f1)
-              local sha256=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)
+              local sha256=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1 || echo "unknown")
               echo "$bytes|$human|$sha256"
             else
               echo "0|0B|unknown"
             fi
+          }
+          
+          # Function to detect app type from filename
+          detect_app_type() {
+            local filename="$1"
+            
+            # Electron detection
+            if [[ "$filename" =~ "Google Balls Desktop Setup" ]] || 
+               [[ "$filename" =~ googleballs-desktop.*\.(deb|rpm)$ && ! "$filename" =~ "Google Balls Desktop" ]]; then
+              echo "Electron"
+              return
+            fi
+            
+            # Tauri detection  
+            if [[ "$filename" =~ "Google Balls Desktop_".*"_x64" ]] ||
+               [[ "$filename" =~ "Google Balls Desktop-".*"\.(deb|rpm)$" ]]; then
+              echo "Tauri"
+              return
+            fi
+            
+            # GTK detection
+            if [[ "$filename" =~ gtk-app.*\.tar\.gz$ ]]; then
+              echo "GTK"
+              return
+            fi
+            
+            # Native detection
+            if [[ "$filename" == "googleballs-desktop.exe" ]] ||
+               [[ "$filename" =~ googleballs-desktop$ ]]; then
+              echo "Native"
+              return
+            fi
+            
+            # DMG files - likely Electron
+            if [[ "$filename" =~ \.dmg$ ]]; then
+              echo "Electron"
+              return
+            fi
+            
+            # Default
+            echo "Unknown"
           }
           
           # Function to categorize and organize files
@@ -333,15 +379,16 @@ jobs:
             find . -type f \( \
               -name "*.exe" -o \
               -name "*.msi" -o \
-              -name "*.zip" -o \
-              -name "*.tar.gz" -o \
               -name "*.deb" -o \
               -name "*.rpm" -o \
               -name "*.AppImage" -o \
               -name "*.dmg" -o \
               -name "*.ipa" -o \
               -name "*.pkg" -o \
-              -name "googleballs-desktop*" \
+              -name "gtk-app-windows-x64.tar.gz" -o \
+              -name "gtk-app-linux-x64.tar.gz" -o \
+              -name "googleballs-desktop.exe" -o \
+              -name "googleballs-desktop" \
             \) | while read file; do
               filename=$(basename "$file")
               file_info=$(get_file_info "$file")
@@ -349,41 +396,30 @@ jobs:
               
               # Determine platform
               platform="universal"
-              app_type="Unknown"
               category="Application"
               
               # Platform detection
-              if [[ "$filename" =~ [Ww]indows|[Ww]in32|[Ww]in64|x64.*\.exe$|\.exe$|\.msi$ ]]; then
+              if [[ "$filename" =~ \.exe$|\.msi$|gtk-app-windows ]]; then
                 platform="windows"
-              elif [[ "$filename" =~ [Ll]inux|[Uu]buntu|[Dd]ebian|[Ff]edora|[Cc]entOS|\.deb$|\.rpm$|\.AppImage$|x86_64.*\.tar\.gz$ ]]; then
+              elif [[ "$filename" =~ \.(deb|rpm)$|\.AppImage$|gtk-app-linux ]]; then
                 platform="linux"
-              elif [[ "$filename" =~ [Mm]acOS|[Mm]ac|[Dd]arwin|universal.*apple|\.dmg$|\.pkg$ ]]; then
+              elif [[ "$filename" =~ \.dmg$|\.pkg$ ]]; then
                 platform="macos"
               elif [[ "$filename" =~ \.ipa$ ]]; then
                 platform="ios"
-              elif [[ "$filename" =~ [Aa]ndroid|\.apk$ ]]; then
+              elif [[ "$filename" =~ \.apk$ ]]; then
                 platform="android"
               fi
               
-              # App type detection
-              if [[ "$filename" =~ [Ee]lectron ]]; then
-                app_type="Electron"
-              elif [[ "$filename" =~ [Tt]auri ]]; then
-                app_type="Tauri"
-              elif [[ "$filename" =~ [Gg]tk|gtk ]]; then
-                app_type="GTK"
-              elif [[ "$filename" =~ [Nn]ative|googleballs-desktop ]]; then
-                app_type="Native"
-              elif [[ "$filename" =~ \.ipa$ ]]; then
-                app_type="iOS App"
-              fi
+              # Detect app type
+              app_type=$(detect_app_type "$filename")
               
               # Category detection
-              if [[ "$filename" =~ \.deb$|\.rpm$ ]]; then
+              if [[ "$filename" =~ \.(deb|rpm)$ ]]; then
                 category="Package"
-              elif [[ "$filename" =~ \.zip$|\.tar\.gz$ ]]; then
+              elif [[ "$filename" =~ \.tar\.gz$ ]]; then
                 category="Archive"
-              elif [[ "$filename" =~ \.msi$|\.dmg$|\.pkg$ ]]; then
+              elif [[ "$filename" =~ \.(msi|dmg|pkg)$ ]]; then
                 category="Installer"
               elif [[ "$filename" =~ \.AppImage$ ]]; then
                 category="Portable"
@@ -443,7 +479,7 @@ jobs:
           
           EOF
           
-          # Generate platform-specific download sections
+          # Generate platform-specific download sections with proper links
           generate_platform_section() {
             local platform=$1
             local platform_name=$2
@@ -453,14 +489,12 @@ jobs:
               cat >> release_notes.md << EOF
           ### $icon $platform_name
           
-          | Type | Category | File | Size | Download |
-          |------|----------|------|------|----------|
+          | Type | Category | File | Size |
+          |------|----------|------|------|
           EOF
               
               grep "^$platform|" file_info.csv | sort -t'|' -k2,2 -k3,3 | while IFS='|' read plat type category filename size sha256; do
-                # Create download link
-                download_link="[\`$filename\`]($filename)"
-                echo "| **$type** | $category | $download_link | $size | [⬇️ Download]($filename) |" >> release_notes.md
+                echo "| **$type** | $category | \`$filename\` | $size |" >> release_notes.md
               done
               
               echo "" >> release_notes.md
@@ -481,11 +515,6 @@ jobs:
           <details>
           <summary><strong>🪟 Windows</strong></summary>
           
-          ### Recommended Downloads:
-          - **🎯 For most users**: Electron installer (`.exe`)
-          - **🪶 Lightweight option**: Tauri installer (`.msi`)
-          - **⚡ Performance focused**: Native executable
-          
           ### Installation:
           1. **Installer files** (`.exe`, `.msi`): Double-click and follow the setup wizard
           2. **Portable versions**: Extract the archive and run the executable
@@ -498,27 +527,32 @@ jobs:
           
           ### Package Managers:
           ```bash
-          # Ubuntu/Debian (.deb)
-          sudo dpkg -i googleballs-desktop-*.deb
+          # Electron packages
+          # Ubuntu/Debian
+          sudo dpkg -i googleballs-desktop-VERSION.x86_64.deb
           sudo apt-get install -f
           
-          # RHEL/Fedora/openSUSE (.rpm)
-          sudo rpm -i googleballs-desktop-*.rpm
-          # OR
-          sudo dnf install googleballs-desktop-*.rpm
+          # RHEL/Fedora/openSUSE  
+          sudo rpm -i googleballs-desktop-VERSION.x86_64.rpm
+          
+          # Tauri packages
+          # Ubuntu/Debian
+          sudo dpkg -i "Google Balls Desktop_VERSION_amd64.deb"
+          
+          # RHEL/Fedora/openSUSE
+          sudo rpm -i "Google Balls Desktop-VERSION-1.x86_64.rpm"
           ```
           
           ### Portable Options:
           ```bash
-          # AppImage (universal)
-          chmod +x *.AppImage
-          ./googleballs-desktop-*.AppImage
-          
-          # Archive extraction
-          tar -xzf googleballs-desktop-*.tar.gz
+          # GTK version (recommended for Linux)
+          tar -xzf gtk-app-linux-x64.tar.gz
           cd build/
           ./launch.sh  # GTK version with bundled libraries
-          ./googleballs-desktop  # Native version
+          
+          # AppImage (if available)
+          chmod +x *.AppImage
+          ./googleballs-desktop-*.AppImage
           ```
           
           ### Dependencies:
@@ -537,7 +571,7 @@ jobs:
           <summary><strong>🍎 macOS</strong></summary>
           
           ### Installation:
-          1. Download the `.dmg` file
+          1. Download the `.dmg` file (Electron version)
           2. Double-click to mount the disk image
           3. Drag "Google Balls" to your Applications folder
           4. **First launch**: Right-click the app → "Open" (required due to Gatekeeper)
@@ -545,7 +579,7 @@ jobs:
           
           ### Troubleshooting:
           - **"App can't be opened"**: Right-click → Open, then click "Open" in the dialog
-          - **Performance issues**: Try the native version for better performance
+          - **Performance issues**: Try other available versions if any
           
           </details>
           
@@ -597,10 +631,10 @@ jobs:
           ## 🛠️ Technical Details
           
           ### Build Types:
-          - **🖥️ Native**: Pure C/C++ application, minimal dependencies, fastest performance
-          - **🎨 GTK**: Cross-platform GUI with GTK3, bundled libraries included
-          - **⚡ Tauri**: Rust backend with web frontend, modern and efficient
-          - **🌐 Electron**: Full web stack, feature-rich but larger download
+          - **🖥️ Native**: Pure C/C++ application (`googleballs-desktop.exe`), minimal dependencies, fastest performance
+          - **🎨 GTK**: Cross-platform GUI with GTK3 (`gtk-app-*.tar.gz`), bundled libraries included
+          - **⚡ Tauri**: Rust backend with web frontend (`Google Balls Desktop_*`), modern and efficient
+          - **🌐 Electron**: Full web stack (`Google Balls Desktop Setup *` and `googleballs-desktop-*.deb/rpm`), feature-rich but larger download
           
           ### System Requirements:
           - **Windows**: 7 SP1+ (64-bit recommended)
@@ -622,7 +656,7 @@ jobs:
           EOF
           
           # Generate checksums
-          find organized/ -type f -exec sha256sum {} \; | sed 's|organized/[^/]*/||' >> release_notes.md
+          find organized/ -type f -exec sha256sum {} \; | sed 's|organized/[^/]*/||' | sort >> release_notes.md
           
           cat >> release_notes.md << 'EOF'
           ```
@@ -695,61 +729,3 @@ jobs:
           echo "- [📥 Download Release](${{ steps.create_release.outputs.html_url }})" >> $GITHUB_STEP_SUMMARY
           echo "- [📋 View All Releases](../../releases)" >> $GITHUB_STEP_SUMMARY
           echo "- [🔄 Build Workflow](../../actions/workflows/build.yml)" >> $GITHUB_STEP_SUMMARY
-
-  notification:
-    needs: [validate-inputs, create-release]
-    if: always() && needs.create-release.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Success Notification
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Create a discussion post about the release (if discussions are enabled)
-            try {
-              const { data: repo } = await github.rest.repos.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-              
-              if (repo.has_discussions) {
-                console.log('Repository has discussions enabled');
-                // You could create a discussion post here if needed
-              }
-            } catch (error) {
-              console.log('Could not check discussions:', error.message);
-            }
-            
-            // Log success
-            console.log('✅ Release ${{ needs.validate-inputs.outputs.tag_name }} created successfully!');
-            console.log('🔗 Release URL: ${{ needs.create-release.outputs.release-url }}');
-
-      - name: Update Repository Topics (Optional)
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Add release-related topics
-            try {
-              const { data: repo } = await github.rest.repos.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-              
-              const currentTopics = repo.topics || [];
-              const releaseTopics = ['releases-available', 'cross-platform', 'desktop-app'];
-              const newTopics = [...new Set([...currentTopics, ...releaseTopics])];
-              
-              if (newTopics.length !== currentTopics.length) {
-                await github.rest.repos.replaceAllTopics({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  names: newTopics
-                });
-                console.log('✅ Repository topics updated');
-              }
-            } catch (error) {
-              console.log('Could not update topics:', error.message);
-            }
