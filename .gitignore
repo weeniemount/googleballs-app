@@ -47,3 +47,4 @@ native-gtk/*.exe
 native-gtk/*.dll
 native-gtk/googleballs-desktop-gtk
 native-gtk/googleballs-desktop-gtk-debug
+
