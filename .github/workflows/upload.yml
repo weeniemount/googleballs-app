@@ -3,52 +3,332 @@ name: Release
 permissions:
   contents: write
   actions: write
+  issues: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release Type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+      trigger_build:
+        description: 'Trigger new build before release'
+        required: true
+        default: true
+        type: boolean
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  RELEASE_BRANCH: master
 
 jobs:
-  create-release:
+  validate-inputs:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      should_build: ${{ steps.check.outputs.should_build }}
     steps:
-      - name: Download Latest Successful Build Artifacts
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version
+        id: version
         run: |
-          # Get the latest successful build run
-          latest_run=$(gh run list --workflow="Build Apps" --branch=master --status=success --limit=1 --json id --jq '.[0].id')
+          # Get the latest tag
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
           
-          if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
-            echo "No successful build found. Please run the Build Apps workflow first."
-            exit 1
+          # Extract version numbers
+          version=${latest_tag#v}
+          IFS='.' read -ra VERSION_PARTS <<< "$version"
+          major=${VERSION_PARTS[0]:-0}
+          minor=${VERSION_PARTS[1]:-0}
+          patch=${VERSION_PARTS[2]:-0}
+          
+          # Calculate new version based on release type
+          case "${{ inputs.release_type }}" in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+            "prerelease")
+              if [[ $latest_tag == *"-"* ]]; then
+                # Already a prerelease, increment
+                pre_num=$(echo $latest_tag | sed -n 's/.*-\([0-9]*\)$/\1/p')
+                pre_num=${pre_num:-0}
+                pre_num=$((pre_num + 1))
+                new_version="$major.$minor.$patch-$pre_num"
+              else
+                # First prerelease
+                new_version="$major.$minor.$((patch + 1))-1"
+              fi
+              ;;
+          esac
+          
+          if [ "${{ inputs.release_type }}" != "prerelease" ]; then
+            new_version="$major.$minor.$patch"
           fi
           
-          echo "Using build run ID: $latest_run"
-          gh run download $latest_run --dir artifacts
+          tag_name="v$new_version"
+          
+          echo "version=$new_version" >> $GITHUB_OUTPUT
+          echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
+          echo "New version will be: $tag_name"
+
+      - name: Check build requirement
+        id: check
+        run: |
+          should_build="false"
+          if [ "${{ inputs.trigger_build }}" = "true" ]; then
+            should_build="true"
+          else
+            # Check if we have a recent successful build
+            recent_build=$(gh run list --workflow="Build Apps" --branch=${{ env.RELEASE_BRANCH }} --status=success --limit=1 --json id,createdAt --jq '.[0] // empty')
+            if [ -z "$recent_build" ]; then
+              echo "No successful builds found, forcing build trigger"
+              should_build="true"
+            else
+              build_date=$(echo "$recent_build" | jq -r '.createdAt')
+              build_timestamp=$(date -d "$build_date" +%s)
+              current_timestamp=$(date +%s)
+              age_hours=$(( (current_timestamp - build_timestamp) / 3600 ))
+              
+              if [ $age_hours -gt 24 ]; then
+                echo "Last successful build is $age_hours hours old, triggering new build"
+                should_build="true"
+              else
+                echo "Recent successful build found ($age_hours hours old), using existing artifacts"
+              fi
+            fi
+          fi
+          
+          echo "should_build=$should_build" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean Unpacked Directories
+  trigger-build:
+    needs: validate-inputs
+    if: needs.validate-inputs.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      run-id: ${{ steps.get-run-id.outputs.run-id }}
+      build-triggered: "true"
+    steps:
+      - name: Trigger Build Workflow
+        id: trigger
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Build Apps
+          ref: refs/heads/${{ env.RELEASE_BRANCH }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait and Get Latest Run ID
+        id: get-run-id
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Wait for the workflow to start
+            console.log('Waiting for workflow to start...');
+            await new Promise(resolve => setTimeout(resolve, 15000));
+            
+            // Get the latest workflow run for "Build Apps"
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              branch: '${{ env.RELEASE_BRANCH }}',
+              per_page: 3
+            });
+            
+            if (runs.data.workflow_runs.length === 0) {
+              throw new Error('No workflow runs found');
+            }
+            
+            // Find the most recent run (should be the one we just triggered)
+            const latestRun = runs.data.workflow_runs[0];
+            const runId = latestRun.id;
+            
+            console.log(`Found workflow run ID: ${runId}`);
+            console.log(`Run status: ${latestRun.status}`);
+            console.log(`Run URL: ${latestRun.html_url}`);
+            
+            core.setOutput('run-id', runId.toString());
+            return runId;
+
+  wait-for-build:
+    needs: [validate-inputs, trigger-build]
+    if: needs.validate-inputs.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Build Workflow to Complete
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const runId = parseInt('${{ needs.trigger-build.outputs.run-id }}');
+            console.log(`Monitoring workflow run ID: ${runId}`);
+            
+            if (isNaN(runId)) {
+              throw new Error('Invalid run ID received');
+            }
+            
+            let status = 'in_progress';
+            let attempts = 0;
+            const maxAttempts = 240; // 60 minutes max (240 * 15s)
+            const checkInterval = 15000; // 15 seconds
+            
+            while ((status === 'in_progress' || status === 'queued') && attempts < maxAttempts) {
+              try {
+                const { data: run } = await github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: runId
+                });
+                
+                status = run.status;
+                const conclusion = run.conclusion;
+                const elapsed = Math.round((attempts * checkInterval) / 60000);
+                
+                console.log(`⏱️  ${elapsed}m - Status: ${status}${conclusion ? `, Conclusion: ${conclusion}` : ''}`);
+                
+                if (status === 'completed') {
+                  if (conclusion === 'success') {
+                    console.log('✅ Build workflow completed successfully!');
+                    // Add a small delay to ensure artifacts are fully processed
+                    await new Promise(resolve => setTimeout(resolve, 30000));
+                    break;
+                  } else {
+                    console.log(`❌ Build workflow failed with conclusion: ${conclusion}`);
+                    throw new Error(`Build workflow failed with conclusion: ${conclusion}`);
+                  }
+                }
+                
+                attempts++;
+                if (attempts < maxAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, checkInterval));
+                }
+              } catch (error) {
+                console.log(`❌ Error checking run status: ${error.message}`);
+                if (attempts >= maxAttempts - 10) { // Give some retries near the end
+                  throw error;
+                }
+                console.log('🔄 Retrying...');
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+                attempts++;
+              }
+            }
+            
+            if (attempts >= maxAttempts) {
+              throw new Error('⏰ Timeout waiting for build workflow to complete (60 minutes)');
+            }
+
+  create-release:
+    needs: [validate-inputs, trigger-build, wait-for-build]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      release-id: ${{ steps.create_release.outputs.id }}
+      release-url: ${{ steps.create_release.outputs.html_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
         run: |
+          if [ "${{ needs.validate-inputs.outputs.should_build }}" = "true" ]; then
+            echo "📥 Downloading artifacts from triggered build..."
+            run_id="${{ needs.trigger-build.outputs.run-id }}"
+            gh run download $run_id --dir artifacts
+          else
+            echo "📥 Downloading artifacts from latest successful build..."
+            latest_run=$(gh run list --workflow="Build Apps" --branch=${{ env.RELEASE_BRANCH }} --status=success --limit=1 --json id --jq '.[0].id')
+            
+            if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
+              echo "❌ No successful build found!"
+              exit 1
+            fi
+            
+            echo "Using build run ID: $latest_run"
+            gh run download $latest_run --dir artifacts
+          fi
+          
+          echo "📂 Downloaded artifacts:"
+          find artifacts/ -type f -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.dmg" -o -name "*.ipa" -o -name "*.tar.gz" | head -20
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean and Prepare Artifacts
+        run: |
+          echo "🧹 Cleaning up unnecessary files..."
+          
+          # Remove unpacked directories and build folders
           find artifacts/ -type d -name '*-unpacked' -exec rm -rf {} + 2>/dev/null || true
           find artifacts/ -type d -name 'build' -exec rm -rf {} + 2>/dev/null || true
+          find artifacts/ -type d -name 'mas-universal' -exec rm -rf {} + 2>/dev/null || true
+          find artifacts/ -type d -name 'win-unpacked' -exec rm -rf {} + 2>/dev/null || true
+          find artifacts/ -type d -name 'linux-unpacked' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Remove common build artifacts we don't need
+          find artifacts/ -name "*.log" -delete 2>/dev/null || true
+          find artifacts/ -name "*.tmp" -delete 2>/dev/null || true
+          find artifacts/ -name ".DS_Store" -delete 2>/dev/null || true
+          
+          echo "✅ Cleanup complete"
 
-      - name: Organize and Generate File Information
+      - name: Organize and Analyze Artifacts
         run: |
           cd artifacts
+          echo "📊 Organizing artifacts by platform..."
           
           # Create organized structure
-          mkdir -p organized/{windows,linux,macos,ios,android}
+          mkdir -p organized/{windows,linux,macos,ios,android,universal}
           
-          # Function to get file size in human readable format
-          get_size() {
+          # Initialize file info
+          echo "# Platform|Type|Category|Filename|Size|SHA256" > file_info.csv
+          
+          # Function to get file size in bytes and human readable
+          get_file_info() {
             local file="$1"
             if [ -f "$file" ]; then
-              du -h "$file" | cut -f1
+              local bytes=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+              local human=$(du -h "$file" 2>/dev/null | cut -f1)
+              local sha256=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)
+              echo "$bytes|$human|$sha256"
             else
-              echo "N/A"
+              echo "0|0B|unknown"
             fi
           }
           
-          # Function to detect file type and move to appropriate directory
+          # Function to categorize and organize files
           organize_files() {
             find . -type f \( \
               -name "*.exe" -o \
@@ -60,211 +340,416 @@ jobs:
               -name "*.AppImage" -o \
               -name "*.dmg" -o \
               -name "*.ipa" -o \
+              -name "*.pkg" -o \
               -name "googleballs-desktop*" \
             \) | while read file; do
               filename=$(basename "$file")
-              size=$(get_size "$file")
+              file_info=$(get_file_info "$file")
+              IFS='|' read -r bytes human_size sha256 <<< "$file_info"
               
-              # Determine platform and type based on filename and extension
-              if [[ "$filename" =~ windows|win|\.exe$|\.msi$ ]]; then
+              # Determine platform
+              platform="universal"
+              app_type="Unknown"
+              category="Application"
+              
+              # Platform detection
+              if [[ "$filename" =~ [Ww]indows|[Ww]in32|[Ww]in64|x64.*\.exe$|\.exe$|\.msi$ ]]; then
                 platform="windows"
-                if [[ "$filename" =~ electron ]]; then
-                  type="Electron"
-                elif [[ "$filename" =~ tauri ]]; then
-                  type="Tauri"
-                elif [[ "$filename" =~ gtk ]]; then
-                  type="GTK"
-                else
-                  type="Native"
-                fi
-              elif [[ "$filename" =~ linux|ubuntu|\.deb$|\.rpm$|\.AppImage$ ]]; then
+              elif [[ "$filename" =~ [Ll]inux|[Uu]buntu|[Dd]ebian|[Ff]edora|[Cc]entOS|\.deb$|\.rpm$|\.AppImage$|x86_64.*\.tar\.gz$ ]]; then
                 platform="linux"
-                if [[ "$filename" =~ electron ]]; then
-                  type="Electron"
-                elif [[ "$filename" =~ tauri ]]; then
-                  type="Tauri"
-                elif [[ "$filename" =~ gtk ]]; then
-                  type="GTK"
-                else
-                  type="Native"
-                fi
-              elif [[ "$filename" =~ macos|mac|darwin|\.dmg$ ]]; then
+              elif [[ "$filename" =~ [Mm]acOS|[Mm]ac|[Dd]arwin|universal.*apple|\.dmg$|\.pkg$ ]]; then
                 platform="macos"
-                if [[ "$filename" =~ electron ]]; then
-                  type="Electron"
-                elif [[ "$filename" =~ tauri ]]; then
-                  type="Tauri"
-                else
-                  type="Native"
-                fi
               elif [[ "$filename" =~ \.ipa$ ]]; then
                 platform="ios"
-                type="iOS App"
-              else
-                platform="linux" # default fallback
-                type="Unknown"
+              elif [[ "$filename" =~ [Aa]ndroid|\.apk$ ]]; then
+                platform="android"
+              fi
+              
+              # App type detection
+              if [[ "$filename" =~ [Ee]lectron ]]; then
+                app_type="Electron"
+              elif [[ "$filename" =~ [Tt]auri ]]; then
+                app_type="Tauri"
+              elif [[ "$filename" =~ [Gg]tk|gtk ]]; then
+                app_type="GTK"
+              elif [[ "$filename" =~ [Nn]ative|googleballs-desktop ]]; then
+                app_type="Native"
+              elif [[ "$filename" =~ \.ipa$ ]]; then
+                app_type="iOS App"
+              fi
+              
+              # Category detection
+              if [[ "$filename" =~ \.deb$|\.rpm$ ]]; then
+                category="Package"
+              elif [[ "$filename" =~ \.zip$|\.tar\.gz$ ]]; then
+                category="Archive"
+              elif [[ "$filename" =~ \.msi$|\.dmg$|\.pkg$ ]]; then
+                category="Installer"
+              elif [[ "$filename" =~ \.AppImage$ ]]; then
+                category="Portable"
+              elif [[ "$filename" =~ \.exe$ ]]; then
+                category="Executable"
+              elif [[ "$filename" =~ \.ipa$ ]]; then
+                category="Mobile App"
               fi
               
               # Copy file to organized directory
               cp "$file" "organized/$platform/"
               
-              # Record file info
-              echo "$platform|$type|$filename|$size" >> file_info.txt
+              # Record file info in CSV
+              echo "$platform|$app_type|$category|$filename|$human_size|$sha256" >> file_info.csv
+              
+              echo "📦 $platform/$app_type: $filename ($human_size)"
             done
           }
           
           organize_files
           
-          # Generate SHA256 hashes for all files
-          find organized/ -type f -exec sha256sum {} \; | sed 's|organized/||' > SHA256SUMS.txt
+          echo "📋 Organization complete!"
+          echo ""
+          echo "📊 Summary:"
+          for platform in windows linux macos ios android universal; do
+            count=$(find "organized/$platform/" -type f 2>/dev/null | wc -l || echo "0")
+            if [ "$count" -gt 0 ]; then
+              echo "  $platform: $count files"
+            fi
+          done
 
-      - name: Generate Download Table
+      - name: Generate Comprehensive Release Notes
         run: |
           cd artifacts
           
-          cat > download_table.md << 'EOF'
+          # Get commit info since last release
+          cd ..
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$last_tag" ]; then
+            echo "📝 Generating changelog since $last_tag..."
+            git log --pretty=format:"- %s" $last_tag..HEAD > artifacts/changelog.txt 2>/dev/null || echo "- Initial release" > artifacts/changelog.txt
+          else
+            echo "- Initial release" > artifacts/changelog.txt
+          fi
+          
+          cd artifacts
+          
+          # Generate comprehensive release notes
+          cat > release_notes.md << EOF
+          # 🎉 Google Balls v${{ needs.validate-inputs.outputs.version }}
+          
+          $(if [ "${{ inputs.prerelease }}" = "true" ]; then echo "⚠️ **Pre-release version** - May contain experimental features"; fi)
+          
           ## 📥 Downloads
           
-          Choose the appropriate version for your platform:
+          Choose the best version for your system:
           
-          ### Windows
-          | Type | File | Size | Download |
-          |------|------|------|----------|
           EOF
           
-          # Add Windows files
-          if grep -q "^windows" file_info.txt 2>/dev/null; then
-            grep "^windows" file_info.txt | while IFS='|' read platform type filename size; do
-              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-            done
-          else
-            echo "| N/A | No Windows builds available | N/A | N/A |" >> download_table.md
-          fi
+          # Generate platform-specific download sections
+          generate_platform_section() {
+            local platform=$1
+            local platform_name=$2
+            local icon=$3
+            
+            if [ -f "file_info.csv" ] && grep -q "^$platform|" file_info.csv; then
+              cat >> release_notes.md << EOF
+          ### $icon $platform_name
           
-          cat >> download_table.md << 'EOF'
-          
-          ### Linux
-          | Type | File | Size | Download |
-          |------|------|------|----------|
+          | Type | Category | File | Size | Download |
+          |------|----------|------|------|----------|
           EOF
+              
+              grep "^$platform|" file_info.csv | sort -t'|' -k2,2 -k3,3 | while IFS='|' read plat type category filename size sha256; do
+                # Create download link
+                download_link="[\`$filename\`]($filename)"
+                echo "| **$type** | $category | $download_link | $size | [⬇️ Download]($filename) |" >> release_notes.md
+              done
+              
+              echo "" >> release_notes.md
+            fi
+          }
           
-          # Add Linux files
-          if grep -q "^linux" file_info.txt 2>/dev/null; then
-            grep "^linux" file_info.txt | while IFS='|' read platform type filename size; do
-              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-            done
-          else
-            echo "| N/A | No Linux builds available | N/A | N/A |" >> download_table.md
-          fi
+          generate_platform_section "windows" "Windows" "🪟"
+          generate_platform_section "linux" "Linux" "🐧"
+          generate_platform_section "macos" "macOS" "🍎"
+          generate_platform_section "ios" "iOS" "📱"
           
-          cat >> download_table.md << 'EOF'
+          # Add installation guide
+          cat >> release_notes.md << 'EOF'
+          ---
           
-          ### macOS
-          | Type | File | Size | Download |
-          |------|------|------|----------|
-          EOF
+          ## 🚀 Installation Guide
           
-          # Add macOS files
-          if grep -q "^macos" file_info.txt 2>/dev/null; then
-            grep "^macos" file_info.txt | while IFS='|' read platform type filename size; do
-              echo "| $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-            done
-          else
-            echo "| N/A | No macOS builds available | N/A | N/A |" >> download_table.md
-          fi
+          <details>
+          <summary><strong>🪟 Windows</strong></summary>
           
-          cat >> download_table.md << 'EOF'
+          ### Recommended Downloads:
+          - **🎯 For most users**: Electron installer (`.exe`)
+          - **🪶 Lightweight option**: Tauri installer (`.msi`)
+          - **⚡ Performance focused**: Native executable
           
-          ### Mobile
-          | Platform | Type | File | Size | Download |
-          |----------|------|------|------|----------|
-          EOF
+          ### Installation:
+          1. **Installer files** (`.exe`, `.msi`): Double-click and follow the setup wizard
+          2. **Portable versions**: Extract the archive and run the executable
+          3. **First launch**: Windows may show a security warning - click "More info" → "Run anyway"
           
-          # Add iOS files
-          if grep -q "^ios" file_info.txt 2>/dev/null; then
-            grep "^ios" file_info.txt | while IFS='|' read platform type filename size; do
-              echo "| iOS | $type | \`$filename\` | $size | [Download]($filename) |" >> download_table.md
-            done
-          else
-            echo "| iOS | N/A | No iOS builds available | N/A | N/A |" >> download_table.md
-          fi
+          </details>
           
-          cat >> download_table.md << 'EOF'
+          <details>
+          <summary><strong>🐧 Linux</strong></summary>
+          
+          ### Package Managers:
+          ```bash
+          # Ubuntu/Debian (.deb)
+          sudo dpkg -i googleballs-desktop-*.deb
+          sudo apt-get install -f
+          
+          # RHEL/Fedora/openSUSE (.rpm)
+          sudo rpm -i googleballs-desktop-*.rpm
+          # OR
+          sudo dnf install googleballs-desktop-*.rpm
+          ```
+          
+          ### Portable Options:
+          ```bash
+          # AppImage (universal)
+          chmod +x *.AppImage
+          ./googleballs-desktop-*.AppImage
+          
+          # Archive extraction
+          tar -xzf googleballs-desktop-*.tar.gz
+          cd build/
+          ./launch.sh  # GTK version with bundled libraries
+          ./googleballs-desktop  # Native version
+          ```
+          
+          ### Dependencies:
+          Most distributions should work out-of-box. If you encounter issues:
+          ```bash
+          # Ubuntu/Debian
+          sudo apt-get install libgtk-3-0 libx11-6
+          
+          # RHEL/Fedora
+          sudo dnf install gtk3 libX11
+          ```
+          
+          </details>
+          
+          <details>
+          <summary><strong>🍎 macOS</strong></summary>
+          
+          ### Installation:
+          1. Download the `.dmg` file
+          2. Double-click to mount the disk image
+          3. Drag "Google Balls" to your Applications folder
+          4. **First launch**: Right-click the app → "Open" (required due to Gatekeeper)
+          5. Future launches: Double-click normally
+          
+          ### Troubleshooting:
+          - **"App can't be opened"**: Right-click → Open, then click "Open" in the dialog
+          - **Performance issues**: Try the native version for better performance
+          
+          </details>
+          
+          <details>
+          <summary><strong>📱 Mobile</strong></summary>
+          
+          ### iOS:
+          - **Note**: iOS builds are unsigned and require:
+            - A jailbroken device, OR
+            - Developer certificate installation, OR
+            - Enterprise deployment
+          - Use tools like AltStore, Sideloadly, or Xcode for installation
+          
+          </details>
           
           ---
           
-          ### 🚀 Quick Start Guide
-          
-          #### Windows Users
-          - **Recommended**: Download the **Electron** version for the full experience
-          - **Lightweight**: Choose **Tauri** for a smaller download
-          - **Minimal**: Pick **Native** for fastest performance
-          
-          #### Linux Users
-          - **Easy Install**: Use the **.deb** or **.rpm** packages
-          - **Universal**: Try the **AppImage** (runs anywhere)
-          - **Portable**: Download the **.tar.gz** archive
-          
-          #### macOS Users
-          - Download the **.dmg** file and drag to Applications folder
-          
-          ### 📋 Installation Instructions
-          
-          <details>
-          <summary><strong>Windows Installation</strong></summary>
-          
-          - **Electron (.exe)**: Double-click to install normally
-          - **Tauri (.msi)**: Right-click → "Install" or double-click
-          - **Native/GTK (.tar.gz)**: Extract and run the executable
-          </details>
-          
-          <details>
-          <summary><strong>Linux Installation</strong></summary>
-          
-          - **Ubuntu/Debian (.deb)**:
-            ```bash
-            sudo dpkg -i googleballs-desktop-*.deb
-            sudo apt-get install -f  # Fix any dependencies
-            ```
-          
-          - **RHEL/Fedora (.rpm)**:
-            ```bash
-            sudo rpm -i googleballs-desktop-*.rpm
-            # or
-            sudo dnf install googleballs-desktop-*.rpm
-            ```
-          
-          - **AppImage**:
-            ```bash
-            chmod +x *.AppImage
-            ./googleballs-desktop-*.AppImage
-            ```
-          
-          - **Tarball (.tar.gz)**:
-            ```bash
-            tar -xzf gtk-app-linux-*.tar.gz
-            cd build/
-            ./launch.sh  # For GTK version
-            ```
-          </details>
-          
-          <details>
-          <summary><strong>macOS Installation</strong></summary>
-          
-          1. Download the `.dmg` file
-          2. Double-click to mount the disk image
-          3. Drag the app to your Applications folder
-          4. You may need to right-click → "Open" the first time (due to Gatekeeper)
-          </details>
-          
-          ### ❓ Build Types Explained
-          
-          - **🖥️ Native**: Pure C/C++ application, smallest size, fastest startup
-          - **🎨 GTK**: Cross-platform GUI with bundled GTK libraries
-          - **⚡ Tauri**: Rust + Web UI, modern and efficient
-          - **🌐 Electron**: Full web technologies, largest but most features
-          - **📱 iOS**: For iPhone/iPad (requires developer certificate)
+          ## 📋 What's New
           
           EOF
+          
+          # Add changelog
+          if [ -f "changelog.txt" ] && [ -s "changelog.txt" ]; then
+            cat changelog.txt >> release_notes.md
+          else
+            echo "- New release build" >> release_notes.md
+          fi
+          
+          cat >> release_notes.md << 'EOF'
+          
+          ---
+          
+          ## 🔧 Build Information
+          
+          EOF
+          
+          # Add build info
+          cat >> release_notes.md << EOF
+          - **Release Type**: ${{ inputs.release_type }}
+          - **Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - **Commit**: \`${{ github.sha }}\`
+          - **Branch**: ${{ env.RELEASE_BRANCH }}
+          $(if [ "${{ needs.validate-inputs.outputs.should_build }}" = "true" ]; then echo "- **Build**: Fresh build triggered"; else echo "- **Build**: Using latest successful build"; fi)
+          
+          EOF
+          
+          # Add technical details
+          cat >> release_notes.md << 'EOF'
+          ## 🛠️ Technical Details
+          
+          ### Build Types:
+          - **🖥️ Native**: Pure C/C++ application, minimal dependencies, fastest performance
+          - **🎨 GTK**: Cross-platform GUI with GTK3, bundled libraries included
+          - **⚡ Tauri**: Rust backend with web frontend, modern and efficient
+          - **🌐 Electron**: Full web stack, feature-rich but larger download
+          
+          ### System Requirements:
+          - **Windows**: 7 SP1+ (64-bit recommended)
+          - **Linux**: glibc 2.17+ (Ubuntu 14.04+, CentOS 7+)
+          - **macOS**: 10.13+ (High Sierra)
+          - **RAM**: 512MB minimum, 2GB recommended
+          - **Storage**: 50-200MB depending on build type
+          
+          EOF
+          
+          # Add checksums section
+          cat >> release_notes.md << 'EOF'
+          ## 🔐 File Verification
+          
+          <details>
+          <summary><strong>SHA256 Checksums</strong></summary>
+          
+          ```
+          EOF
+          
+          # Generate checksums
+          find organized/ -type f -exec sha256sum {} \; | sed 's|organized/[^/]*/||' >> release_notes.md
+          
+          cat >> release_notes.md << 'EOF'
+          ```
+          
+          To verify a download:
+          ```bash
+          # Linux/macOS
+          sha256sum downloaded_file.ext
+          
+          # Windows (PowerShell)
+          Get-FileHash downloaded_file.ext -Algorithm SHA256
+          ```
+          
+          </details>
+          
+          ---
+          
+          ## 💡 Need Help?
+          
+          - 📖 **Documentation**: Check the repository README
+          - 🐛 **Bug Reports**: [Create an issue](../../issues/new)
+          - 💬 **Discussions**: [Join the conversation](../../discussions)
+          - 📧 **Contact**: See repository information
+          
+          **Enjoy Google Balls!** 🎮✨
+          EOF
+          
+          echo "📝 Generated comprehensive release notes ($(wc -l < release_notes.md) lines)"
 
-      - name:
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.validate-inputs.outputs.tag_name }}
+          name: "Google Balls ${{ needs.validate-inputs.outputs.tag_name }}"
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          body_path: artifacts/release_notes.md
+          files: |
+            artifacts/organized/windows/*
+            artifacts/organized/linux/*
+            artifacts/organized/macos/*
+            artifacts/organized/ios/*
+            artifacts/organized/android/*
+            artifacts/organized/universal/*
+
+      - name: Generate Release Summary
+        run: |
+          echo "🎉 **Release Created Successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release**: [${{ needs.validate-inputs.outputs.tag_name }}](${{ steps.create_release.outputs.html_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Type**: ${{ inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: $(if [ "${{ inputs.draft }}" = "true" ]; then echo "Draft 📝"; elif [ "${{ inputs.prerelease }}" = "true" ]; then echo "Pre-release ⚠️"; else echo "Published ✅"; fi)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Released:" >> $GITHUB_STEP_SUMMARY
+          
+          cd artifacts
+          
+          for platform in windows linux macos ios android universal; do
+            count=$(find "organized/$platform/" -type f 2>/dev/null | wc -l || echo "0")
+            if [ "$count" -gt 0 ]; then
+              echo "- **$platform**: $count files" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links:" >> $GITHUB_STEP_SUMMARY
+          echo "- [📥 Download Release](${{ steps.create_release.outputs.html_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [📋 View All Releases](../../releases)" >> $GITHUB_STEP_SUMMARY
+          echo "- [🔄 Build Workflow](../../actions/workflows/build.yml)" >> $GITHUB_STEP_SUMMARY
+
+  notification:
+    needs: [validate-inputs, create-release]
+    if: always() && needs.create-release.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Success Notification
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Create a discussion post about the release (if discussions are enabled)
+            try {
+              const { data: repo } = await github.rest.repos.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              if (repo.has_discussions) {
+                console.log('Repository has discussions enabled');
+                // You could create a discussion post here if needed
+              }
+            } catch (error) {
+              console.log('Could not check discussions:', error.message);
+            }
+            
+            // Log success
+            console.log('✅ Release ${{ needs.validate-inputs.outputs.tag_name }} created successfully!');
+            console.log('🔗 Release URL: ${{ needs.create-release.outputs.release-url }}');
+
+      - name: Update Repository Topics (Optional)
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Add release-related topics
+            try {
+              const { data: repo } = await github.rest.repos.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const currentTopics = repo.topics || [];
+              const releaseTopics = ['releases-available', 'cross-platform', 'desktop-app'];
+              const newTopics = [...new Set([...currentTopics, ...releaseTopics])];
+              
+              if (newTopics.length !== currentTopics.length) {
+                await github.rest.repos.replaceAllTopics({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  names: newTopics
+                });
+                console.log('✅ Repository topics updated');
+              }
+            } catch (error) {
+              console.log('Could not update topics:', error.message);
+            }
