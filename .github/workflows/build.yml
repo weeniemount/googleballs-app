@@ -4,18 +4,6 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches: [ "master" ]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.MD'
-      - '.gitignore'
-  pull_request:
-    branches: [ "master" ]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.MD'
-      - '.gitignore'
   workflow_dispatch:
 
 jobs:
