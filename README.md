@@ -13,7 +13,7 @@ google for making the original doodle back in 2010!
 
 # available in 4 flavors!
 we have:
-- Electron (the og but bulky) - Windows, Linux
+- Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electorn but not bulky) - Windows, Linux
 - SDL2 (its sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my fav) - Windows, Linux
