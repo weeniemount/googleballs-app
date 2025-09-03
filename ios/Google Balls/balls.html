@@ -81,35 +81,18 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 	};
 	
 	function initEventListeners() {
-        $(window).on('resize', updateCanvasDimensions);
-        $(window).on('mousemove', onMove);
-
-        // Touch events
-        canvas.get(0).addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            updateTouchPosition(e);
-        }, { passive: false });
-
-        canvas.get(0).addEventListener('touchmove', function(e) {
-            e.preventDefault();
-            updateTouchPosition(e);
-        }, { passive: false });
-
-        canvas.get(0).addEventListener('touchend', function(e) {
-            if (pointCollection) {
-                // Reset mousePos to center or original positions when touch ends
-                pointCollection.mousePos.set(canvasWidth/2, canvasHeight/2, 0);
-            }
-        }, { passive: false });
-    }
+		$(window).bind('resize', updateCanvasDimensions).bind('mousemove', onMove);
+		
+		canvas.get(0).ontouchmove = function(e) {
+			e.preventDefault();
+			onTouchMove(e);
+		};
+		
+		canvas.get(0).ontouchstart = function(e) {
+			e.preventDefault();
+		};
+	};
 	
-    function updateTouchPosition(e) {
-        if (!pointCollection) return;
-        // Track the **first finger** (you could extend to multitouch later)
-        const touch = e.touches[0];
-        pointCollection.mousePos.set(touch.pageX, touch.pageY, 0);
-    }
-
 	function updateCanvasDimensions() {
 		canvas.attr({height: $(window).height(), width: $(window).width()});
 		canvasWidth = canvas.width();
@@ -117,22 +100,48 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 
 		draw();
 	};
+	function updateCanvasDimensions() {
+	    canvas.attr({ height: $(window).height(), width: $(window).width() });
+	    canvasWidth = canvas.width();
+	    canvasHeight = canvas.height();
+		
+	    recenterPoints();
+	    draw();
+	};
+
+	function recenterPoints() {
+	    if (!pointCollection) return;
+	
+	    let offsetX = (canvasWidth / 2 - 180);
+	    let offsetY = (canvasHeight / 2 - 65);
+	
+	    for (let i = 0; i < pointCollection.points.length; i++) {
+	        let point = pointCollection.points[i];
+	
+	        let relX = point.originalPos.x - (canvasWidth / 2 - 180);
+	        let relY = point.originalPos.y - (canvasHeight / 2 - 65);
+	
+	        point.originalPos.x = offsetX + relX;
+	        point.originalPos.y = offsetY + relY;
+			
+	        point.curPos.x = point.originalPos.x;
+	        point.curPos.y = point.originalPos.y;
+	    }
+	}
 	
 	function onMove(e) {
-		if (pointCollection)
-			pointCollection.mousePos.set(e.pageX, e.pageY);
+		if (pointCollection) pointCollection.mousePos.set(e.pageX, e.pageY);
 	};
 	
 	function onTouchMove(e) {
-		if (pointCollection)
-			pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
+		if (pointCollection) pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
 	};
 	
 	function timeout() {
 		draw();
 		update();
 		
-		setTimeout(function() { timeout() }, 30);
+		setTimeout(function() { timeout() }, 30); // doing an interval should be easier bruh
 	};
 	
 	function draw() {
@@ -145,13 +154,11 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 		ctx = tmpCanvas.getContext('2d');
 		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 		
-		if (pointCollection)
-			pointCollection.draw();
+		if (pointCollection) pointCollection.draw();
 	};
 	
 	function update() {		
-		if (pointCollection)
-			pointCollection.update();
+		if (pointCollection) pointCollection.update();
 	};
 	
 	function Vector(x, y, z) {
@@ -276,6 +283,9 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 	};
 	
 	init();
+	$("#reload-msg").fadeIn(300);
+
+	setTimeout(function() { $("#reload-msg").fadeOut(300); }, 3000);
 });
 </script>
 	
