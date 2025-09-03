@@ -464,7 +464,7 @@ jobs:
       - name: Build macOS Package
         if: matrix.platform == 'macos-latest'
         working-directory: electron
-        run: npm run dist -- --mac --universal
+        run: npm run dist -- --mac --x64 --arm64
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
