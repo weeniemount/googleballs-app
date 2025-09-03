@@ -305,6 +305,12 @@ jobs:
           cp /mingw64/bin/libxml2-2.dll . 2>/dev/null || echo "libxml2-2.dll not found"
           cp /mingw64/bin/libjasper-7.dll . 2>/dev/null || echo "libjasper-7.dll not found"
           cp /mingw64/bin/libwebp-7.dll . 2>/dev/null || echo "libwebp-7.dll not found"
+
+          # other stuff
+          cp /mingw64/bin/libdeflate.dll . 2>/dev/null || echo "libdeflate.dll not found"
+          cp /mingw64/bin/libjbig-0.dll . 2>/dev/null || echo "libjbig-0.dll not found"
+          cp /mingw64/bin/libLerc.dll . 2>/dev/null || echo "libLerc.dll not found"
+          cp /mingw64/bin/libzstd.dll . 2>/dev/null || echo "libzstd.dll not found"
           
           echo "Windows GTK3 libraries bundled successfully"
           echo "Bundled DLLs:"
