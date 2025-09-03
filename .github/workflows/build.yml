@@ -73,15 +73,7 @@ jobs:
       - name: Install SDL2 Dependencies (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
-          # Install SDL2 and SDL2_image
           brew install sdl2 sdl2_image
-          
-          # Check what we have
-          echo "SDL2 installation check:"
-          brew list sdl2 | grep -E '\.(a|dylib)$' || echo "No static libraries found"
-          
-          # Verify pkg-config works
-          pkg-config --cflags --libs sdl2 || echo "pkg-config not working"
 
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
@@ -101,35 +93,8 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           cd native
-          
-          # Make sure the compile script is executable
           chmod +x compile-macos.sh
-          
-          # Run the improved compile script
           ./compile-macos.sh
-          
-          # Verify the build results
-          echo "Build verification:"
-          if [ -f "googleballs-desktop-macos" ]; then
-            echo "✓ Standalone executable created"
-            file googleballs-desktop-macos
-            lipo -info googleballs-desktop-macos
-            
-            # Test linking
-            otool -L googleballs-desktop-macos | head -10
-          else
-            echo "✗ Standalone executable not found"
-            exit 1
-          fi
-          
-          if [ -d "GoogleBallsDesktop.app" ]; then
-            echo "✓ App bundle created"
-            echo "App bundle contents:"
-            find GoogleBallsDesktop.app -type f
-          else
-            echo "✗ App bundle not found"
-            exit 1
-          fi
 
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
@@ -139,7 +104,6 @@ jobs:
             native/googleballs-desktop*
             native/*.exe
             native/*.app
-            native/**/*.app
 
   build-native-gtk:
     strategy:
