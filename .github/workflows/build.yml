@@ -432,41 +432,23 @@ jobs:
         run: |
           cd tauri/src-tauri/target/release/bundle
           
-          # More aggressive version removal for Tauri files
+          # Rename executables in different bundle formats
           if [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
             # Linux - handle AppImage and deb
-            find . -name "*.AppImage" -exec sh -c '
-              filename=$(basename "$1")
-              # Remove version patterns like -1.0.0, _1.0.0, etc.
-              newname=$(echo "$filename" | sed -E "s/[-_][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.AppImage/-tauri.AppImage/")
-              mv "$1" "$(dirname "$1")/$newname"
-            ' _ {} \;
+            find . -name "*.AppImage" -exec sh -c 'mv "$1" "${1%.AppImage}-tauri.AppImage"' _ {} \;
             
-            # For deb packages
+            # For deb packages, rename the actual executable inside if needed
             if [ -d "deb" ]; then
               find deb -name "*.deb" -exec sh -c '
-                filename=$(basename "$1")
-                # Remove version patterns and add tauri suffix
-                newname=$(echo "$filename" | sed -E "s/[-_][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.deb/-tauri.deb/")
-                mv "$1" "$(dirname "$1")/$newname"
+                base=$(basename "$1" .deb)
+                mv "$1" "$(dirname "$1")/${base}-tauri.deb"
               ' _ {} \;
             fi
             
           else
             # Windows - handle msi and exe
-            find . -name "*.msi" -exec sh -c '
-              filename=$(basename "$1")
-              # Remove version patterns and add tauri suffix
-              newname=$(echo "$filename" | sed -E "s/[-_][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.msi/-tauri.msi/")
-              mv "$1" "$(dirname "$1")/$newname"
-            ' _ {} \;
-            
-            find . -name "*.exe" -exec sh -c '
-              filename=$(basename "$1")
-              # Remove version patterns and add tauri suffix
-              newname=$(echo "$filename" | sed -E "s/[-_][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.exe/-tauri.exe/")
-              mv "$1" "$(dirname "$1")/$newname"
-            ' _ {} \;
+            find . -name "*.msi" -exec sh -c 'mv "$1" "${1%.msi}-tauri.msi"' _ {} \;
+            find . -name "*.exe" -exec sh -c 'mv "$1" "${1%.exe}-tauri.exe"' _ {} \;
           fi
         shell: bash
 
@@ -539,59 +521,21 @@ jobs:
       - name: Rename Electron Files
         working-directory: electron/dist
         run: |
-          # More aggressive version removal for Electron files
+          # Rename all package files to include 'electron' suffix
           
           # Windows executables and installers
-          find . -name "*.exe" -exec sh -c '
-            filename=$(basename "$1")
-            # Remove version patterns like -1.2.0, .1.2.0, etc.
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.exe/-electron.exe/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
-          
-          find . -name "*.msi" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.msi/-electron.msi/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
+          find . -name "*.exe" -exec sh -c 'mv "$1" "${1%.exe}-electron.exe"' _ {} \;
+          find . -name "*.msi" -exec sh -c 'mv "$1" "${1%.msi}-electron.msi"' _ {} \;
           
           # Linux packages  
-          find . -name "*.rpm" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.rpm/-electron.rpm/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
-          
-          find . -name "*.deb" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.deb/-electron.deb/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
-          
-          find . -name "*.AppImage" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.AppImage/-electron.AppImage/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
-          
-          find . -name "*.tar.gz" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.tar\.gz/-electron.tar.gz/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
+          find . -name "*.rpm" -exec sh -c 'mv "$1" "${1%.rpm}-electron.rpm"' _ {} \;
+          find . -name "*.deb" -exec sh -c 'mv "$1" "${1%.deb}-electron.deb"' _ {} \;
+          find . -name "*.AppImage" -exec sh -c 'mv "$1" "${1%.AppImage}-electron.AppImage"' _ {} \;
+          find . -name "*.tar.gz" -exec sh -c 'mv "$1" "${1%.tar.gz}-electron.tar.gz"' _ {} \;
           
           # macOS packages
-          find . -name "*.dmg" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.dmg/-electron.dmg/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
-          
-          find . -name "*.zip" -exec sh -c '
-            filename=$(basename "$1")
-            newname=$(echo "$filename" | sed -E "s/[-\.][0-9]+\.[0-9]+\.[0-9]+//g" | sed "s/\.zip/-electron.zip/")
-            mv "$1" "$(dirname "$1")/$newname"
-          ' _ {} \;
+          find . -name "*.dmg" -exec sh -c 'mv "$1" "${1%.dmg}-electron.dmg"' _ {} \;
+          find . -name "*.zip" -exec sh -c 'mv "$1" "${1%.zip}-electron.zip"' _ {} \;
         shell: bash
 
       - name: Upload Artifacts
