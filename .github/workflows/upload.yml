@@ -4,307 +4,640 @@ permissions:
   contents: write
 
 on:
-  workflow_run:
-    workflows: ["Build Apps"]
-    types:
-      - completed
-  workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Tag name for the release'
-        required: true
-        default: 'v1.0.0'
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    
+  # Reuse all the build jobs from your existing workflow
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set Release Variables
-        id: vars
+      - name: Install SDL2 and X11 Dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-            echo "release_name=Release ${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          sudo apt-get update
+          sudo apt-get install -y build-essential \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libxxf86vm-dev \
+            libwayland-dev \
+            libwayland-client0 \
+            libwayland-cursor0 \
+            libwayland-egl1 \
+            libxkbcommon-dev \
+            wayland-protocols
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz
+          tar xzf SDL2-2.28.5.tar.gz
+          cd SDL2-2.28.5
+          ./configure --prefix=/usr/local --enable-static --disable-shared
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          # Build SDL2_image
+          wget https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.3/SDL2_image-2.6.3.tar.gz
+          tar xzf SDL2_image-2.6.3.tar.gz
+          cd SDL2_image-2.6.3
+          ./configure --prefix=/usr/local --enable-static --disable-shared
+          make -j$(nproc)
+          sudo make install
+
+      - name: Setup MSYS2 and Dependencies (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-SDL2_image
+            make
+
+      - name: Build Native App (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native
+          chmod +x compile.sh
+          ./compile.sh
+
+      - name: Build Native App (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native
+          ./compile.bat
+
+      - name: Package Native App (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native
+          mkdir -p release
+          cp googleballs-desktop* release/
+          cd release
+          tar -czf ../googleballs-desktop-linux-x64.tar.gz .
+
+      - name: Package Native App (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native
+          mkdir -p release
+          cp *.exe release/
+          cd release
+          7z a ../googleballs-desktop-windows-x64.zip .
+
+      - name: Upload Native Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: |
+            native/*.tar.gz
+            native/*.zip
+
+  build-native-gtk:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GTK3 Dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev make
+
+      - name: Setup MSYS2 and GTK3 (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-ntldd
+            make
+
+      - name: Build GTK App (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native-gtk
+          make
+
+      - name: Build GTK App (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native-gtk
+          make CC=x86_64-w64-mingw32-gcc PKG_CONFIG=/mingw64/bin/pkg-config
+
+      - name: Bundle GTK Libraries (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native-gtk/build
+          
+          # Create libs directory
+          mkdir -p libs
+          
+          # Get the executable name (adjust pattern as needed for your executable)
+          EXECUTABLE=$(find . -maxdepth 1 -type f -executable ! -name "*.sh" ! -name "launch.sh" | head -1)
+          EXECUTABLE_NAME=$(basename "$EXECUTABLE")
+          
+          echo "Bundling libraries for executable: $EXECUTABLE_NAME"
+          
+          # Function to copy library and its dependencies
+          copy_lib_deps() {
+            local pattern="$1"
+            ldd "$EXECUTABLE" | grep "$pattern" | while read line; do
+              lib_path=$(echo "$line" | awk '{print $3}')
+              if [ -n "$lib_path" ] && [ -f "$lib_path" ] && [ ! -f "libs/$(basename "$lib_path")" ]; then
+                cp "$lib_path" libs/
+                echo "Copied: $(basename "$lib_path")"
+              fi
+            done
+          }
+          
+          # Copy GTK3 and related libraries
+          copy_lib_deps "libgtk-3"
+          copy_lib_deps "libgdk-3"
+          copy_lib_deps "libgio-2"
+          copy_lib_deps "libglib-2"
+          copy_lib_deps "libgobject-2"
+          copy_lib_deps "libgmodule-2"
+          copy_lib_deps "libgthread-2"
+          copy_lib_deps "libcairo"
+          copy_lib_deps "libpango"
+          copy_lib_deps "libatk-1"
+          copy_lib_deps "libgdk_pixbuf"
+          copy_lib_deps "libfontconfig"
+          copy_lib_deps "libfreetype"
+          copy_lib_deps "libharfbuzz"
+          copy_lib_deps "libffi"
+          copy_lib_deps "libpcre"
+          copy_lib_deps "libmount"
+          copy_lib_deps "libblkid"
+          copy_lib_deps "libuuid"
+          copy_lib_deps "libselinux"
+          copy_lib_deps "libexpat"
+          copy_lib_deps "libpng"
+          copy_lib_deps "libz"
+          copy_lib_deps "libintl"
+          copy_lib_deps "libiconv"
+          copy_lib_deps "libfribidi"
+          copy_lib_deps "libpixman"
+          copy_lib_deps "libthai"
+          copy_lib_deps "libdatrie"
+          copy_lib_deps "libbrotli"
+          copy_lib_deps "libbz2"
+          
+          # Copy any additional system libraries that might be needed
+          copy_lib_deps "libX11"
+          copy_lib_deps "libXext"
+          copy_lib_deps "libXrender"
+          copy_lib_deps "libXi"
+          copy_lib_deps "libXfixes"
+          copy_lib_deps "libXcursor"
+          copy_lib_deps "libXdamage"
+          copy_lib_deps "libXcomposite"
+          copy_lib_deps "libXrandr"
+          copy_lib_deps "libXinerama"
+
+          # other stuff
+          copy_lib_deps "libjpeg"
+          
+          # Create a launch script that sets LD_LIBRARY_PATH
+          cat > launch.sh << EOF
+          #!/bin/bash
+          SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+          export LD_LIBRARY_PATH="\$SCRIPT_DIR/libs:\$LD_LIBRARY_PATH"
+          exec "\$SCRIPT_DIR/$EXECUTABLE_NAME" "\$@"
+          EOF
+          chmod +x launch.sh
+          
+          # Create a README for users
+          cat > README.txt << EOF
+          GTK3 Application Bundle
+          ======================
+          
+          This package contains a self-contained GTK3 application.
+          
+          To run the application:
+          1. Extract all files to a directory
+          2. Run: ./launch.sh
+          
+          Or alternatively, set LD_LIBRARY_PATH manually:
+          export LD_LIBRARY_PATH=./libs:\$LD_LIBRARY_PATH
+          ./$EXECUTABLE_NAME
+          
+          All required GTK3 libraries are included in the libs/ directory.
+          EOF
+
+      - name: Bundle GTK Libraries (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          cd native-gtk/build
+          
+          # Get the executable name
+          EXECUTABLE=$(ls *.exe | head -1)
+          EXECUTABLE_NAME="$EXECUTABLE"
+          
+          echo "Bundling libraries for executable: $EXECUTABLE_NAME"
+          
+          # Core GTK3 libraries
+          cp /mingw64/bin/libgtk-3-0.dll . 2>/dev/null || echo "libgtk-3-0.dll not found"
+          cp /mingw64/bin/libgdk-3-0.dll . 2>/dev/null || echo "libgdk-3-0.dll not found"
+          cp /mingw64/bin/libgio-2.0-0.dll . 2>/dev/null || echo "libgio-2.0-0.dll not found"
+          cp /mingw64/bin/libglib-2.0-0.dll . 2>/dev/null || echo "libglib-2.0-0.dll not found"
+          cp /mingw64/bin/libgobject-2.0-0.dll . 2>/dev/null || echo "libgobject-2.0-0.dll not found"
+          cp /mingw64/bin/libgmodule-2.0-0.dll . 2>/dev/null || echo "libgmodule-2.0-0.dll not found"
+          
+          # Cairo and Pango
+          cp /mingw64/bin/libcairo-2.dll . 2>/dev/null || echo "libcairo-2.dll not found"
+          cp /mingw64/bin/libcairo-gobject-2.dll . 2>/dev/null || echo "libcairo-gobject-2.dll not found"
+          cp /mingw64/bin/libpango-1.0-0.dll . 2>/dev/null || echo "libpango-1.0-0.dll not found"
+          cp /mingw64/bin/libpangocairo-1.0-0.dll . 2>/dev/null || echo "libpangocairo-1.0-0.dll not found"
+          cp /mingw64/bin/libpangowin32-1.0-0.dll . 2>/dev/null || echo "libpangowin32-1.0-0.dll not found"
+          cp /mingw64/bin/libpangoft2-1.0-0.dll . 2>/dev/null || echo "libpangoft2-1.0-0.dll not found"
+          
+          # ATK and GDK Pixbuf
+          cp /mingw64/bin/libatk-1.0-0.dll . 2>/dev/null || echo "libatk-1.0-0.dll not found"
+          cp /mingw64/bin/libgdk_pixbuf-2.0-0.dll . 2>/dev/null || echo "libgdk_pixbuf-2.0-0.dll not found"
+          
+          # Font and text rendering
+          cp /mingw64/bin/libfontconfig-1.dll . 2>/dev/null || echo "libfontconfig-1.dll not found"
+          cp /mingw64/bin/libfreetype-6.dll . 2>/dev/null || echo "libfreetype-6.dll not found"
+          cp /mingw64/bin/libharfbuzz-0.dll . 2>/dev/null || echo "libharfbuzz-0.dll not found"
+          cp /mingw64/bin/libfribidi-0.dll . 2>/dev/null || echo "libfribidi-0.dll not found"
+          
+          # Core system libraries
+          cp /mingw64/bin/libffi-8.dll . 2>/dev/null || echo "libffi-8.dll not found"
+          cp /mingw64/bin/libpcre2-8-0.dll . 2>/dev/null || echo "libpcre2-8-0.dll not found"
+          cp /mingw64/bin/libintl-8.dll . 2>/dev/null || echo "libintl-8.dll not found"
+          cp /mingw64/bin/libiconv-2.dll . 2>/dev/null || echo "libiconv-2.dll not found"
+          
+          # Threading and runtime
+          cp /mingw64/bin/libwinpthread-1.dll . 2>/dev/null || echo "libwinpthread-1.dll not found"
+          cp /mingw64/bin/libgcc_s_seh-1.dll . 2>/dev/null || echo "libgcc_s_seh-1.dll not found"
+          cp /mingw64/bin/libstdc++-6.dll . 2>/dev/null || echo "libstdc++-6.dll not found"
+          
+          # Image and compression libraries
+          cp /mingw64/bin/libexpat-1.dll . 2>/dev/null || echo "libexpat-1.dll not found"
+          cp /mingw64/bin/libpng16-16.dll . 2>/dev/null || echo "libpng16-16.dll not found"
+          cp /mingw64/bin/zlib1.dll . 2>/dev/null || echo "zlib1.dll not found"
+          cp /mingw64/bin/libbz2-1.dll . 2>/dev/null || echo "libbz2-1.dll not found"
+          cp /mingw64/bin/libbrotlidec.dll . 2>/dev/null || echo "libbrotlidec.dll not found"
+          cp /mingw64/bin/libbrotlicommon.dll . 2>/dev/null || echo "libbrotlicommon.dll not found"
+          cp /mingw64/bin/libjpeg-8.dll . 2>/dev/null || echo "libjpeg-8.dll not found"
+          cp /mingw64/bin/libtiff-6.dll . 2>/dev/null || echo "libtiff-6.dll not found"
+          
+          # Text processing
+          cp /mingw64/bin/libdatrie-1.dll . 2>/dev/null || echo "libdatrie-1.dll not found"
+          cp /mingw64/bin/libthai-0.dll . 2>/dev/null || echo "libthai-0.dll not found"
+          cp /mingw64/bin/libpixman-1-0.dll . 2>/dev/null || echo "libpixman-1-0.dll not found"
+          
+          # Additional libraries that might be needed
+          cp /mingw64/bin/libepoxy-0.dll . 2>/dev/null || echo "libepoxy-0.dll not found"
+          cp /mingw64/bin/libgraphite2.dll . 2>/dev/null || echo "libgraphite2.dll not found"
+          cp /mingw64/bin/liblzma-5.dll . 2>/dev/null || echo "liblzma-5.dll not found"
+          cp /mingw64/bin/libxml2-2.dll . 2>/dev/null || echo "libxml2-2.dll not found"
+          cp /mingw64/bin/libjasper-7.dll . 2>/dev/null || echo "libjasper-7.dll not found"
+          cp /mingw64/bin/libwebp-7.dll . 2>/dev/null || echo "libwebp-7.dll not found"
+
+          # other stuff
+          cp /mingw64/bin/libdeflate.dll . 2>/dev/null || echo "libdeflate.dll not found"
+          cp /mingw64/bin/libjbig-0.dll . 2>/dev/null || echo "libjbig-0.dll not found"
+          cp /mingw64/bin/libLerc.dll . 2>/dev/null || echo "libLerc.dll not found"
+          cp /mingw64/bin/libzstd.dll . 2>/dev/null || echo "libzstd.dll not found"
+          cp /mingw64/bin/libsharpyuv-0.dll . 2>/dev/null || echo "libsharpyuv-0.dll not found"
+
+      - name: Create GTK Distribution Archives
+        run: |
+          cd native-gtk/build
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+            ARCHIVE_NAME="googleballs-desktop-gtk-linux-x64"
+            tar -czf "../../${ARCHIVE_NAME}.tar.gz" .
           else
-            # Generate version based on date and commit
-            VERSION="v$(date +'%Y.%m.%d')-$(echo ${{ github.sha }} | cut -c1-7)"
-            echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
-            echo "release_name=Release $VERSION" >> $GITHUB_OUTPUT
+            ARCHIVE_NAME="googleballs-desktop-gtk-windows-x64"
+            7z a "../../${ARCHIVE_NAME}.zip" .
+          fi
+        shell: ${{ matrix.platform == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+
+      - name: Upload GTK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gtk-${{ matrix.platform }}
+          path: |
+            *.tar.gz
+            *.zip
+
+  build-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Rust (Stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux Dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Dependencies (Tauri)
+        run: |
+          cd tauri
+          npm install
+
+      - name: Build Tauri App
+        run: |
+          cd tauri
+          npm run tauri build
+
+      - name: Rename Tauri Artifacts (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd tauri/src-tauri/target/release/bundle
+          if [ -d "deb" ]; then
+            find deb -name "*.deb" -exec mv {} googleballs-desktop-tauri-linux-x64.deb \;
+          fi
+          if [ -d "appimage" ]; then
+            find appimage -name "*.AppImage" -exec mv {} googleballs-desktop-tauri-linux-x64.AppImage \;
           fi
 
-      - name: Download All Artifacts
+      - name: Rename Tauri Artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cd tauri/src-tauri/target/release/bundle
+          if (Test-Path "msi") {
+            Get-ChildItem msi -Name "*.msi" | ForEach-Object { Move-Item "msi/$_" "googleballs-desktop-tauri-windows-x64.msi" }
+          }
+          if (Test-Path "nsis") {
+            Get-ChildItem nsis -Name "*.exe" | ForEach-Object { Move-Item "nsis/$_" "googleballs-desktop-tauri-windows-x64-installer.exe" }
+          }
+        shell: powershell
+
+      - name: Upload Tauri Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.platform }}
+          path: |
+            tauri/src-tauri/target/release/bundle/*.deb
+            tauri/src-tauri/target/release/bundle/*.AppImage
+            tauri/src-tauri/target/release/bundle/*.msi
+            tauri/src-tauri/target/release/bundle/*.exe
+
+  build-electron:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.platform }}
+    container: ${{ matrix.platform == 'ubuntu-latest' && 'rockylinux:9' || '' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux Dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          # Install EPEL and development tools
+          dnf install -y epel-release
+          dnf groupinstall -y "Development Tools"
+          dnf config-manager --set-enabled crb
+
+          # Install Node.js 20 and basic build requirements
+          dnf install -y nodejs npm gcc-c++ make python3
+
+          # Install RPM build requirements
+          dnf install -y libxcrypt-compat dpkg fakeroot rpmdevtools rpmlint rpm-build fedora-packager ruby rubygems xz p7zip unzip python3 squashfs-tools
+
+      - name: Set up Node.js (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Node.js (macOS)
+        if: matrix.platform == 'macos-latest'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install npm Dependencies
+        working-directory: electron
+        run: npm install
+
+      - name: Build Electron App
+        working-directory: electron
+        run: |
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+            npm run dist -- --linux --x64
+          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            npm run dist -- --ia32 --x64
+          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            npm run dist -- --mac --universal
+          fi
+        shell: bash
+
+      - name: Upload Electron Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.platform }}
+          path: electron/dist/
+
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build iOS App
+        run: |
+          cd ios
+          xcodebuild clean archive \
+            -project "Google Balls.xcodeproj" \
+            -scheme "Google Balls" \
+            -configuration Release \
+            -archivePath ./unsigned.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create IPA
+        run: |
+          cd ios
+          # Navigate into the archive and locate the app
+          cd unsigned.xcarchive/Products/Applications/
+          
+          # Create a temporary directory for IPA creation
+          mkdir -p ../../../ipa_temp/Payload
+          
+          # Copy the app to Payload directory
+          cp -R "Google Balls.app" ../../../ipa_temp/Payload/
+          
+          # Navigate to the temp directory and create the IPA
+          cd ../../../ipa_temp
+          zip -r "../googleballs-desktop-ios.ipa" Payload/
+          
+          # Clean up temp directory
+          cd ..
+          rm -rf ipa_temp
+
+      - name: Upload iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: |
+            ios/*.ipa
+
+  # Create the release with download table
+  create-release:
+    needs: [build-native, build-native-gtk, build-tauri, build-electron, build-ios]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./artifacts
-          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+          path: artifacts
 
-      - name: Process Artifacts and Generate Release Notes
-        id: process
+      - name: Display structure of downloaded files
+        run: find artifacts -type f -name "*" | sort
+
+      - name: Organize release files
         run: |
-          cd artifacts
+          mkdir -p release
           
-          # Initialize release notes
-          cat > ../release_notes.md << EOF
-          # 🎮 Google Balls - Multi-Platform Release
-          
-          This release includes builds for multiple platforms and frameworks:
-          
-          ## 📦 Download Table
-          
-          | Platform | Type | Architecture | Download |
-          |----------|------|-------------|----------|
-          EOF
-          
-          # Function to convert spaces to dots in filenames
-          convert_filename() {
-            echo "$1" | tr ' ' '.'
-          }
-          
-          # Function to determine platform emoji
-          get_platform_emoji() {
-            case "$1" in
-              *windows*) echo "🪟" ;;
-              *ubuntu*|*linux*) echo "🐧" ;;
-              *macos*) echo "🍎" ;;
-              *ios*) echo "📱" ;;
-              *) echo "💻" ;;
-            esac
-          }
-          
-          # Function to determine type emoji
-          get_type_emoji() {
-            case "$1" in
-              *electron*) echo "⚡" ;;
-              *tauri*) echo "🦀" ;;
-              *native*) echo "🔧" ;;
-              *ios*) echo "📱" ;;
-              *) echo "📦" ;;
-            esac
-          }
-          
-          # Process each artifact directory
-          for artifact_dir in */; do
-            artifact_name=$(basename "$artifact_dir")
-            echo "Processing artifact: $artifact_name"
+          # Function to find and copy files with size info
+          copy_with_info() {
+            local src_pattern="$1"
+            local dest_name="$2"
+            local description="$3"
             
-            # Determine platform and type from artifact name
-            platform=""
-            type=""
-            arch=""
-            
-            if [[ "$artifact_name" == *"windows"* ]]; then
-              platform="Windows"
-              arch="x64"
-            elif [[ "$artifact_name" == *"ubuntu"* ]] || [[ "$artifact_name" == *"linux"* ]]; then
-              platform="Linux"
-              arch="x64"
-            elif [[ "$artifact_name" == *"macos"* ]]; then
-              platform="macOS"
-              arch="Universal"
-            elif [[ "$artifact_name" == *"ios"* ]]; then
-              platform="iOS"
-              arch="ARM64"
-            fi
-            
-            if [[ "$artifact_name" == *"_electron"* ]]; then
-              type="Electron"
-            elif [[ "$artifact_name" == *"_tauri"* ]]; then
-              type="Tauri"
-            elif [[ "$artifact_name" == *"_native"* ]]; then
-              type="Native"
-            elif [[ "$artifact_name" == *"_ios"* ]]; then
-              type="iOS App"
+            file=$(find artifacts -name "$src_pattern" -type f | head -1)
+            if [ -n "$file" ] && [ -f "$file" ]; then
+              cp "$file" "release/$dest_name"
+              size=$(du -h "$file" | cut -f1)
+              echo "| $description | [$dest_name](../../releases/download/${{ github.ref_name }}/$dest_name) | $size |" >> release_table.md
+              echo "Found and copied: $file -> release/$dest_name ($size)"
             else
-              type="Unknown"
+              echo "| $description | ❌ Not available | - |" >> release_table.md
+              echo "Warning: Could not find file matching pattern: $src_pattern"
             fi
-            
-            platform_emoji=$(get_platform_emoji "$artifact_name")
-            type_emoji=$(get_type_emoji "$artifact_name")
-            
-            # Find files in the artifact directory
-            cd "$artifact_dir"
-            
-            # Look for common distribution files
-            files_found=""
-            
-            # Check for different file types
-            for file in *.exe *.msi *.zip *.tar.gz *.dmg *.app *.deb *.rpm *.ipa *.AppImage; do
-              if [ -f "$file" ]; then
-                converted_name=$(convert_filename "$file")
-                files_found="$files_found[$converted_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_name) "
-              fi
-            done
-            
-            # Check for directories that might contain distributable files
-            for dir in */; do
-              if [ -d "$dir" ]; then
-                # Look for files inside directories
-                find "$dir" -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.ipa" -o -name "*.AppImage" \) | while read file; do
-                  filename=$(basename "$file")
-                  converted_name=$(convert_filename "$filename")
-                  echo "[$converted_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_name) " >> ../found_files.tmp
-                done
-                if [ -f "../found_files.tmp" ]; then
-                  files_found="$files_found$(cat ../found_files.tmp)"
-                  rm -f ../found_files.tmp
-                fi
-              fi
-            done
-            
-            # If no specific files found, create archive of entire artifact
-            if [ -z "$files_found" ]; then
-              archive_name="${artifact_name}.tar.gz"
-              converted_archive_name=$(convert_filename "$archive_name")
-              tar -czf "../$archive_name" .
-              files_found="[$converted_archive_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_archive_name)"
-            fi
-            
-            # Add row to table if files were found
-            if [ -n "$files_found" ]; then
-              echo "| $platform_emoji $platform | $type_emoji $type | $arch | $files_found |" >> ../../release_notes.md
-            fi
-            
-            cd ..
-          done
-          
-          # Add additional sections to release notes
-          cat >> ../release_notes.md << EOF
-          
-          ## 🚀 Installation Instructions
-          
-          ### Windows
-          - **Electron**: Download and run the `.exe` installer
-          - **Tauri**: Download and run the `.msi` installer or `.exe` file
-          - **Native**: Extract the archive and run the executable
-          
-          ### Linux
-          - **Electron**: Download and install the `.deb` or `.rpm` package, or use the `.AppImage`
-          - **Tauri**: Download and run the `.AppImage` or install the `.deb` package
-          - **Native**: Extract the archive and run `./launch.sh` (for GTK version) or the executable directly
-          
-          ### macOS
-          - **Electron**: Download and install the `.dmg` file
-          - **Tauri**: Download and install the `.dmg` file
-          
-          ### iOS
-          - **iOS App**: Download the `.ipa` file and install using a tool like AltStore or Sideloadly (requires Apple Developer account for signing)
-          
-          ## ✨ Features
-          - Multi-platform support (Windows, Linux, macOS, iOS)
-          - Multiple framework options (Electron, Tauri, Native)
-          - Self-contained packages with all dependencies included
-          
-          ## 🔧 Technical Details
-          - Built with GitHub Actions
-          - Cross-platform compatibility
-          - Optimized for performance and size
-          
-          ## 📋 System Requirements
-          
-          ### Windows
-          - Windows 10 or later
-          - x64 architecture
-          
-          ### Linux
-          - Modern Linux distribution (Ubuntu 18.04+ or equivalent)
-          - x64 architecture
-          - GTK3 support (for GTK builds)
-          
-          ### macOS
-          - macOS 10.14 or later
-          - Intel or Apple Silicon
-          
-          ### iOS
-          - iOS 12.0 or later
-          - ARM64 device
-          
-          ## 🐛 Known Issues
-          - iOS builds are unsigned and require manual signing
-          - Some antivirus software may flag unsigned executables
-          
-          ## 📞 Support
-          If you encounter any issues, please [create an issue](https://github.com/${{ github.repository }}/issues) on GitHub.
-          EOF
-
-      - name: Prepare Release Assets
-        run: |
-          mkdir -p release_assets
-          cd artifacts
-          
-          # Function to convert spaces to dots in filenames
-          convert_filename() {
-            echo "$1" | tr ' ' '.'
           }
           
-          # Copy and rename all distributable files
-          for artifact_dir in */; do
-            cd "$artifact_dir"
-            
-            # Copy specific file types
-            for file in *.exe *.msi *.zip *.tar.gz *.dmg *.app *.deb *.rpm *.ipa *.AppImage; do
-              if [ -f "$file" ]; then
-                converted_name=$(convert_filename "$file")
-                cp "$file" "../../release_assets/$converted_name"
-                echo "Copied: $file -> $converted_name"
-              fi
-            done
-            
-            # Copy files from subdirectories
-            find . -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.ipa" -o -name "*.AppImage" \) | while read file; do
-              filename=$(basename "$file")
-              converted_name=$(convert_filename "$filename")
-              # Avoid duplicates
-              if [ ! -f "../../release_assets/$converted_name" ]; then
-                cp "$file" "../../release_assets/$converted_name"
-                echo "Copied from subdir: $file -> $converted_name"
-              fi
-            done
-            
-            cd ..
-          done
+          # Create release table header
+          cat > release_table.md << 'EOF'
+          ## 📦 Downloads
           
-          # Copy any tar.gz archives we created
-          for archive in *.tar.gz; do
-            if [ -f "$archive" ]; then
-              converted_name=$(convert_filename "$archive")
-              cp "$archive" "../release_assets/$converted_name"
-              echo "Copied archive: $archive -> $converted_name"
-            fi
-          done
+          | Platform | Download | Size |
+          |----------|----------|------|
+          EOF
           
-          cd ../release_assets
-          echo "Final release assets:"
-          ls -la
+          # Native builds
+          copy_with_info "googleballs-desktop-windows-x64.zip" "googleballs-desktop-windows-x64.zip" "🪟 Windows (Native)"
+          copy_with_info "googleballs-desktop-linux-x64.tar.gz" "googleballs-desktop-linux-x64.tar.gz" "🐧 Linux (Native)"
+          
+          # GTK builds  
+          copy_with_info "googleballs-desktop-gtk-windows-x64.zip" "googleballs-desktop-gtk-windows-x64.zip" "🪟 Windows (GTK3)"
+          copy_with_info "googleballs-desktop-gtk-linux-x64.tar.gz" "googleballs-desktop-gtk-linux-x64.tar.gz" "🐧 Linux (GTK3)"
+          
+          # Tauri builds
+          copy_with_info "*.msi" "googleballs-desktop-tauri-windows-x64.msi" "🪟 Windows (Tauri MSI)"
+          copy_with_info "*installer*.exe" "googleballs-desktop-tauri-windows-x64-installer.exe" "🪟 Windows (Tauri Installer)"
+          copy_with_info "*.deb" "googleballs-desktop-tauri-linux-x64.deb" "🐧 Linux (Tauri DEB)"
+          copy_with_info "*.AppImage" "googleballs-desktop-tauri-linux-x64.AppImage" "🐧 Linux (Tauri AppImage)"
+          
+          # Electron builds - these have multiple files, so we need to be more specific
+          copy_with_info "*Setup*.exe" "googleballs-desktop-electron-windows-setup.exe" "🪟 Windows (Electron)"
+          copy_with_info "*.rpm" "googleballs-desktop-electron-linux.rpm" "🐧 Linux (Electron RPM)"
+          copy_with_info "*.dmg" "googleballs-desktop-electron-macos.dmg" "🍎 macOS (Electron DMG)"
+          
+          # iOS
+          copy_with_info "*.ipa" "googleballs-desktop-ios.ipa" "📱 iOS (IPA - Unsigned)"
+          
+          # Add additional info to the table
+          cat >> release_table.md << 'EOF'
+          
+          ### 📋 Installation Notes
+          
+          - **Native builds**: Lightweight, minimal dependencies
+          - **GTK3 builds**: Include bundled GTK3 libraries for better Linux compatibility  
+          - **Tauri builds**: Modern web-based UI with native performance
+          - **Electron builds**: Cross-platform with web technologies
+          - **iOS build**: Unsigned IPA - requires sideloading (AltStore, etc.)
+          
+          ### 🚀 Quick Start
+          
+          1. **Windows users**: Download the `.exe` installer or `.zip` archive
+          2. **Linux users**: Download `.deb`, `.rpm`, `.AppImage`, or `.tar.gz` based on your preference
+          3. **macOS users**: Download the `.dmg` file
+          4. **iOS users**: Use AltStore or similar to install the `.ipa` file
+          
+          Choose the build that best fits your system and preferences!
+          EOF
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Create Release Notes
+        run: |
+          cat > release_notes.md << EOF
+          yo its google balls          
+          
+          $(cat release_table.md)
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.vars.outputs.tag_name }}
-          name: ${{ steps.vars.outputs.release_name }}
+          files: release/*
           body_path: release_notes.md
-          files: release_assets/*
           draft: false
           prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Summary
-        run: |
-          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release:** ${{ steps.vars.outputs.release_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** ${{ steps.vars.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Uploaded Assets:" >> $GITHUB_STEP_SUMMARY
-          cd release_assets
-          for file in *; do
-            if [ -f "$file" ]; then
-              size=$(du -h "$file" | cut -f1)
-              echo "- **$file** ($size)" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.vars.outputs.tag_name }})" >> $GITHUB_STEP_SUMMARY
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
