@@ -56,14 +56,14 @@ jobs:
     - name: Build
       run: cmake --build build
 
-    - name: Upload VPK artifact
+    - name: Upload VPK artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: google-balls-vita
-        path: build/google_balls.vpk
+        name: vpk-artifacts
+        path: '**/*.vpk'
 
-    - name: Upload SELF artifact
+    - name: Upload SELF artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: google-balls-self
-        path: build/google_balls.self
+        name: self-artifacts
+        path: '**/*.self'
