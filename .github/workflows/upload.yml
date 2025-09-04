@@ -1,274 +1,312 @@
-name: Create Release (Manual Build)
+name: Create Release
 
 permissions:
   contents: write
-  actions: read
 
 on:
+  workflow_run:
+    workflows: ["Build Apps"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag name (e.g., v1.0.0)'
+        description: 'Tag name for the release'
         required: true
         default: 'v1.0.0'
-      release_name:
-        description: 'Release name'
-        required: true
-        default: 'Google Balls Desktop'
-      build_run_id:
-        description: 'Build workflow run ID (get from Actions tab)'
-        required: true
-      prerelease:
-        description: 'Mark as pre-release'
-        type: boolean
-        default: false
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Set Release Variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+            echo "release_name=Release ${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            # Generate version based on date and commit
+            VERSION="v$(date +'%Y.%m.%d')-$(echo ${{ github.sha }} | cut -c1-7)"
+            echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
+            echo "release_name=Release $VERSION" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download All Artifacts
-        uses: actions/github-script@v7
+        uses: actions/download-artifact@v4
         with:
-          script: |
-            const runId = '${{ github.event.inputs.build_run_id }}';
-            
-            // Verify the run exists and completed successfully
-            const run = await github.rest.actions.getWorkflowRun({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: runId
-            });
-            
-            if (run.data.conclusion !== 'success') {
-              throw new Error(`Build workflow run ${runId} did not complete successfully. Status: ${run.data.conclusion}`);
-            }
-            
-            console.log(`Using build run: ${run.data.html_url}`);
-            
-            // Get all artifacts from the build run
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: runId
-            });
-            
-            console.log(`Found ${artifacts.data.artifacts.length} artifacts`);
-            
-            // Download each artifact
-            for (const artifact of artifacts.data.artifacts) {
-              console.log(`Downloading artifact: ${artifact.name}`);
-              
-              const download = await github.rest.actions.downloadArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id,
-                archive_format: 'zip'
-              });
-              
-              const fs = require('fs');
-              fs.writeFileSync(`${artifact.name}.zip`, Buffer.from(download.data));
-            }
+          path: ./artifacts
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
 
-      - name: Extract and Organize Artifacts
+      - name: Process Artifacts and Generate Release Notes
+        id: process
         run: |
-          mkdir -p release-assets
+          cd artifacts
           
-          # Extract all artifact zips and organize them
-          for zip_file in *.zip; do
-            if [ -f "$zip_file" ]; then
-              echo "Processing $zip_file..."
-              artifact_name=$(basename "$zip_file" .zip)
-              mkdir -p "temp_$artifact_name"
-              unzip -q "$zip_file" -d "temp_$artifact_name"
-              
-              # Copy ALL files from each artifact, preserving original names
-              find "temp_$artifact_name" -type f \( \
-                -name "*.exe" -o \
-                -name "*.msi" -o \
-                -name "*.deb" -o \
-                -name "*.rpm" -o \
-                -name "*.dmg" -o \
-                -name "*.AppImage" -o \
-                -name "*.ipa" -o \
-                -name "*.tar.gz" -o \
-                -name "googleballs-desktop*" \
-              \) -exec cp {} release-assets/ \;
-              
-              # Also handle GTK archives specially
-              if [[ "$artifact_name" == "native-gtk-"* ]]; then
-                cd "temp_$artifact_name"
-                if ls *.tar.gz 1> /dev/null 2>&1; then
-                  cp *.tar.gz ../release-assets/
-                else
-                  # Create archive if not already present
-                  platform=$(echo "$artifact_name" | cut -d'-' -f3)
-                  tar -czf "../release-assets/googleballs-desktop-$platform-gtk.tar.gz" .
-                fi
-                cd ..
+          # Initialize release notes
+          cat > ../release_notes.md << EOF
+          # 🎮 Google Balls - Multi-Platform Release
+          
+          This release includes builds for multiple platforms and frameworks:
+          
+          ## 📦 Download Table
+          
+          | Platform | Type | Architecture | Download |
+          |----------|------|-------------|----------|
+          EOF
+          
+          # Function to convert spaces to dots in filenames
+          convert_filename() {
+            echo "$1" | tr ' ' '.'
+          }
+          
+          # Function to determine platform emoji
+          get_platform_emoji() {
+            case "$1" in
+              *windows*) echo "🪟" ;;
+              *ubuntu*|*linux*) echo "🐧" ;;
+              *macos*) echo "🍎" ;;
+              *ios*) echo "📱" ;;
+              *) echo "💻" ;;
+            esac
+          }
+          
+          # Function to determine type emoji
+          get_type_emoji() {
+            case "$1" in
+              *electron*) echo "⚡" ;;
+              *tauri*) echo "🦀" ;;
+              *native*) echo "🔧" ;;
+              *ios*) echo "📱" ;;
+              *) echo "📦" ;;
+            esac
+          }
+          
+          # Process each artifact directory
+          for artifact_dir in */; do
+            artifact_name=$(basename "$artifact_dir")
+            echo "Processing artifact: $artifact_name"
+            
+            # Determine platform and type from artifact name
+            platform=""
+            type=""
+            arch=""
+            
+            if [[ "$artifact_name" == *"windows"* ]]; then
+              platform="Windows"
+              arch="x64"
+            elif [[ "$artifact_name" == *"ubuntu"* ]] || [[ "$artifact_name" == *"linux"* ]]; then
+              platform="Linux"
+              arch="x64"
+            elif [[ "$artifact_name" == *"macos"* ]]; then
+              platform="macOS"
+              arch="Universal"
+            elif [[ "$artifact_name" == *"ios"* ]]; then
+              platform="iOS"
+              arch="ARM64"
+            fi
+            
+            if [[ "$artifact_name" == *"_electron"* ]]; then
+              type="Electron"
+            elif [[ "$artifact_name" == *"_tauri"* ]]; then
+              type="Tauri"
+            elif [[ "$artifact_name" == *"_native"* ]]; then
+              type="Native"
+            elif [[ "$artifact_name" == *"_ios"* ]]; then
+              type="iOS App"
+            else
+              type="Unknown"
+            fi
+            
+            platform_emoji=$(get_platform_emoji "$artifact_name")
+            type_emoji=$(get_type_emoji "$artifact_name")
+            
+            # Find files in the artifact directory
+            cd "$artifact_dir"
+            
+            # Look for common distribution files
+            files_found=""
+            
+            # Check for different file types
+            for file in *.exe *.msi *.zip *.tar.gz *.dmg *.app *.deb *.rpm *.ipa *.AppImage; do
+              if [ -f "$file" ]; then
+                converted_name=$(convert_filename "$file")
+                files_found="$files_found[$converted_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_name) "
               fi
-              
-              rm -rf "temp_$artifact_name"
+            done
+            
+            # Check for directories that might contain distributable files
+            for dir in */; do
+              if [ -d "$dir" ]; then
+                # Look for files inside directories
+                find "$dir" -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.ipa" -o -name "*.AppImage" \) | while read file; do
+                  filename=$(basename "$file")
+                  converted_name=$(convert_filename "$filename")
+                  echo "[$converted_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_name) " >> ../found_files.tmp
+                done
+                if [ -f "../found_files.tmp" ]; then
+                  files_found="$files_found$(cat ../found_files.tmp)"
+                  rm -f ../found_files.tmp
+                fi
+              fi
+            done
+            
+            # If no specific files found, create archive of entire artifact
+            if [ -z "$files_found" ]; then
+              archive_name="${artifact_name}.tar.gz"
+              converted_archive_name=$(convert_filename "$archive_name")
+              tar -czf "../$archive_name" .
+              files_found="[$converted_archive_name](https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.tag_name }}/$converted_archive_name)"
             fi
+            
+            # Add row to table if files were found
+            if [ -n "$files_found" ]; then
+              echo "| $platform_emoji $platform | $type_emoji $type | $arch | $files_found |" >> ../../release_notes.md
+            fi
+            
+            cd ..
           done
           
-          # List all release assets with sizes
-          echo "Release assets prepared:"
-          ls -lah release-assets/
+          # Add additional sections to release notes
+          cat >> ../release_notes.md << EOF
+          
+          ## 🚀 Installation Instructions
+          
+          ### Windows
+          - **Electron**: Download and run the `.exe` installer
+          - **Tauri**: Download and run the `.msi` installer or `.exe` file
+          - **Native**: Extract the archive and run the executable
+          
+          ### Linux
+          - **Electron**: Download and install the `.deb` or `.rpm` package, or use the `.AppImage`
+          - **Tauri**: Download and run the `.AppImage` or install the `.deb` package
+          - **Native**: Extract the archive and run `./launch.sh` (for GTK version) or the executable directly
+          
+          ### macOS
+          - **Electron**: Download and install the `.dmg` file
+          - **Tauri**: Download and install the `.dmg` file
+          
+          ### iOS
+          - **iOS App**: Download the `.ipa` file and install using a tool like AltStore or Sideloadly (requires Apple Developer account for signing)
+          
+          ## ✨ Features
+          - Multi-platform support (Windows, Linux, macOS, iOS)
+          - Multiple framework options (Electron, Tauri, Native)
+          - Self-contained packages with all dependencies included
+          
+          ## 🔧 Technical Details
+          - Built with GitHub Actions
+          - Cross-platform compatibility
+          - Optimized for performance and size
+          
+          ## 📋 System Requirements
+          
+          ### Windows
+          - Windows 10 or later
+          - x64 architecture
+          
+          ### Linux
+          - Modern Linux distribution (Ubuntu 18.04+ or equivalent)
+          - x64 architecture
+          - GTK3 support (for GTK builds)
+          
+          ### macOS
+          - macOS 10.14 or later
+          - Intel or Apple Silicon
+          
+          ### iOS
+          - iOS 12.0 or later
+          - ARM64 device
+          
+          ## 🐛 Known Issues
+          - iOS builds are unsigned and require manual signing
+          - Some antivirus software may flag unsigned executables
+          
+          ## 📞 Support
+          If you encounter any issues, please [create an issue](https://github.com/${{ github.repository }}/issues) on GitHub.
+          EOF
 
-      - name: Generate Release Notes with Download Table
+      - name: Prepare Release Assets
         run: |
-          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          mkdir -p release_assets
+          cd artifacts
           
-          # Create release notes with download table
-          cat > release_notes.md << EOF
-          # Google Balls
-          
-          multiple platform builds available for download:
-          
-          ## 📥 downloads
-          
-          | Platform | Type | File | Size | Download |
-          |----------|------|------|------|----------|
-          EOF
-          
-          # Function to determine file type based on filename and extension
-          get_file_type() {
-            local filename="$1"
-            case "$filename" in
-              *"native"* | *"googleballs-desktop"*)
-                if [[ "$filename" == *".tar.gz" ]] || [[ "$filename" == *"gtk"* ]]; then
-                  echo "GTK3"
-                else
-                  echo "Native"
-                fi
-                ;;
-              *".msi" | *".deb" | *".AppImage")
-                echo "Tauri"
-                ;;
-              *"Setup"* | *"setup"* | *".rpm" | *".dmg" | *"elevate.exe")
-                echo "Electron"
-                ;;
-              *".ipa")
-                echo "Native"
-                ;;
-              *)
-                # Default fallback - try to guess from extension and name patterns
-                if [[ "$filename" == *".msi" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".deb" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".AppImage" ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *"tauri"* ]]; then
-                  echo "Tauri"
-                elif [[ "$filename" == *".exe" ]]; then
-                  echo "Electron"
-                elif [[ "$filename" == *".rpm" ]]; then
-                  echo "Electron"
-                elif [[ "$filename" == *".dmg" ]]; then
-                  echo "Electron"
-                else
-                  echo "Unknown"
-                fi
-                ;;
-            esac
+          # Function to convert spaces to dots in filenames
+          convert_filename() {
+            echo "$1" | tr ' ' '.'
           }
           
-          # Function to determine platform
-          get_platform() {
-            local filename="$1"
-            case "$filename" in
-              *"windows"* | *"win"* | *".exe" | *".msi" | *"x64"* | *"ia32"*)
-                echo "Windows"
-                ;;
-              *"linux"* | *"ubuntu"* | *".deb" | *".rpm" | *".AppImage" | *"amd64"* | *"x86_64"*)
-                echo "Linux"
-                ;;
-              *"macos"* | *"mac"* | *"darwin"* | *"universal"* | *".dmg")
-                echo "macOS"
-                ;;
-              *".ipa" | *"ios"*)
-                echo "iOS"
-                ;;
-              *)
-                echo "Unknown"
-                ;;
-            esac
-          }
-          
-          # Add all files from release-assets
-          for file in release-assets/*; do
-            if [ -f "$file" ]; then
+          # Copy and rename all distributable files
+          for artifact_dir in */; do
+            cd "$artifact_dir"
+            
+            # Copy specific file types
+            for file in *.exe *.msi *.zip *.tar.gz *.dmg *.app *.deb *.rpm *.ipa *.AppImage; do
+              if [ -f "$file" ]; then
+                converted_name=$(convert_filename "$file")
+                cp "$file" "../../release_assets/$converted_name"
+                echo "Copied: $file -> $converted_name"
+              fi
+            done
+            
+            # Copy files from subdirectories
+            find . -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.ipa" -o -name "*.AppImage" \) | while read file; do
               filename=$(basename "$file")
-              filesize=$(ls -lah "$file" | awk '{print $5}')
-              platform=$(get_platform "$filename")
-              filetype=$(get_file_type "$filename")
-              download_url="https://github.com/weeniemount/googleballs-app/releases/download/$TAG_NAME/$filename"
-              
-              # Determine description based on type and platform
-              case "$filetype" in
-                "Native")
-                  if [[ "$filename" == *".ipa" ]]; then
-                    description="iOS application"
-                  elif [[ "$filename" == *"gtk"* ]]; then
-                    description="$platform GTK3 application with bundled libraries"
-                  else
-                    description="Native $platform executable with SDL2"
-                  fi
-                  ;;
-                "GTK3")
-                  description="$platform GTK3 application with bundled libraries"
-                  ;;
-                "Tauri")
-                  if [[ "$filename" == *".msi" ]]; then
-                    description="Modern desktop app with web technologies (MSI installer)"
-                  elif [[ "$filename" == *".deb" ]]; then
-                    description="Modern desktop app with web technologies (DEB package)"
-                  elif [[ "$filename" == *".AppImage" ]]; then
-                    description="Modern desktop app with web technologies (AppImage)"
-                  else
-                    description="Modern desktop app with web technologies"
-                  fi
-                  ;;
-                "Electron")
-                  if [[ "$filename" == *".rpm" ]]; then
-                    description="Cross-platform desktop app with Electron (RPM package)"
-                  elif [[ "$filename" == *".dmg" ]]; then
-                    description="Cross-platform desktop app with Electron"
-                  else
-                    description="Cross-platform desktop app with Electron"
-                  fi
-                  ;;
-                *)
-                  description="Application binary"
-                  ;;
-              esac
-              
-              echo "| $platform | $filetype | \`$filename\` | $filesize | [Download]($download_url) |" >> release_notes.md
+              converted_name=$(convert_filename "$filename")
+              # Avoid duplicates
+              if [ ! -f "../../release_assets/$converted_name" ]; then
+                cp "$file" "../../release_assets/$converted_name"
+                echo "Copied from subdir: $file -> $converted_name"
+              fi
+            done
+            
+            cd ..
+          done
+          
+          # Copy any tar.gz archives we created
+          for archive in *.tar.gz; do
+            if [ -f "$archive" ]; then
+              converted_name=$(convert_filename "$archive")
+              cp "$archive" "../release_assets/$converted_name"
+              echo "Copied archive: $archive -> $converted_name"
             fi
           done
           
-          # Add installation instructions
-          cat >> release_notes.md << 'EOF'
-          
-          wow! google balls!
-
-          for iOS, you can sideload it onto your device by using something like AltStore, Sidestore, Sideloadly or LiveContainer. you can also have a jailbroken device. works on iOS 14.0+
-          
-          EOF
+          cd ../release_assets
+          echo "Final release assets:"
+          ls -la
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/create-release@v1
         with:
-          tag_name: ${{ github.event.inputs.tag_name }}
-          name: ${{ github.event.inputs.release_name }}
-          body_path: release_notes.md
-          files: release-assets/*
-          prerelease: ${{ github.event.inputs.prerelease }}
-          make_latest: ${{ github.event.inputs.prerelease != 'true' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.vars.outputs.tag_name }}
+          name: ${{ steps.vars.outputs.release_name }}
+          bodyFile: release_notes.md
+          artifacts: "release_assets/*"
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          replacesArtifacts: true
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** ${{ steps.vars.outputs.release_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.vars.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Uploaded Assets:" >> $GITHUB_STEP_SUMMARY
+          cd release_assets
+          for file in *; do
+            if [ -f "$file" ]; then
+              size=$(du -h "$file" | cut -f1)
+              echo "- **$file** ($size)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.vars.outputs.tag_name }})" >> $GITHUB_STEP_SUMMARY

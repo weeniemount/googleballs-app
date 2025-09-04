@@ -87,7 +87,7 @@ jobs:
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: native-${{ matrix.platform }}
+          name: native-${{ matrix.platform }}_native
           path: |
             native/googleballs-desktop*
             native/*.exe
@@ -344,7 +344,7 @@ jobs:
       - name: Upload GTK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: native-gtk-${{ matrix.platform }}
+          name: native-gtk-${{ matrix.platform }}_native
           path: |
             native-gtk/build/
             native-gtk/*.tar.gz
@@ -410,7 +410,7 @@ jobs:
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ matrix.platform }}
+          name: tauri-${{ matrix.platform }}_tauri
           path: |
             tauri/src-tauri/target/release/bundle/
             #tauri/src-tauri/target/universal-apple-darwin/release/bundle/
@@ -478,7 +478,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: googleballs-desktop-${{ matrix.platform }}
+          name: googleballs-desktop-${{ matrix.platform }}_electron
           path: electron/dist/
   build-ios:
     runs-on: macos-latest
@@ -524,7 +524,7 @@ jobs:
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app
+          name: ios-app_ios
           path: |
             ios/Google Balls.ipa
             ios/unsigned.xcarchive
