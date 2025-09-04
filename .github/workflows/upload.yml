@@ -281,17 +281,15 @@ jobs:
           ls -la
 
       - name: Create Release
-        uses: ncipollo/create-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag: ${{ steps.vars.outputs.tag_name }}
+          tag_name: ${{ steps.vars.outputs.tag_name }}
           name: ${{ steps.vars.outputs.release_name }}
-          bodyFile: release_notes.md
-          artifacts: "release_assets/*"
+          body_path: release_notes.md
+          files: release_assets/*
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          replacesArtifacts: true
 
       - name: Summary
         run: |
