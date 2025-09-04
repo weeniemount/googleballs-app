@@ -2,9 +2,7 @@ name: Build PS Vita Google Balls
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ ps-vita ]
   workflow_dispatch:
 
 jobs:
