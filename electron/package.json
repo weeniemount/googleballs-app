@@ -28,6 +28,7 @@
   "build": {
 		"appId": "com.weenie.googleballsdesktop",
 		"productName": "Google Balls Desktop",
+    "artifactName": "${productName}.${ext}",
     "publish": null,
 		"directories": {
 			"output": "dist"
