@@ -4,9 +4,7 @@ permissions:
   contents: write
 
 on:
-  push:
-    tags:
-      - 'v*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
+  workflow_dispatch:
 
 jobs:
   # Reuse all the build jobs from your existing workflow
