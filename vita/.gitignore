@@ -1,0 +1,11 @@
+# Build files
+build/
+*.vpk
+*.self
+*.velf
+*.elf
+
+# IDE files
+.vscode/
+*.swp
+*.swo

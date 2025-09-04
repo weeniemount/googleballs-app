@@ -4,13 +4,7 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-  workflow_dispatch:
+  # disable it for now, we are in the ps-vita branch.
 
 jobs:
   build-native:

@@ -1,0 +1,71 @@
+name: Build PS Vita Google Balls
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+    defaults:
+      run:
+        working-directory: ./vita  # do our stuff in the vita source directory
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apk add --no-cache cmake ninja pkgconfig
+        vdpm SDL2
+
+    - name: Create sce_sys directory structure
+      run: |
+        mkdir -p sce_sys/livearea/contents
+        
+        # Create background image (placeholder)
+        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > sce_sys/livearea/contents/bg.png
+        
+        # Create startup image (placeholder)
+        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > sce_sys/livearea/contents/startup.png
+
+    - name: Create LiveArea template
+      run: |
+        cat > sce_sys/livearea/contents/template.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <livearea style="a1" format-ver="01.00" content-rev="1">
+          <livearea-background>
+            <image>bg.png</image>
+          </livearea-background>
+          <gate>
+            <startup-image>startup.png</startup-image>
+          </gate>
+        </livearea>
+        EOF
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build \
+          -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -G Ninja
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Upload VPK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: google-balls-vita
+        path: build/google_balls.vpk
+
+    - name: Upload SELF artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: google-balls-self
+        path: build/google_balls.self
