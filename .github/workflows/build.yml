@@ -4,7 +4,13 @@ permissions:
   contents: write
 
 on:
-  # disable it for now, we are in the ps-vita branch.
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
   build-native:
@@ -641,3 +647,40 @@ jobs:
         with:
           name: android-app_android
           path: android/app/build/outputs/apk/release/Google Balls-signed.apk
+  build-psvita:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+    defaults:
+      run:
+        working-directory: ./vita  # do our stuff in the vita source directory
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apk add --no-cache cmake ninja pkgconfig
+        vdpm SDL2
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build \
+          -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -G Ninja
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Upload VPK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-vpk_psvita
+        path: '**/*.vpk'
+
+    - name: Upload SELF artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-self_psvita
+        path: '**/*.self'
