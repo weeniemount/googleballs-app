@@ -5,7 +5,7 @@
 
 google balls!! that one doodle from 2010! yeah its a desktop app
 
-<img width="802" height="632" alt="image" src="https://github.com/user-attachments/assets/d57395c8-8e59-4b80-a463-c3799a636f1e" />
+<img alt="image" src="screenshot.png" />
 
 # Credits!
 Google for making the original doodle back in 2010!
@@ -18,6 +18,7 @@ We have:
 - Tauri (like electron but not bulky) - Windows, Linux
 - SDL2 (it's sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my favourite) - Windows, Linux
+- iOS (its only for iOS, lol. does use a webview) - iOS
 
 # How 2 download:
 If you want release buids, go to the releases and download the one you want! for the latest builds, click that actions tab, pick the latest build action and download the artifact u need
