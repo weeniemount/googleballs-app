@@ -506,12 +506,12 @@ jobs:
       - name: Build RPM Package (Linux)
         if: matrix.platform == 'ubuntu-latest'
         working-directory: electron
-        run: npm run dist -- --linux --x64
+        run: npm run dist -- --x64
 
       - name: Build Windows Package
         if: matrix.platform == 'windows-latest'
         working-directory: electron
-        run: npm run dist -- --ia32 --x64
+        run: npm run dist -- --x64
 
       - name: Build macOS Package
         if: matrix.platform == 'macos-latest'
