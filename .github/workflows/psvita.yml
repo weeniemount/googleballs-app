@@ -22,30 +22,6 @@ jobs:
         apk add --no-cache cmake ninja pkgconfig
         vdpm SDL2
 
-    - name: Create sce_sys directory structure
-      run: |
-        mkdir -p sce_sys/livearea/contents
-        
-        # Create background image (placeholder)
-        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > sce_sys/livearea/contents/bg.png
-        
-        # Create startup image (placeholder)
-        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > sce_sys/livearea/contents/startup.png
-
-    - name: Create LiveArea template
-      run: |
-        cat > sce_sys/livearea/contents/template.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <livearea style="a1" format-ver="01.00" content-rev="1">
-          <livearea-background>
-            <image>bg.png</image>
-          </livearea-background>
-          <gate>
-            <startup-image>startup.png</startup-image>
-          </gate>
-        </livearea>
-        EOF
-
     - name: Configure CMake
       run: |
         cmake -S . -B build \
