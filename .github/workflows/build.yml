@@ -616,13 +616,13 @@ jobs:
         run: |
           # Use debug keystore for test signing
           APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          cp "$APK_PATH" app/build/outputs/apk/release/Google Balls-android-unsigned.apk
+          cp "$APK_PATH" "app/build/outputs/apk/release/Google Balls-android-unsigned.apk"
           # Generate debug keystore if not present
           if [ ! -f ~/.android/debug.keystore ]; then
             keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
           fi
           # Sign APK
-          jarsigner -keystore ~/.android/debug.keystore -storepass android -keypass android -signedjar app/build/outputs/apk/release/Google Balls-android.apk app/build/outputs/apk/release/Google Balls-android-unsigned.apk androiddebugkey
+          jarsigner -keystore ~/.android/debug.keystore -storepass android -keypass android -signedjar "app/build/outputs/apk/release/Google Balls-android.apk" "app/build/outputs/apk/release/Google Balls-android-unsigned.apk" androiddebugkey
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
