@@ -12,13 +12,15 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in 4 flavors!
+# Available in *7* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
 - SDL2 (it's sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my favourite) - Windows, Linux
 - iOS (its only for iOS, lol. does use a webview) - iOS
+- Android (its only for Android based devices. does use a webiew) - Android
+- PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 
 # How 2 download:
 If you want release buids, go to the releases and download the one you want! for the latest builds, click that actions tab, pick the latest build action and download the artifact u need
@@ -35,6 +37,7 @@ Go inside of ``native`` and if ur on windows you have to install msys and instal
 
 # How 2 compile gtk
 Go inside of ``native`` and if ur on windows you have to install msys and install sdl2. for linux just install sdl2. on either os run .sh/.bat respectively.
+
 
 
 
