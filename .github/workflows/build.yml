@@ -84,6 +84,27 @@ jobs:
           cd native
           ./compile.bat
 
+      - name: Rename Native Files
+        run: |
+          cd native
+          # Rename executables to include 'native' suffix
+          if [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
+            for file in googleballs-desktop*; do
+              if [ -f "$file" ] && [ -x "$file" ]; then
+                mv "$file" "${file}-native"
+              fi
+            done
+          else
+            # Windows
+            for file in *.exe; do
+              if [ -f "$file" ]; then
+                base=${file%.exe}
+                mv "$file" "${base}-native.exe"
+              fi
+            done
+          fi
+        shell: bash
+
       - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -209,6 +230,12 @@ jobs:
           # other stuff
           copy_lib_deps "libjpeg"
           
+          # Rename executable to include GTK suffix
+          if [ -f "$EXECUTABLE_NAME" ]; then
+            mv "$EXECUTABLE_NAME" "${EXECUTABLE_NAME}-gtk"
+            EXECUTABLE_NAME="${EXECUTABLE_NAME}-gtk"
+          fi
+          
           # Create a launch script that sets LD_LIBRARY_PATH
           cat > launch.sh << EOF
           #!/bin/bash
@@ -246,9 +273,16 @@ jobs:
         run: |
           cd native-gtk/build
           
-          # Get the executable name
+          # Get the executable name and rename it
           EXECUTABLE=$(ls *.exe | head -1)
           EXECUTABLE_NAME="$EXECUTABLE"
+          
+          if [ -f "$EXECUTABLE_NAME" ]; then
+            base=${EXECUTABLE_NAME%.exe}
+            NEW_NAME="${base}-gtk.exe"
+            mv "$EXECUTABLE_NAME" "$NEW_NAME"
+            EXECUTABLE_NAME="$NEW_NAME"
+          fi
           
           echo "Bundling libraries for executable: $EXECUTABLE_NAME"
           
@@ -383,13 +417,6 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      # vro
-
-      #- name: Install macOS Dependencies
-      #  if: matrix.platform == 'macos-latest'
-      #  run: |
-      #    rustup target add x86_64-apple-darwin
-
       - name: Install Dependencies (Tauri)
         run: |
           cd tauri
@@ -400,12 +427,30 @@ jobs:
         run: |
           cd tauri
           npm run tauri build
-        
-      #- name: Build Tauri App (macOS)
-      #  if: matrix.platform == 'macos-latest'
-      #  run: |
-      #    cd tauri
-      #    npx tauri build --target universal-apple-darwin
+
+      - name: Rename Tauri Files
+        run: |
+          cd tauri/src-tauri/target/release/bundle
+          
+          # Rename executables in different bundle formats
+          if [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
+            # Linux - handle AppImage and deb
+            find . -name "*.AppImage" -exec sh -c 'mv "$1" "${1%.AppImage}-tauri.AppImage"' _ {} \;
+            
+            # For deb packages, rename the actual executable inside if needed
+            if [ -d "deb" ]; then
+              find deb -name "*.deb" -exec sh -c '
+                base=$(basename "$1" .deb)
+                mv "$1" "$(dirname "$1")/${base}-tauri.deb"
+              ' _ {} \;
+            fi
+            
+          else
+            # Windows - handle msi and exe
+            find . -name "*.msi" -exec sh -c 'mv "$1" "${1%.msi}-tauri.msi"' _ {} \;
+            find . -name "*.exe" -exec sh -c 'mv "$1" "${1%.exe}-tauri.exe"' _ {} \;
+          fi
+        shell: bash
 
       - name: Upload Tauri Artifacts
         uses: actions/upload-artifact@v4
@@ -413,8 +458,6 @@ jobs:
           name: tauri-${{ matrix.platform }}_tauri
           path: |
             tauri/src-tauri/target/release/bundle/
-            #tauri/src-tauri/target/universal-apple-darwin/release/bundle/
-
 
   build-electron:
     strategy:
@@ -475,11 +518,32 @@ jobs:
         working-directory: electron
         run: npm run dist -- --mac --universal
 
+      - name: Rename Electron Files
+        working-directory: electron/dist
+        run: |
+          # Rename all package files to include 'electron' suffix
+          
+          # Windows executables and installers
+          find . -name "*.exe" -exec sh -c 'mv "$1" "${1%.exe}-electron.exe"' _ {} \;
+          find . -name "*.msi" -exec sh -c 'mv "$1" "${1%.msi}-electron.msi"' _ {} \;
+          
+          # Linux packages  
+          find . -name "*.rpm" -exec sh -c 'mv "$1" "${1%.rpm}-electron.rpm"' _ {} \;
+          find . -name "*.deb" -exec sh -c 'mv "$1" "${1%.deb}-electron.deb"' _ {} \;
+          find . -name "*.AppImage" -exec sh -c 'mv "$1" "${1%.AppImage}-electron.AppImage"' _ {} \;
+          find . -name "*.tar.gz" -exec sh -c 'mv "$1" "${1%.tar.gz}-electron.tar.gz"' _ {} \;
+          
+          # macOS packages
+          find . -name "*.dmg" -exec sh -c 'mv "$1" "${1%.dmg}-electron.dmg"' _ {} \;
+          find . -name "*.zip" -exec sh -c 'mv "$1" "${1%.zip}-electron.zip"' _ {} \;
+        shell: bash
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-desktop-${{ matrix.platform }}_electron
           path: electron/dist/
+
   build-ios:
     runs-on: macos-latest
 
@@ -512,19 +576,19 @@ jobs:
           
           # Navigate to the temp directory and create the IPA
           cd ../../../ipa_temp
-          zip -r "../Google Balls.ipa" Payload/
+          zip -r "../Google Balls-ios.ipa" Payload/
           
           # Clean up temp directory
           cd ..
           rm -rf ipa_temp
           
           echo "IPA created successfully"
-          ls -la "Google Balls.ipa"
+          ls -la "Google Balls-ios.ipa"
 
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ios-app_ios
           path: |
-            ios/Google Balls.ipa
+            ios/Google Balls-ios.ipa
             ios/unsigned.xcarchive
