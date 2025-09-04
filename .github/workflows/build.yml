@@ -611,18 +611,36 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease
 
-      - name: Test Sign APK
+      - name: Sign & Align APK
         working-directory: android
         run: |
-          # Use debug keystore for test signing
-          APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          cp "$APK_PATH" "app/build/outputs/apk/release/Google Balls-android-unsigned.apk"
-          # Generate debug keystore if not present
+          APK_PATH=$(find app/build/outputs/apk/release -name '*-unsigned.apk' | head -1)
+          UNSIGNED_APK="app/build/outputs/apk/release/GoogleBalls-unsigned.apk"
+          SIGNED_APK="app/build/outputs/apk/release/GoogleBalls-signed.apk"
+
+          cp "$APK_PATH" "$UNSIGNED_APK"
+
+          # Zipalign (comes with build-tools)
+          ZIPALIGNED_APK="app/build/outputs/apk/release/GoogleBalls-aligned.apk"
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign -f -p 4 "$UNSIGNED_APK" "$ZIPALIGNED_APK"
+
+          # Debug keystore (if missing)
           if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey \
+              -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
           fi
-          # Sign APK
-          jarsigner -keystore ~/.android/debug.keystore -storepass android -keypass android -signedjar "app/build/outputs/apk/release/Google Balls-android.apk" "app/build/outputs/apk/release/Google Balls-android-unsigned.apk" androiddebugkey
+
+          # apksigner (replaces jarsigner)
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner sign \
+            --ks ~/.android/debug.keystore \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out "$SIGNED_APK" \
+            "$ZIPALIGNED_APK"
+
+          # Verify
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner verify "$SIGNED_APK"
+
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
