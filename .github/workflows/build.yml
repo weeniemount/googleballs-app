@@ -616,7 +616,7 @@ jobs:
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name '*-unsigned.apk' | head -1)
           UNSIGNED_APK="app/build/outputs/apk/release/GoogleBalls-unsigned.apk"
-          SIGNED_APK="app/build/outputs/apk/release/GoogleBalls-signed.apk"
+          SIGNED_APK="app/build/outputs/apk/release/Google Balls-signed.apk"
 
           cp "$APK_PATH" "$UNSIGNED_APK"
 
@@ -646,4 +646,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-app_android
-          path: android/app/build/outputs/apk/release/Google Balls-android.apk
+          path: android/app/build/outputs/apk/release/Google Balls-signed.apk
