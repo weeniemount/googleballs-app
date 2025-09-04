@@ -234,7 +234,7 @@ public:
             return false;
         }
         
-        window = SDL_CreateWindow("Google Balls Desktop",
+        window = SDL_CreateWindow("Google Balls Desktop (SDL2)",
                                 SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                 windowWidth, windowHeight,
                                 SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);

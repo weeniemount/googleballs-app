@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
     app.running = TRUE;
 
     app.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(app.window), "Google Balls Desktop");
+    gtk_window_set_title(GTK_WINDOW(app.window), "Google Balls Desktop (GTK3)");
     gtk_window_set_default_size(GTK_WINDOW(app.window), app.width, app.height);
 
     // Load icon from embedded data
