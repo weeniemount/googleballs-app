@@ -51,5 +51,10 @@ install instructions coming soon :bangbang:
 
 idk your on your own gang
 
+## 3DS
+[Download .3dsx](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-3ds.3dsx)
+
+idk your on your own gang
+
 # Nightly (actions)
 Click that actions tab above, pick the latest build and download the artifacts you need
