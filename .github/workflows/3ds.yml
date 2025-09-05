@@ -2,11 +2,8 @@ name: Build 3DS Homebrew
 
 on:
   push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master, develop ]
-  release:
-    types: [published]
+    branches: [ 3ds ]
+  workflow_dispatch:
 
 jobs:
   build:
