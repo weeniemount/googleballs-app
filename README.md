@@ -27,3 +27,6 @@ See [the docs](docs/installing.md)
 
 # How 2 compile:
 See [the docs](docs/compiling.md)
+
+
+**this project isnt affiliated with google**
