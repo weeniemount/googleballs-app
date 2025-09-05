@@ -45,12 +45,12 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: google-balls-nds-rom
-        path: google-balls-nds.nds
+        path: ./nds/google-balls-nds.nds
         
     - name: Upload debug info
       uses: actions/upload-artifact@v4
       with:
         name: debug-files
         path: |
-          google-balls-nds.elf
+          ./nds/google-balls-nds.elf
           build/
