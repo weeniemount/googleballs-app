@@ -41,11 +41,6 @@ jobs:
         make clean
         make -j$(nproc)
         
-    - name: Verify build output
-      run: |
-        ls -la
-        file google-balls-nds.nds
-        
     - name: Upload NDS ROM artifact
       uses: actions/upload-artifact@v4
       with:
