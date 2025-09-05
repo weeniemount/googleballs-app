@@ -306,8 +306,8 @@ public:
             static double padY = TOP_SCREEN_HEIGHT / 2.0;
             
             // Smoother circle pad movement
-            padX += circlePos.dx / 200.0;  // Reduced sensitivity
-            padY -= circlePos.dy / 200.0;  // Invert Y axis
+            padX += circlePos.dx / 50.0;  // Reduced sensitivity
+            padY -= circlePos.dy / 50.0;  // Invert Y axis
             
             // Clamp to screen bounds
             padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
