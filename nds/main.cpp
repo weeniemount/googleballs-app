@@ -337,6 +337,7 @@ public:
         // Draw a small cross as cursor
         u16 cursorColor = touching ? RGB15(31, 0, 0) : RGB15(15, 15, 15); // Red when touching, gray otherwise
         
+        // Draw cursor cross with bounds checking
         for (int i = -3; i <= 3; i++) {
             // Horizontal line
             int x = cursorX + i;
@@ -349,6 +350,9 @@ public:
                 topFramebuffer[y * TOP_SCREEN_WIDTH + cursorX] = cursorColor;
             }
         }
+        
+        // Force screen update
+        DC_FlushRange(topFramebuffer, TOP_SCREEN_WIDTH * TOP_SCREEN_HEIGHT * 2);
         
         // Update bottom screen text
         consoleClear();
@@ -369,6 +373,7 @@ public:
         }
         
         printf("\nCursor: (%d, %d)\n", cursorX, cursorY);
+        printf("Points: %zu\n", pointCollection.points.size());
     }
     
     void run() {
