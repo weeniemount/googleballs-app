@@ -12,7 +12,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: devkitpro/devkitarm:latest
-    working-directory: ./3ds
+    defaults:
+      run:
+        working-directory: ./3ds  # do our stuff in the 3ds source directory
 
     steps:
     - name: Checkout code
