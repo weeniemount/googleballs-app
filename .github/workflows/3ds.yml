@@ -60,8 +60,8 @@ jobs:
       with:
         name: google-balls-3ds
         path: |
-          *.3dsx
-          *.smdh
+          ./3ds/*.3dsx
+          ./3ds/*.smdh
 
     - name: Upload to release (if release)
       if: github.event_name == 'release'
