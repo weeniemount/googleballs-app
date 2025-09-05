@@ -1,11 +1,11 @@
 # google balls app!!!
-[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml)
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg)
 
-<img src="balls.png" alt="google balls" width="200"/>
+<img src="images/balls.png" alt="google balls" width="200"/>
 
 google balls!! that one doodle from 2010! yeah its an app now
 
-<img alt="image" src="screenshot.png" />
+<img alt="image" src="images/screenshot.png" />
 
 # Credits!
 Google for making the original doodle back in 2010!
