@@ -684,3 +684,70 @@ jobs:
       with:
         name: googleballs-self_psvita
         path: '**/*.self'
+  build-3ds:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    defaults:
+      run:
+        working-directory: ./3ds  # do our stuff in the 3ds source directory
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo dkp-pacman -Syu --noconfirm
+        sudo dkp-pacman -S --needed --noconfirm 3ds-dev
+        sudo dkp-pacman -S --needed --noconfirm libctru citro3d citro2d
+
+    - name: Set up environment
+      run: |
+        export DEVKITARM=/opt/devkitpro/devkitARM
+        export DEVKITPRO=/opt/devkitpro
+        echo "DEVKITARM=$DEVKITARM" >> $GITHUB_ENV
+        echo "DEVKITPRO=$DEVKITPRO" >> $GITHUB_ENV
+        echo "$DEVKITARM/bin" >> $GITHUB_PATH
+
+    - name: Create source directory structure
+      run: |
+        mkdir -p source
+        mkdir -p include
+        mkdir -p build
+
+    - name: Move source file
+      run: |
+        # Move the main.cpp to source directory (assuming it's in the root)
+        if [ -f "main.cpp" ]; then
+            mv main.cpp source/
+        elif [ -f "google_balls_3ds.cpp" ]; then
+            mv google_balls_3ds.cpp source/main.cpp
+        else
+            # Create the source file if it doesn't exist
+            echo "Creating main.cpp from artifact..."
+            # You'll need to manually copy your C++ code here or ensure it's in the repo
+        fi
+
+    - name: Build
+      run: |
+        make clean
+        make -j$(nproc)
+
+    - name: Upload artifact (3DSX file)
+      uses: actions/upload-artifact@v4
+      with:
+        name: google-balls-3ds
+        path: |
+          ./3ds/*.3dsx
+          ./3ds/*.smdh
+
+    - name: Upload to release (if release)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: '**.3dsx'
+        asset_name: google-balls-3ds
+        asset_content_type: application/octet-stream
