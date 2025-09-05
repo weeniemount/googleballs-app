@@ -3,7 +3,7 @@
 
 <img src="balls.png" alt="google balls" width="200"/>
 
-google balls!! that one doodle from 2010! yeah its a desktop app
+google balls!! that one doodle from 2010! yeah its an app now
 
 <img alt="image" src="screenshot.png" />
 
@@ -19,7 +19,7 @@ We have:
 - SDL2 (it's sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my favourite) - Windows, Linux
 - iOS (its only for iOS, lol. does use a webview) - iOS
-- Android (its only for Android based devices. does use a webiew) - Android
+- Android (its only for Android based devices. does use a webview) - Android
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 
 # How 2 download:
