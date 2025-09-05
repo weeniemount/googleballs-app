@@ -12,7 +12,7 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in $FLAVOR_COUNT flavors!
+# Available in 7 flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
