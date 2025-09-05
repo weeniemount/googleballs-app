@@ -1,8 +1,16 @@
 #include <3ds.h>
 #include <citro2d.h>
+#include <citro3d.h>
 #include <vector>
 #include <cmath>
+#include <string>
 #include <algorithm>
+
+// 3DS screen dimensions
+#define TOP_SCREEN_WIDTH  400
+#define TOP_SCREEN_HEIGHT 240
+#define BOTTOM_SCREEN_WIDTH  320
+#define BOTTOM_SCREEN_HEIGHT 240
 
 struct Vector3 {
     double x, y, z;
@@ -25,16 +33,15 @@ struct Color {
         : r(r), g(g), b(b), a(a) {}
     
     // Convert hex string to color
-    static Color fromHex(const char* hex) {
+    static Color fromHex(const std::string& hex) {
         if (hex[0] == '#') {
-            unsigned int value = strtoul(hex + 1, nullptr, 16);
+            unsigned int value = std::stoul(hex.substr(1), nullptr, 16);
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
         }
         return Color();
     }
     
-    // Convert to C2D_Color32 format
-    u32 toC2D() const {
+    u32 to3DS() const {
         return C2D_Color32(r, g, b, a);
     }
 };
@@ -47,7 +54,7 @@ public:
     double friction = 0.8;
     double springStrength = 0.1;
     
-    Point(double x, double y, double z, double size, const char* colorHex)
+    Point(double x, double y, double z, double size, const std::string& colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
           velocity(0, 0, 0), size(size), radius(size) {
         color = Color::fromHex(colorHex);
@@ -108,17 +115,16 @@ public:
     }
     
     void draw() {
-        // Use citro2d to draw filled circle
-        C2D_DrawCircleSolid((float)curPos.x, (float)curPos.y, 0.0f, 
-                           (float)radius, color.toC2D());
+        // Draw filled circle using citro2d
+        C2D_DrawCircleSolid(curPos.x, curPos.y, 0.0f, radius, color.to3DS());
     }
 };
 
-// Original point data from JavaScript (adjusted for 3DS bottom screen)
+// Original point data (scaled for 3DS top screen)
 struct PointData {
     int x, y;
     int size;
-    const char* color;
+    std::string color;
 };
 
 static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
@@ -138,24 +144,24 @@ static void computeBounds(const std::vector<PointData>& data, double& w, double&
 
 class PointCollection {
 public:
-    Vector3 touchPos;
+    Vector3 mousePos;
     std::vector<Point> points;
     
-    PointCollection() : touchPos(0, 0, 0) {}
+    PointCollection() : mousePos(0, 0, 0) {}
     
-    void addPoint(double x, double y, double z, double size, const char* color) {
+    void addPoint(double x, double y, double z, double size, const std::string& color) {
         points.emplace_back(x, y, z, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            double dx = touchPos.x - point.curPos.x;
-            double dy = touchPos.y - point.curPos.y;
+            double dx = mousePos.x - point.curPos.x;
+            double dy = mousePos.y - point.curPos.y;
             double dd = (dx * dx) + (dy * dy);
             double d = std::sqrt(dd);
             
             if (d < 75) {  // Reduced interaction distance for 3DS screen
-                // Match JavaScript logic exactly
+                // Fixed: Match JavaScript logic exactly
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -176,22 +182,31 @@ public:
 
 class App {
 private:
+    C3D_RenderTarget* topTarget;
+    C3D_RenderTarget* bottomTarget;
     PointCollection pointCollection;
     bool running;
-    C3D_RenderTarget* bottom;
+    touchPosition touch;
+    bool touching;
     
 public:
-    App() : running(false), bottom(nullptr) {}
+    App() : topTarget(nullptr), bottomTarget(nullptr), running(false), touching(false) {}
     
     bool init() {
         // Initialize services
+        romfsInit();
         gfxInitDefault();
         C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
         C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
         C2D_Prepare();
         
-        // Create render target for bottom screen
-        bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+        // Create render targets
+        topTarget = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+        bottomTarget = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+        
+        if (!topTarget || !bottomTarget) {
+            return false;
+        }
         
         initPoints();
         running = true;
@@ -199,62 +214,79 @@ public:
     }
     
     void initPoints() {
+        // Scaled down point data for 3DS top screen (400x240)
         std::vector<PointData> pointData = {
-            {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
-            {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
-            {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"},
-            {73, 83, 9, "#3355d8"}, {294, 6, 9, "#36b641"}, {235, 62, 9, "#2e5def"},
-            {353, 42, 8, "#d53747"}, {336, 52, 8, "#eb676f"}, {208, 41, 8, "#f9b125"},
-            {321, 70, 8, "#de3646"}, {8, 60, 8, "#2a59f0"}, {180, 81, 8, "#eb9c31"},
-            {146, 65, 8, "#c41731"}, {145, 49, 8, "#d82038"}, {246, 34, 8, "#5f8af8"},
-            {169, 69, 8, "#efa11e"}, {273, 99, 8, "#2e55e2"}, {248, 120, 8, "#4167e4"},
-            {294, 41, 8, "#0b991a"}, {267, 114, 8, "#4869e3"}, {78, 67, 8, "#3059e3"},
-            {294, 23, 8, "#10a11d"}, {117, 83, 8, "#cf4055"}, {137, 80, 8, "#cd4359"},
-            {14, 71, 8, "#2855ea"}, {331, 80, 8, "#ca273c"}, {25, 82, 8, "#2650e1"},
-            {233, 46, 8, "#4a7bf9"}, {73, 13, 8, "#3d65e7"}, {327, 35, 6, "#f47875"},
-            {319, 46, 6, "#f36764"}, {256, 81, 6, "#1d4eeb"}, {244, 88, 6, "#698bf1"},
-            {194, 32, 6, "#fac652"}, {97, 56, 6, "#ee5257"}, {105, 75, 6, "#cf2a3f"},
-            {42, 4, 6, "#5681f5"}, {10, 27, 6, "#4577f6"}, {166, 55, 6, "#f7b326"},
-            {266, 88, 6, "#2b58e8"}, {178, 34, 6, "#facb5e"}, {100, 65, 6, "#e02e3d"},
-            {343, 32, 6, "#f16d6f"}, {59, 5, 6, "#507bf2"}, {27, 9, 6, "#5683f7"},
-            {233, 116, 6, "#3158e2"}, {123, 32, 6, "#f0696c"}, {6, 38, 6, "#3769f6"},
-            {63, 62, 6, "#6084ef"}, {6, 49, 6, "#2a5cf4"}, {108, 36, 6, "#f4716e"},
-            {169, 43, 6, "#f8c247"}, {137, 37, 6, "#e74653"}, {318, 58, 6, "#ec4147"},
-            {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"},
-            {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
+            // Scaled coordinates (roughly 0.6x scale factor to fit 3DS screen)
+            {121, 47, 5, "#ed9d33"}, {209, 50, 5, "#d44d61"}, {154, 41, 5, "#4f7af2"},
+            {128, 35, 5, "#ef9a1e"}, {159, 22, 5, "#4976f3"}, {180, 47, 5, "#269230"},
+            {176, 35, 5, "#1f9e2c"}, {27, 53, 5, "#1c48dd"}, {161, 31, 5, "#2a56ea"},
+            {44, 50, 5, "#3355d8"}, {176, 4, 5, "#36b641"}, {141, 37, 5, "#2e5def"},
+            {212, 25, 4, "#d53747"}, {202, 31, 4, "#eb676f"}, {125, 25, 4, "#f9b125"},
+            {193, 42, 4, "#de3646"}, {5, 36, 4, "#2a59f0"}, {108, 49, 4, "#eb9c31"},
+            {88, 39, 4, "#c41731"}, {87, 29, 4, "#d82038"}, {148, 20, 4, "#5f8af8"},
+            {101, 41, 4, "#efa11e"}, {164, 59, 4, "#2e55e2"}, {149, 72, 4, "#4167e4"},
+            {176, 25, 4, "#0b991a"}, {160, 68, 4, "#4869e3"}, {47, 40, 4, "#3059e3"},
+            {176, 14, 4, "#10a11d"}, {70, 50, 4, "#cf4055"}, {82, 48, 4, "#cd4359"},
+            {8, 43, 4, "#2855ea"}, {199, 48, 4, "#ca273c"}, {15, 49, 4, "#2650e1"},
+            {140, 28, 4, "#4a7bf9"}, {44, 8, 4, "#3d65e7"}, {196, 21, 3, "#f47875"},
+            {191, 28, 3, "#f36764"}, {154, 49, 3, "#1d4eeb"}, {146, 53, 3, "#698bf1"},
+            {116, 19, 3, "#fac652"}, {58, 34, 3, "#ee5257"}, {63, 45, 3, "#cf2a3f"},
+            {25, 2, 3, "#5681f5"}, {6, 16, 3, "#4577f6"}, {100, 33, 3, "#f7b326"},
+            {160, 53, 3, "#2b58e8"}, {107, 20, 3, "#facb5e"}, {60, 39, 3, "#e02e3d"},
+            {206, 19, 3, "#f16d6f"}, {35, 3, 3, "#507bf2"}, {16, 5, 3, "#5683f7"},
+            {140, 70, 3, "#3158e2"}, {74, 19, 3, "#f0696c"}, {4, 23, 3, "#3769f6"},
+            {38, 37, 3, "#6084ef"}, {4, 29, 3, "#2a5cf4"}, {65, 22, 3, "#f4716e"},
+            {101, 26, 3, "#f8c247"}, {82, 22, 3, "#e74653"}, {191, 35, 3, "#ec4147"},
+            {136, 60, 3, "#4876f1"}, {61, 28, 3, "#ef5c5c"}, {136, 65, 3, "#2552ea"},
+            {10, 10, 3, "#4779f7"}, {139, 56, 3, "#4b78f1"}
         };
         
         double logoW, logoH;
         computeBounds(pointData, logoW, logoH);
         
-        // Center on 3DS bottom screen (320x240)
-        double offsetX = (320 / 2.0) - (logoW / 2.0);
-        double offsetY = (240 / 2.0) - (logoH / 2.0);
+        double offsetX = (TOP_SCREEN_WIDTH / 2.0) - (logoW / 2.0);
+        double offsetY = (TOP_SCREEN_HEIGHT / 2.0) - (logoH / 2.0);
         
-        // Scale down to fit better on smaller screen
-        double scale = 0.8;
-        
-        // Center the points
+        // Center the points on the top screen
         for (const auto& data : pointData) {
-            double x = offsetX + (data.x * scale);
-            double y = offsetY + (data.y * scale);
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size) * scale, data.color);
+            double x = offsetX + data.x;
+            double y = offsetY + data.y;
+            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
         }
     }
     
     void handleInput() {
         hidScanInput();
         
-        // Check for exit
         u32 kDown = hidKeysDown();
         if (kDown & KEY_START) {
             running = false;
         }
         
-        // Handle touchscreen input
-        touchPosition touch;
-        if (hidTouchRead(&touch)) {
-            pointCollection.touchPos.set(touch.px, touch.py);
+        // Handle touch input
+        if (hidKeysHeld() & KEY_TOUCH) {
+            hidTouchRead(&touch);
+            touching = true;
+            pointCollection.mousePos.set(touch.px, touch.py);
+        } else {
+            touching = false;
+        }
+        
+        // Handle circle pad input (alternative to touch)
+        circlePosition circlePos;
+        hidCircleRead(&circlePos);
+        if (abs(circlePos.dx) > 20 || abs(circlePos.dy) > 20) {
+            static double padX = TOP_SCREEN_WIDTH / 2.0;
+            static double padY = TOP_SCREEN_HEIGHT / 2.0;
+            
+            padX += circlePos.dx / 256.0;
+            padY -= circlePos.dy / 256.0;  // Invert Y axis
+            
+            // Clamp to screen bounds
+            padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
+            padY = std::max(0.0, std::min((double)TOP_SCREEN_HEIGHT, padY));
+            
+            pointCollection.mousePos.set(padX, padY);
         }
     }
     
@@ -263,13 +295,25 @@ public:
     }
     
     void render() {
-        C3D_FrameBegin(C3D_FRAME_SYNCED);
-        
-        // Render to bottom screen
-        C2D_TargetClear(bottom, C2D_Color32(255, 255, 255, 255));  // White background
-        C2D_SceneBegin(bottom);
+        // Render top screen
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C2D_TargetClear(topTarget, C2D_Color32f(1.0f, 1.0f, 1.0f, 1.0f));  // White background
+        C2D_SceneBegin(topTarget);
         
         pointCollection.draw();
+        
+        // Draw cursor indicator if using circle pad
+        if (!touching) {
+            C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 3.0f, 
+                               C2D_Color32(100, 100, 100, 128));
+        }
+        
+        // Render bottom screen (instructions)
+        C2D_TargetClear(bottomTarget, C2D_Color32f(0.9f, 0.9f, 0.9f, 1.0f));  // Light gray background
+        C2D_SceneBegin(bottomTarget);
+        
+        // Note: For text rendering, you'd typically use a font texture
+        // For simplicity, we'll just show the app is running
         
         C3D_FrameEnd(0);
     }
@@ -286,10 +330,11 @@ public:
         C2D_Fini();
         C3D_Fini();
         gfxExit();
+        romfsExit();
     }
 };
 
-int main() {
+int main(int argc, char* argv[]) {
     App app;
     
     if (!app.init()) {
