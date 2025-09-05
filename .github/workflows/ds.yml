@@ -2,9 +2,7 @@ name: Build Nintendo DS Google Balls
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ nds ]
   workflow_dispatch:
 
 jobs:
