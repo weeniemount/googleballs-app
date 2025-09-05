@@ -37,8 +37,9 @@ GRAPHICS	:=	gfx
 GFXBUILD	:=	$(BUILD)
 
 APP_TITLE       := Google Balls 3DS
-APP_DESCRIPTION := Interactive ball physics demo
-APP_AUTHOR      := Port to 3DS
+APP_DESCRIPTION := Google Balls 3DS App Real!!!!!!!!!!!
+APP_AUTHOR      := weenie
+ICON			:= icon.png
 
 #---------------------------------------------------------------------------------
 # options for code generation
