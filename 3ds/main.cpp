@@ -12,6 +12,10 @@
 #define BOTTOM_SCREEN_WIDTH  320
 #define BOTTOM_SCREEN_HEIGHT 240
 
+// Target FPS and frame timing
+#define TARGET_FPS 33
+#define FRAME_TIME_NS (1000000000LL / TARGET_FPS)
+
 struct Vector3 {
     double x, y, z;
     
@@ -188,9 +192,13 @@ private:
     bool running;
     touchPosition touch;
     bool touching;
+    C2D_TextBuf textBuf;
+    C2D_Text instructionText;
+    C2D_Font font;
+    u64 lastFrameTime;
     
 public:
-    App() : topTarget(nullptr), bottomTarget(nullptr), running(false), touching(false) {}
+    App() : topTarget(nullptr), bottomTarget(nullptr), running(false), touching(false), lastFrameTime(0) {}
     
     bool init() {
         // Initialize services
@@ -208,8 +216,18 @@ public:
             return false;
         }
         
+        // Initialize text rendering
+        textBuf = C2D_TextBufNew(4096);
+        font = C2D_FontLoadSystem(CFG_REGION_USA);
+        
+        // Create instruction text
+        C2D_TextFontParse(&instructionText, font, textBuf, 
+                         "Touch the screen or use the Circle Pad\nto interact with the points!\n\nPress START to exit");
+        C2D_TextOptimize(&instructionText);
+        
         initPoints();
         running = true;
+        lastFrameTime = osGetTime();
         return true;
     }
     
@@ -294,6 +312,19 @@ public:
         pointCollection.update();
     }
     
+    void limitFrameRate() {
+        u64 currentTime = osGetTime();
+        u64 deltaTime = currentTime - lastFrameTime;
+        u64 targetTime = FRAME_TIME_NS / 1000000; // Convert to milliseconds
+        
+        if (deltaTime < targetTime) {
+            u64 sleepTime = targetTime - deltaTime;
+            svcSleepThread(sleepTime * 1000000); // Convert to nanoseconds
+        }
+        
+        lastFrameTime = osGetTime();
+    }
+    
     void render() {
         // Render top screen
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -302,8 +333,27 @@ public:
         
         pointCollection.draw();
         
-        // Draw cursor indicator if using circle pad
-        if (!touching) {
+        // Always draw cursor indicator when interacting (touch or circle pad)
+        bool isInteracting = touching || (abs(hidKeysHeld() & KEY_CPAD_UP) || abs(hidKeysHeld() & KEY_CPAD_DOWN) || 
+                                         abs(hidKeysHeld() & KEY_CPAD_LEFT) || abs(hidKeysHeld() & KEY_CPAD_RIGHT));
+        
+        // Draw pointer with pulsing effect when dragging
+        if (touching) {
+            // Pulsing red pointer when dragging with touch
+            static u32 pulseCounter = 0;
+            pulseCounter++;
+            float pulseIntensity = 0.5f + 0.5f * sinf(pulseCounter * 0.3f);
+            u8 red = 255;
+            u8 green = (u8)(100 * pulseIntensity);
+            u8 blue = (u8)(100 * pulseIntensity);
+            
+            C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 4.0f, 
+                               C2D_Color32(red, green, blue, 200));
+            // Outer ring
+            C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 6.0f, 
+                               C2D_Color32(red, green, blue, 100));
+        } else {
+            // Gray pointer when using circle pad or idle
             C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 3.0f, 
                                C2D_Color32(100, 100, 100, 128));
         }
@@ -312,8 +362,15 @@ public:
         C2D_TargetClear(bottomTarget, C2D_Color32f(0.9f, 0.9f, 0.9f, 1.0f));  // Light gray background
         C2D_SceneBegin(bottomTarget);
         
-        // Note: For text rendering, you'd typically use a font texture
-        // For simplicity, we'll just show the app is running
+        // Draw instruction text centered on bottom screen
+        float textWidth, textHeight;
+        C2D_TextGetDimensions(&instructionText, 0.6f, 0.6f, &textWidth, &textHeight);
+        
+        float textX = (BOTTOM_SCREEN_WIDTH - textWidth) / 2.0f;
+        float textY = (BOTTOM_SCREEN_HEIGHT - textHeight) / 2.0f;
+        
+        C2D_DrawText(&instructionText, C2D_WithColor, textX, textY, 0.0f, 0.6f, 0.6f, 
+                     C2D_Color32(50, 50, 50, 255));
         
         C3D_FrameEnd(0);
     }
@@ -323,10 +380,12 @@ public:
             handleInput();
             update();
             render();
+            limitFrameRate(); // Lock to 33 FPS
         }
     }
     
     void cleanup() {
+        C2D_TextBufDelete(textBuf);
         C2D_Fini();
         C3D_Fini();
         gfxExit();
