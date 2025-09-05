@@ -31,7 +31,7 @@ jobs:
     - name: Create source directory
       run: |
         mkdir -p source
-        cp google_balls_nds.cpp source/main.cpp
+        cp main.cpp source/main.cpp
         
     - name: Build Nintendo DS ROM
       run: |
@@ -58,17 +58,3 @@ jobs:
           google-balls-nds.elf
           build/
         retention-days: 7
-
-  # Optional job to create a release when a tag is pushed
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-    - name: Download ROM artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: google-balls-nds-rom
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
