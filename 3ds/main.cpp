@@ -54,13 +54,14 @@ class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    double radius, size;
+    double radius, size;  // Fixed: Declare in correct order
     double friction = 0.8;
     double springStrength = 0.1;
     
+    // Fixed: Initialize in declaration order
     Point(double x, double y, double z, double size, const std::string& colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), size(size), radius(size) {
+          velocity(0, 0, 0), radius(size), size(size) {
         color = Color::fromHex(colorHex);
     }
     
@@ -281,11 +282,16 @@ public:
             running = false;
         }
         
-        // Handle touch input
-        if (hidKeysHeld() & KEY_TOUCH) {
+        // Handle touch input - improved for real hardware
+        u32 kHeld = hidKeysHeld();
+        if (kHeld & KEY_TOUCH) {
             hidTouchRead(&touch);
-            touching = true;
-            pointCollection.mousePos.set(touch.px, touch.py);
+            // Validate touch coordinates
+            if (touch.px > 0 && touch.px < TOP_SCREEN_WIDTH && 
+                touch.py > 0 && touch.py < TOP_SCREEN_HEIGHT) {
+                touching = true;
+                pointCollection.mousePos.set(touch.px, touch.py);
+            }
         } else {
             touching = false;
         }
@@ -293,12 +299,15 @@ public:
         // Handle circle pad input (alternative to touch)
         circlePosition circlePos;
         hidCircleRead(&circlePos);
-        if (abs(circlePos.dx) > 20 || abs(circlePos.dy) > 20) {
+        
+        // Fixed: Use proper threshold and direct comparison instead of abs()
+        if (circlePos.dx > 20 || circlePos.dx < -20 || circlePos.dy > 20 || circlePos.dy < -20) {
             static double padX = TOP_SCREEN_WIDTH / 2.0;
             static double padY = TOP_SCREEN_HEIGHT / 2.0;
             
-            padX += circlePos.dx / 256.0;
-            padY -= circlePos.dy / 256.0;  // Invert Y axis
+            // Smoother circle pad movement
+            padX += circlePos.dx / 200.0;  // Reduced sensitivity
+            padY -= circlePos.dy / 200.0;  // Invert Y axis
             
             // Clamp to screen bounds
             padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
@@ -333,11 +342,12 @@ public:
         
         pointCollection.draw();
         
-        // Always draw cursor indicator when interacting (touch or circle pad)
-        bool isInteracting = touching || (abs(hidKeysHeld() & KEY_CPAD_UP) || abs(hidKeysHeld() & KEY_CPAD_DOWN) || 
-                                         abs(hidKeysHeld() & KEY_CPAD_LEFT) || abs(hidKeysHeld() & KEY_CPAD_RIGHT));
+        // Fixed: Check circle pad input properly
+        circlePosition circlePos;
+        hidCircleRead(&circlePos);
+        bool circlepadActive = (circlePos.dx > 20 || circlePos.dx < -20 || circlePos.dy > 20 || circlePos.dy < -20);
         
-        // Draw pointer with pulsing effect when dragging
+        // Draw pointer when interacting
         if (touching) {
             // Pulsing red pointer when dragging with touch
             static u32 pulseCounter = 0;
@@ -352,10 +362,14 @@ public:
             // Outer ring
             C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 6.0f, 
                                C2D_Color32(red, green, blue, 100));
-        } else {
-            // Gray pointer when using circle pad or idle
+        } else if (circlepadActive) {
+            // Blue pointer when using circle pad
             C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 3.0f, 
-                               C2D_Color32(100, 100, 100, 128));
+                               C2D_Color32(100, 150, 255, 180));
+        } else {
+            // Gray pointer when idle
+            C2D_DrawCircleSolid(pointCollection.mousePos.x, pointCollection.mousePos.y, 0.0f, 2.0f, 
+                               C2D_Color32(100, 100, 100, 100));
         }
         
         // Render bottom screen (instructions)
