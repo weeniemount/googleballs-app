@@ -59,3 +59,6 @@ your on your own gang
 
 # PSVita
 your on your own gang
+
+# 3DS
+your on your own gang
