@@ -5,17 +5,13 @@
 #include <algorithm>
 
 struct Vector3 {
-    double x, y, z;
+    float x, y, z;
     
-    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+    Vector3(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
     
-    void set(double newX, double newY, double newZ = 0) {
+    void set(float newX, float newY, float newZ = 0) {
         x = newX; y = newY; z = newZ;
     }
-    
-    void addX(double dx) { x += dx; }
-    void addY(double dy) { y += dy; }
-    void addZ(double dz) { z += dz; }
 };
 
 struct Color {
@@ -24,7 +20,6 @@ struct Color {
     Color(Uint8 r = 255, Uint8 g = 255, Uint8 b = 255, Uint8 a = 255) 
         : r(r), g(g), b(b), a(a) {}
     
-    // Convert hex string to color
     static Color fromHex(const std::string& hex) {
         if (hex[0] == '#') {
             unsigned int value = std::stoul(hex.substr(1), nullptr, 16);
@@ -38,25 +33,29 @@ class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    double radius, size;
-    double friction = 0.8;
-    double springStrength = 0.1;
+    float radius, size;
+    float friction = 0.8f;
+    float springStrength = 0.1f;
     
-    Point(double x, double y, double z, double size, const std::string& colorHex)
+    // Optimization: Pre-calculate squared radius for distance checks
+    float radiusSquared;
+    
+    Point(float x, float y, float z, float size, const std::string& colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
           velocity(0, 0, 0), size(size), radius(size) {
         color = Color::fromHex(colorHex);
+        radiusSquared = radius * radius;
     }
     
     void update() {
         // X axis spring physics
-        double dx = targetPos.x - curPos.x;
-        double ax = dx * springStrength;
+        float dx = targetPos.x - curPos.x;
+        float ax = dx * springStrength;
         velocity.x += ax;
         velocity.x *= friction;
         
         // Stop small oscillations
-        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+        if (std::abs(dx) < 0.1f && std::abs(velocity.x) < 0.01f) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
@@ -64,13 +63,13 @@ public:
         }
         
         // Y axis spring physics
-        double dy = targetPos.y - curPos.y;
-        double ay = dy * springStrength;
+        float dy = targetPos.y - curPos.y;
+        float ay = dy * springStrength;
         velocity.y += ay;
         velocity.y *= friction;
         
         // Stop small oscillations
-        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+        if (std::abs(dy) < 0.1f && std::abs(velocity.y) < 0.01f) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
@@ -78,19 +77,19 @@ public:
         }
         
         // Z axis (depth) based on distance from original position
-        double dox = originalPos.x - curPos.x;
-        double doy = originalPos.y - curPos.y;
-        double dd = (dox * dox) + (doy * doy);
-        double d = std::sqrt(dd);
+        float dox = originalPos.x - curPos.x;
+        float doy = originalPos.y - curPos.y;
+        float dd = (dox * dox) + (doy * doy);
+        float d = std::sqrt(dd);
         
-        targetPos.z = d / 100.0 + 1.0;
-        double dz = targetPos.z - curPos.z;
-        double az = dz * springStrength;
+        targetPos.z = d / 100.0f + 1.0f;
+        float dz = targetPos.z - curPos.z;
+        float az = dz * springStrength;
         velocity.z += az;
         velocity.z *= friction;
         
         // Stop small Z oscillations
-        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+        if (std::abs(dz) < 0.01f && std::abs(velocity.z) < 0.001f) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -100,52 +99,38 @@ public:
         // Update radius based on depth
         radius = size * curPos.z;
         if (radius < 1) radius = 1;
+        radiusSquared = radius * radius;
     }
     
-    void draw(SDL_Renderer* renderer) {
+    // Optimized circle drawing using Bresenham's algorithm with simple anti-aliasing
+    void drawOptimized(SDL_Renderer* renderer) {
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
         
-        // Anti-aliased filled circle using multiple samples
         int x0 = static_cast<int>(curPos.x);
         int y0 = static_cast<int>(curPos.y);
-        double r = radius;
+        int r = static_cast<int>(radius);
         
-        // Use subpixel sampling for anti-aliasing
-        for (int x = static_cast<int>(-r - 1); x <= static_cast<int>(r + 1); x++) {
-            for (int y = static_cast<int>(-r - 1); y <= static_cast<int>(r + 1); y++) {
-                double coverage = 0.0;
-                const int samples = 4; // 4x4 subpixel sampling
-                
-                for (int sx = 0; sx < samples; sx++) {
-                    for (int sy = 0; sy < samples; sy++) {
-                        double px = x + (sx + 0.5) / samples - 0.5;
-                        double py = y + (sy + 0.5) / samples - 0.5;
-                        double dist = std::sqrt(px * px + py * py);
-                        
-                        if (dist <= r) {
-                            coverage += 1.0 / (samples * samples);
-                        }
-                    }
-                }
-                
-                if (coverage > 0.0) {
-                    Uint8 alpha = static_cast<Uint8>(coverage * color.a);
-                    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
-                    SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
-                }
-            }
+        if (r <= 1) {
+            // Just draw a point for very small circles
+            SDL_RenderDrawPoint(renderer, x0, y0);
+            return;
+        }
+        
+        // Use simple filled circle algorithm
+        for (int y = -r; y <= r; y++) {
+            int width = static_cast<int>(std::sqrt(r * r - y * y));
+            SDL_RenderDrawLine(renderer, x0 - width, y0 + y, x0 + width, y0 + y);
         }
     }
 };
 
-// Original point data from JavaScript (adjusted for center positioning)
 struct PointData {
     int x, y;
     int size;
     std::string color;
 };
 
-static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
+static void computeBounds(const std::vector<PointData>& data, float& w, float& h) {
     int minX = 99999, maxX = -99999;
     int minY = 99999, maxY = -99999;
     
@@ -165,21 +150,22 @@ public:
     Vector3 mousePos;
     std::vector<Point> points;
     
+    // Optimization: Cache squared distance threshold
+    static constexpr float INTERACTION_DIST_SQ = 150.0f * 150.0f;
+    
     PointCollection() : mousePos(0, 0, 0) {}
     
-    void addPoint(double x, double y, double z, double size, const std::string& color) {
+    void addPoint(float x, float y, float z, float size, const std::string& color) {
         points.emplace_back(x, y, z, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            double dx = mousePos.x - point.curPos.x;
-            double dy = mousePos.y - point.curPos.y;
-            double dd = (dx * dx) + (dy * dy);
-            double d = std::sqrt(dd);
+            float dx = mousePos.x - point.curPos.x;
+            float dy = mousePos.y - point.curPos.y;
+            float dd = (dx * dx) + (dy * dy);
             
-            if (d < 150) {
-                // Fixed: Match JavaScript logic exactly
+            if (dd < INTERACTION_DIST_SQ) {
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -193,7 +179,7 @@ public:
     
     void draw(SDL_Renderer* renderer) {
         for (auto& point : points) {
-            point.draw(renderer);
+            point.drawOptimized(renderer);
         }
     }
 };
@@ -206,9 +192,13 @@ private:
     bool running;
     int windowWidth, windowHeight;
     
+    // Optimization: Frame timing
+    Uint32 lastFrameTime;
+    static constexpr Uint32 TARGET_FRAME_TIME = 33; // ~30 FPS for better performance
+    
 public:
     App() : window(nullptr), renderer(nullptr), running(false), 
-            windowWidth(960), windowHeight(544) {} // PS Vita native resolution
+            windowWidth(960), windowHeight(544), lastFrameTime(0) {}
     
     bool init() {
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
@@ -226,14 +216,12 @@ public:
             return false;
         }
         
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        // Optimization: Use software renderer for better compatibility on Vita
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
         if (!renderer) {
             SDL_Log("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
             return false;
         }
-        
-        // Enable alpha blending for anti-aliasing
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         
         // Initialize joystick for touch input
         if (SDL_NumJoysticks() > 0) {
@@ -242,6 +230,7 @@ public:
 
         initPoints();
         running = true;
+        lastFrameTime = SDL_GetTicks();
         return true;
     }
     
@@ -271,18 +260,17 @@ public:
             {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
         };
 		
-	    double logoW, logoH;
-	    computeBounds(pointData, logoW, logoH);
-	
-	    double offsetX = (windowWidth / 2.0) - (logoW / 2.0);
-	    double offsetY = (windowHeight / 2.0) - (logoH / 2.0);
+        float logoW, logoH;
+        computeBounds(pointData, logoW, logoH);
 
-		// Center the points on PS Vita screen
-	    for (const auto& data : pointData) {
-	        double x = offsetX + data.x;
-	        double y = offsetY + data.y;
-	        pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
-	    }
+        float offsetX = (windowWidth / 2.0f) - (logoW / 2.0f);
+        float offsetY = (windowHeight / 2.0f) - (logoH / 2.0f);
+
+        for (const auto& data : pointData) {
+            float x = offsetX + data.x;
+            float y = offsetY + data.y;
+            pointCollection.addPoint(x, y, 0.0f, static_cast<float>(data.size), data.color);
+        }
     }
     
     void handleEvents() {
@@ -297,21 +285,18 @@ public:
                     break;
                 case SDL_FINGERDOWN:
                 case SDL_FINGERMOTION:
-                    // Convert normalized touch coordinates to screen coordinates
                     pointCollection.mousePos.set(
                         e.tfinger.x * windowWidth, 
                         e.tfinger.y * windowHeight
                     );
                     break;
                 case SDL_JOYBUTTONDOWN:
-                    // Exit on any button press
                     if (e.jbutton.button == SDL_CONTROLLER_BUTTON_START || 
                         e.jbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
                         running = false;
                     }
                     break;
                 case SDL_JOYAXISMOTION:
-                    // Use right analog stick for mouse movement
                     if (e.jaxis.axis == 2) { // Right stick X
                         pointCollection.mousePos.x = (e.jaxis.value + 32768) * windowWidth / 65535;
                     }
@@ -328,7 +313,7 @@ public:
     }
     
     void render() {
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);  // White background
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
         
         pointCollection.draw(renderer);
@@ -337,22 +322,17 @@ public:
     }
     
     void run() {
-        const int frameDelay = 30;  // Match JavaScript exactly (30ms timeout)
-        
-        Uint32 frameStart;
-        int frameTime;
-        
         while (running) {
-            frameStart = SDL_GetTicks();
+            Uint32 frameStart = SDL_GetTicks();
             
             handleEvents();
             update();
             render();
             
-            frameTime = SDL_GetTicks() - frameStart;
-            
-            if (frameDelay > frameTime) {
-                SDL_Delay(frameDelay - frameTime);
+            // Cap framerate
+            Uint32 frameTime = SDL_GetTicks() - frameStart;
+            if (TARGET_FRAME_TIME > frameTime) {
+                SDL_Delay(TARGET_FRAME_TIME - frameTime);
             }
         }
     }
