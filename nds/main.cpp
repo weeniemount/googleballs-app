@@ -119,7 +119,7 @@ public:
         if (radius < 2) radius = 2;
     }
     
-    void updateSprite(OAMTable* oam) {
+    void updateSprite(OamState* oam) {
         if (spriteId >= MAX_SPRITES) return;
         
         // Update sprite position
@@ -132,10 +132,9 @@ public:
         if (y < -8) y = -8;
         if (y > 192) y = 192;
         
-        // Set sprite attributes
-        oam->oamBuffer[spriteId].attribute[0] = ATTR0_COLOR_16 | ATTR0_SQUARE | (y & 0xFF);
-        oam->oamBuffer[spriteId].attribute[1] = ATTR1_SIZE_8 | (x & 0x1FF);
-        oam->oamBuffer[spriteId].attribute[2] = ATTR2_PALETTE(spriteId % 16) | ATTR2_PRIORITY(0);
+        // Set sprite attributes using the correct OamState structure
+        oamSet(oam, spriteId, x, y, 0, spriteId % 16, SpriteSize_8x8, SpriteColorFormat_16Color, 
+               NULL, 0, false, false, false, false, false);
     }
 };
 
@@ -192,7 +191,7 @@ public:
         }
     }
     
-    void updateSprites(OAMTable* oam) {
+    void updateSprites(OamState* oam) {
         for (auto& point : points) {
             point.updateSprite(oam);
         }
@@ -205,7 +204,7 @@ private:
     bool running;
     touchPosition touch;
     bool touching;
-    OAMTable* oam;
+    OamState* oam;
     u16* spritePalette;
     u8* spriteGfx;
     
@@ -222,7 +221,7 @@ public:
         vramSetBankC(VRAM_C_SUB_BG);
         vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
         
-        // Initialize sprites
+        // Initialize sprites - use correct type
         oam = &oamMain;
         oamInit(oam, SpriteMapping_1D_32, false);
         
@@ -249,7 +248,7 @@ public:
         consoleInit(NULL, 1, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
         
         // Set up a simple white background
-        int bg0 = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
+        bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
         BG_PALETTE[0] = RGB15(31, 31, 31); // White background
         BG_PALETTE[1] = RGB15(0, 0, 0);    // Black text (not used here)
         
