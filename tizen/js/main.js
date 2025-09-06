@@ -116,7 +116,7 @@ window.onload = function() {
             pointCollection.draw();
         }
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+        ctx.fillStyle = "rgba(255, 255, 255, 1)";
         ctx.beginPath();
         ctx.arc(cursor.x, cursor.y, 15, 0, Math.PI * 2, true);
         ctx.fill();
