@@ -63,5 +63,5 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tizen-web-app-unsigned
+          name: googleballs-app-tizen
           path: tizen/*.wgt
