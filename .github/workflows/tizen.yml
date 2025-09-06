@@ -1,4 +1,4 @@
-name: Build Tizen Google Balls App
+name: Build Tizen Google Balls App (With Profile)
 
 on:
   push:
@@ -11,17 +11,37 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y expect
+          
       - name: Build Tizen Google Balls App
         id: tizen-build
         uses: sourcetoad/tizen-build-action@v1
         with:
           project-dir: tizen/
-          sign: false  # Disable signing
-
+          sign: false
+          
+      # Alternative: If the action still fails, manually build
+      - name: Manual build (fallback)
+        if: failure()
+        run: |
+          cd tizen
+          # Create a dummy security profile to avoid NullPointerException
+          tizen security-profiles add -n DummyProfile -a ~/dummy-author.p12 -p dummy123
+          # Build without actually using the profile
+          tizen build-web
+          # Create unsigned package by directly copying build result
+          cp -r .buildResult/* ./
+          zip -r googleballs-app.wgt *
+          
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tizen-web-app
-          path: ${{ steps.tizen-build.outputs.package-artifact }}
+          path: |
+            ${{ steps.tizen-build.outputs.package-artifact }}
+            tizen/*.wgt
