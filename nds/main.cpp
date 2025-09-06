@@ -57,10 +57,11 @@ public:
     double springStrength = 0.1;
     u16 ndsColor;
     int spriteId;
+    u16* spriteGfx;
     
     Point(double x, double y, double z, double size, const std::string& colorHex, int id)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), radius(size), size(size), spriteId(id) {
+          velocity(0, 0, 0), radius(size), size(size), spriteId(id), spriteGfx(nullptr) {
         color = Color::fromHex(colorHex);
         ndsColor = color.toNDS();
     }
@@ -120,7 +121,7 @@ public:
     }
     
     void updateSprite(OamState* oam) {
-        if (spriteId >= MAX_SPRITES) return;
+        if (spriteId >= MAX_SPRITES || !spriteGfx) return;
         
         // Update sprite position
         int x = static_cast<int>(curPos.x) - 4; // Center the 8x8 sprite
@@ -132,9 +133,31 @@ public:
         if (y < -8) y = -8;
         if (y > 192) y = 192;
         
-        // Set sprite attributes using the correct OamState structure
-        oamSet(oam, spriteId, x, y, 0, spriteId % 16, SpriteSize_8x8, SpriteColorFormat_16Color, 
-               NULL, 0, false, false, false, false, false);
+        // Set sprite attributes - proper OAM setup
+        oamSet(oam, spriteId, x, y, 0, 0, SpriteSize_8x8, SpriteColorFormat_16Color, 
+               spriteGfx, -1, false, false, false, false, false);
+    }
+    
+    void allocateSprite() {
+        // Allocate graphics memory for this sprite
+        spriteGfx = oamAllocateGfx(&oamMain, SpriteSize_8x8, SpriteColorFormat_16Color);
+        
+        if (spriteGfx) {
+            // Create simple dot sprite data (8x8 filled circle) - 4bpp format
+            u8 dotSprite[32] = {
+                0x00,0x11,0x11,0x00,  // Row 0-1: 0,0,1,1,1,1,0,0 & 0,1,1,1,1,1,1,0
+                0x11,0x11,0x11,0x10,  // Row 2-3: 1,1,1,1,1,1,1,1 & 1,1,1,1,1,1,1,1
+                0x11,0x11,0x11,0x10,  // Row 4-5: 1,1,1,1,1,1,1,1 & 1,1,1,1,1,1,1,1
+                0x01,0x11,0x10,0x00,  // Row 6-7: 0,1,1,1,1,1,1,0 & 0,0,1,1,1,1,0,0
+                0x00,0x11,0x11,0x00,
+                0x11,0x11,0x11,0x10,
+                0x11,0x11,0x11,0x10,
+                0x01,0x11,0x10,0x00
+            };
+            
+            // Copy dot sprite to allocated VRAM
+            dmaCopy(dotSprite, spriteGfx, 32);
+        }
     }
 };
 
@@ -196,6 +219,12 @@ public:
             point.updateSprite(oam);
         }
     }
+    
+    void allocateSprites() {
+        for (auto& point : points) {
+            point.allocateSprite();
+        }
+    }
 };
 
 class App {
@@ -205,52 +234,41 @@ private:
     touchPosition touch;
     bool touching;
     OamState* oam;
-    u16* spritePalette;
-    u8* spriteGfx;
     
 public:
     App() : running(false), touching(false), oam(nullptr) {}
     
     bool init() {
-        // Initialize video modes
-        videoSetMode(MODE_0_2D | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D | DISPLAY_BG0_ACTIVE);
-        videoSetModeSub(MODE_0_2D);
+        // Initialize video modes - CRITICAL: Enable sprites on main screen
+        videoSetMode(MODE_0_2D | DISPLAY_SPR_ACTIVE | DISPLAY_BG0_ACTIVE);
+        videoSetModeSub(MODE_0_2D | DISPLAY_BG0_ACTIVE);
         
-        // Map VRAM banks
-        vramSetBankA(VRAM_A_MAIN_SPRITE);
-        vramSetBankC(VRAM_C_SUB_BG);
-        vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
+        // Map VRAM banks - FIXED: Proper VRAM setup
+        vramSetBankA(VRAM_A_MAIN_SPRITE);    // Main sprites
+        vramSetBankC(VRAM_C_SUB_BG);         // Sub background
+        vramSetBankD(VRAM_D_MAIN_BG);        // Main background
         
-        // Initialize sprites - use correct type
+        // Initialize sprites - use correct OAM
         oam = &oamMain;
         oamInit(oam, SpriteMapping_1D_32, false);
         
-        // Get sprite graphics and palette memory
-        spriteGfx = (u8*)SPRITE_GFX;
-        spritePalette = SPRITE_PALETTE;
-        
-        // Create simple dot sprite data (8x8 filled circle)
-        u8 dotSprite[64] = {
-            0,0,1,1,1,1,0,0,
-            0,1,1,1,1,1,1,0,
-            1,1,1,1,1,1,1,1,
-            1,1,1,1,1,1,1,1,
-            1,1,1,1,1,1,1,1,
-            1,1,1,1,1,1,1,1,
-            0,1,1,1,1,1,1,0,
-            0,0,1,1,1,1,0,0
-        };
-        
-        // Copy dot sprite to VRAM
-        dmaCopy(dotSprite, spriteGfx, 64);
-        
         // Initialize console on bottom screen for text
-        consoleInit(NULL, 1, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
+        consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
         
-        // Set up a simple white background
-        bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
-        BG_PALETTE[0] = RGB15(31, 31, 31); // White background
-        BG_PALETTE[1] = RGB15(0, 0, 0);    // Black text (not used here)
+        // Set up a simple background on main screen
+        int bg = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
+        BG_PALETTE[0] = RGB15(0, 0, 31);  // Blue background
+        BG_PALETTE[1] = RGB15(31, 31, 31); // White text
+        
+        // Fill background with blue
+        u16* bgMap = bgGetMapPtr(bg);
+        for (int i = 0; i < 32*24; i++) {
+            bgMap[i] = 0;
+        }
+        
+        // Set up sprite palette
+        SPRITE_PALETTE[0] = RGB15(0, 0, 0);     // Transparent
+        SPRITE_PALETTE[1] = RGB15(31, 0, 0);    // Red (will be overridden per sprite)
         
         initPoints();
         running = true;
@@ -260,7 +278,7 @@ public:
     void initPoints() {
         // Reduced number of points to fit within sprite limit
         std::vector<PointData> pointData = {
-            // First 40 most prominent points, scaled for NDS
+            // First 30 most prominent points, scaled for NDS
             {87, 32, 4, "#ed9d33"}, {141, 34, 4, "#d44d61"}, {104, 28, 4, "#4f7af2"},
             {87, 24, 4, "#ef9a1e"}, {107, 15, 4, "#4976f3"}, {122, 32, 4, "#269230"},
             {119, 24, 4, "#1f9e2c"}, {18, 36, 4, "#1c48dd"}, {109, 21, 4, "#2a56ea"},
@@ -270,11 +288,7 @@ public:
             {59, 26, 3, "#c41731"}, {59, 20, 3, "#d82038"}, {100, 14, 3, "#5f8af8"},
             {68, 28, 3, "#efa11e"}, {111, 40, 3, "#2e55e2"}, {100, 49, 3, "#4167e4"},
             {119, 17, 3, "#0b991a"}, {108, 46, 3, "#4869e3"}, {32, 27, 3, "#3059e3"},
-            {119, 9, 3, "#10a11d"}, {47, 34, 3, "#cf4055"}, {55, 32, 3, "#cd4359"},
-            {6, 29, 3, "#2855ea"}, {134, 32, 3, "#ca273c"}, {10, 33, 3, "#2650e1"},
-            {94, 19, 3, "#4a7bf9"}, {30, 5, 3, "#3d65e7"}, {132, 14, 2, "#f47875"},
-            {129, 19, 2, "#f36764"}, {104, 33, 2, "#1d4eeb"}, {99, 36, 2, "#698bf1"},
-            {78, 13, 2, "#fac652"}
+            {119, 9, 3, "#10a11d"}, {47, 34, 3, "#cf4055"}, {55, 32, 3, "#cd4359"}
         };
         
         double logoW, logoH;
@@ -292,13 +306,16 @@ public:
             double y = offsetY + data.y;
             pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color, pointId);
             
-            // Set up palette for this sprite
+            // Set up individual palette colors for each sprite
             Color c = Color::fromHex(data.color);
-            spritePalette[pointId * 16] = RGB15(0, 0, 0); // Transparent
-            spritePalette[pointId * 16 + 1] = c.toNDS();  // Point color
+            SPRITE_PALETTE[pointId * 16] = RGB15(0, 0, 0);   // Transparent
+            SPRITE_PALETTE[pointId * 16 + 1] = c.toNDS();    // Point color
             
             pointId++;
         }
+        
+        // Allocate sprite graphics memory
+        pointCollection.allocateSprites();
     }
     
     void handleInput() {
@@ -312,7 +329,7 @@ public:
             if (touch.rawx > 0 && touch.rawy > 0) {
                 touching = true;
                 // Map touch coordinates from bottom screen to top screen coordinates
-                pointCollection.mousePos.set(touch.px, touch.py * 192 / 192); // 1:1 mapping
+                pointCollection.mousePos.set(touch.px, touch.py);
             }
         } else {
             touching = false;
