@@ -1,0 +1,27 @@
+name: Build Tizen Google Balls App
+
+on:
+  push:
+    branches:
+      - tizen
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Build Tizen Google Balls App
+        id: tizen-build
+        uses: sourcetoad/tizen-build-action@v1
+        with:
+          project-dir: tizen/
+          sign: false  # Disable signing
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: tizen-web-app
+          path: ${{ steps.tizen-build.outputs.package-artifact }}
