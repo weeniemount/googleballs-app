@@ -1,0 +1,67 @@
+name: Build Tizen Google Balls App
+
+on:
+  push:
+    branches:
+      - tizen
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Tizen Studio installer
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/tizen-studio_*.bin
+          key: tizen-studio-installer
+
+      - name: Download and Install Tizen Studio
+        run: |
+          # Download Tizen Studio Web CLI
+          wget -q -O web-cli_Tizen_Studio_4.6_ubuntu-64.bin https://download.tizen.org/sdk/Installer/tizen-studio_4.6/web-cli_Tizen_Studio_4.6_ubuntu-64.bin
+          chmod +x web-cli_Tizen_Studio_4.6_ubuntu-64.bin
+          
+          # Install Tizen Studio (headless installation)
+          ./web-cli_Tizen_Studio_4.6_ubuntu-64.bin --accept-license --no-java-check
+          
+          # Add to PATH
+          echo "$HOME/tizen-studio/tools/ide/bin" >> $GITHUB_PATH
+
+      - name: Build Tizen Web App
+        run: |
+          cd tizen
+          
+          # Check if tizen CLI is available
+          if [ -f "$HOME/tizen-studio/tools/ide/bin/tizen" ]; then
+            echo "Using Tizen CLI to build..."
+            $HOME/tizen-studio/tools/ide/bin/tizen build-web
+          else
+            echo "Tizen CLI not available, using manual build approach..."
+            # Manual build approach - create .buildResult directory with web content
+            mkdir -p .buildResult
+            
+            # Copy all web files to .buildResult (excluding tizen project files)
+            cp -r * .buildResult/ 2>/dev/null || true
+            
+            # Remove non-web files from build result
+            cd .buildResult
+            rm -rf .buildResult .tproject .project *.xml 2>/dev/null || true
+            
+            echo "Manual build completed"
+          fi
+          
+      - name: Create unsigned WGT package
+        run: |
+          cd tizen/.buildResult
+          # Create WGT package manually (it's just a ZIP with .wgt extension)
+          zip -r ../googleballs-app-unsigned.wgt *
+          
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: googleballs-app-tizen
+          path: tizen/*.wgt
