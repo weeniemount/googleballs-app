@@ -1,5 +1,5 @@
 # google balls app!!!
-[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg)
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg)
 
 <img src="images/balls.png" alt="google balls" width="200"/>
 
