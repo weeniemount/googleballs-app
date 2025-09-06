@@ -12,9 +12,8 @@ window.onload = function() {
         vy: 0
     };
     
-    // Tuned physics constants for a less "slippery" feel ---
-    var cursorAcceleration = 2.5;   // Increased responsiveness
-    var cursorFriction = 0.85;    // Increased friction to stop faster
+    var cursorAcceleration = 2.5;
+    var cursorFriction = 0.85;
 
     var keysPressed = {};
 
@@ -43,8 +42,11 @@ window.onload = function() {
 
     function initEventListeners() {
         window.addEventListener('resize', updateCanvasDimensions);
-        
         document.addEventListener('keydown', function(e) {
+            if (e.keyCode >= 37 && e.keyCode <= 40) {
+                e.preventDefault();
+            }
+
             keysPressed[e.keyCode] = true;
             if (e.keyCode === 10009) {
                 tizen.application.getCurrentApplication().exit();
@@ -56,33 +58,26 @@ window.onload = function() {
         });
     }
 
-    // --- REWRITTEN: updateCursor with improved boundary checks and physics ---
     function updateCursor() {
-        // Accelerate based on which keys are held down
         if (keysPressed[37]) { cursor.vx -= cursorAcceleration; }
         if (keysPressed[38]) { cursor.vy -= cursorAcceleration; }
         if (keysPressed[39]) { cursor.vx += cursorAcceleration; }
         if (keysPressed[40]) { cursor.vy += cursorAcceleration; }
 
-        // Move the cursor based on its current velocity
         cursor.x += cursor.vx;
         cursor.y += cursor.vy;
 
-        // Apply friction to slow the cursor down
         cursor.vx *= cursorFriction;
         cursor.vy *= cursorFriction;
 
-        // --- Boundary check and correction ---
-        // Check horizontal boundaries
         if (cursor.x > canvasWidth) {
             cursor.x = canvasWidth;
-            cursor.vx = 0; // Stop movement when hitting the edge
+            cursor.vx = 0;
         } else if (cursor.x < 0) {
             cursor.x = 0;
             cursor.vx = 0;
         }
 
-        // Check vertical boundaries
         if (cursor.y > canvasHeight) {
             cursor.y = canvasHeight;
             cursor.vy = 0;
@@ -116,7 +111,7 @@ window.onload = function() {
             pointCollection.draw();
         }
 
-        ctx.fillStyle = "rgba(255, 255, 255, 1)";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
         ctx.beginPath();
         ctx.arc(cursor.x, cursor.y, 15, 0, Math.PI * 2, true);
         ctx.fill();
@@ -129,7 +124,6 @@ window.onload = function() {
         }
     }
 
-    // --- Helper Functions and Classes (unchanged) ---
 
     function Vector(x, y, z) { this.x = x; this.y = y; this.z = z; this.set = function(x, y, z) { this.x = x; this.y = y; this.z = z; }; }
     function PointCollection() { this.mousePos = new Vector(0, 0); this.points = []; this.update = function() { var pointsLength = this.points.length; for (var i = 0; i < pointsLength; i++) { var point = this.points[i]; if (point == null) continue; var dx = this.mousePos.x - point.curPos.x; var dy = this.mousePos.y - point.curPos.y; var dd = (dx * dx) + (dy * dy); var d = Math.sqrt(dd); if (d < 150) { point.targetPos.x = (this.mousePos.x < point.curPos.x) ? point.curPos.x - dx : point.curPos.x - dx; point.targetPos.y = (this.mousePos.y < point.curPos.y) ? point.curPos.y - dy : point.curPos.y - dy; } else { point.targetPos.x = point.originalPos.x; point.targetPos.y = point.originalPos.y; } point.update(); } }; this.draw = function() { var pointsLength = this.points.length; for (var i = 0; i < pointsLength; i++) { var point = this.points[i]; if (point == null) continue; point.draw(); } }; }
