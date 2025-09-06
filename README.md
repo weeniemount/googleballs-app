@@ -22,6 +22,7 @@ We have:
 - Android (its only for Android based devices. does use a webview) - Android
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 - 3DS (same with ps vita, google balls on the 3ds) - 3DS
+- Tizen (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
 
 # How 2 download:
 See [the docs](docs/installing.md)
