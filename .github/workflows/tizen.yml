@@ -1,4 +1,4 @@
-name: Build Tizen Google Balls App (With Profile)
+name: Build Tizen Google Balls App
 
 on:
   push:
@@ -13,35 +13,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y expect
-          
-      - name: Build Tizen Google Balls App
-        id: tizen-build
-        uses: sourcetoad/tizen-build-action@v1
+      - name: Cache Tizen Studio installer
+        uses: actions/cache@v4
         with:
-          project-dir: tizen/
-          sign: false
+          path: ${{ github.workspace }}/tizen-studio_*.bin
+          key: tizen-studio-installer
+
+      - name: Download and Install Tizen Studio
+        run: |
+          # Download Tizen Studio Web CLI
+          wget -q -O web-cli_Tizen_Studio_4.6_ubuntu-64.bin https://download.tizen.org/sdk/Installer/tizen-studio_4.6/web-cli_Tizen_Studio_4.6_ubuntu-64.bin
+          chmod +x web-cli_Tizen_Studio_4.6_ubuntu-64.bin
           
-      # Alternative: If the action still fails, manually build
-      - name: Manual build (fallback)
-        if: failure()
+          # Install Tizen Studio (headless installation)
+          ./web-cli_Tizen_Studio_4.6_ubuntu-64.bin --accept-license --no-java-check
+          
+          # Add to PATH
+          echo "$HOME/tizen-studio/tools/ide/bin" >> $GITHUB_PATH
+
+      - name: Build Tizen Web App
         run: |
           cd tizen
-          # Create a dummy security profile to avoid NullPointerException
-          tizen security-profiles add -n DummyProfile -a ~/dummy-author.p12 -p dummy123
-          # Build without actually using the profile
-          tizen build-web
-          # Create unsigned package by directly copying build result
-          cp -r .buildResult/* ./
-          zip -r googleballs-app.wgt *
+          # Build the web application
+          $HOME/tizen-studio/tools/ide/bin/tizen build-web
+          
+      - name: Create unsigned WGT package
+        run: |
+          cd tizen/.buildResult
+          # Create WGT package manually (it's just a ZIP with .wgt extension)
+          zip -r ../googleballs-app-unsigned.wgt *
           
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tizen-web-app
-          path: |
-            ${{ steps.tizen-build.outputs.package-artifact }}
-            tizen/*.wgt
+          name: tizen-web-app-unsigned
+          path: tizen/*.wgt
