@@ -275,47 +275,48 @@ public:
     }
     
     void handleInput() {
-        hidScanInput();
-        
-        u32 kDown = hidKeysDown();
-        if (kDown & KEY_START) {
-            running = false;
-        }
-        
-        // Handle touch input - improved for real hardware
-        u32 kHeld = hidKeysHeld();
-        if (kHeld & KEY_TOUCH) {
-            hidTouchRead(&touch);
-            // Validate touch coordinates
-            if (touch.px > 0 && touch.px < TOP_SCREEN_WIDTH && 
-                touch.py > 0 && touch.py < TOP_SCREEN_HEIGHT) {
-                touching = true;
-                pointCollection.mousePos.set(touch.px, touch.py);
-            }
-        } else {
-            touching = false;
-        }
-        
-        // Handle circle pad input (alternative to touch)
-        circlePosition circlePos;
-        hidCircleRead(&circlePos);
-        
-        // Fixed: Use proper threshold and direct comparison instead of abs()
-        if (circlePos.dx > 20 || circlePos.dx < -20 || circlePos.dy > 20 || circlePos.dy < -20) {
-            static double padX = TOP_SCREEN_WIDTH / 2.0;
-            static double padY = TOP_SCREEN_HEIGHT / 2.0;
-            
-            // Smoother circle pad movement
-            padX += circlePos.dx / 50.0;  // Reduced sensitivity
-            padY -= circlePos.dy / 50.0;  // Invert Y axis
-            
-            // Clamp to screen bounds
-            padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
-            padY = std::max(0.0, std::min((double)TOP_SCREEN_HEIGHT, padY));
-            
-            pointCollection.mousePos.set(padX, padY);
-        }
+    hidScanInput();
+    
+    u32 kDown = hidKeysDown();
+    if (kDown & KEY_START) {
+        running = false;
     }
+    
+    // Improved touch input handling for real hardware
+    u32 kHeld = hidKeysHeld();
+    if (kHeld & KEY_TOUCH) {
+        hidTouchRead(&touch);
+        // Less restrictive validation - allow edge touches and zero coordinates
+        if (touch.px >= 0 && touch.px <= TOP_SCREEN_WIDTH && 
+            touch.py >= 0 && touch.py <= TOP_SCREEN_HEIGHT) {
+            touching = true;
+            pointCollection.mousePos.set(touch.px, touch.py);
+        }
+    } else {
+        touching = false;
+    }
+    
+    // Handle circle pad input (alternative to touch)
+    circlePosition circlePos;
+    hidCircleRead(&circlePos);
+    
+    // Use proper threshold constants instead of magic numbers
+    const int CIRCLE_THRESHOLD = 20;
+    if (abs(circlePos.dx) > CIRCLE_THRESHOLD || abs(circlePos.dy) > CIRCLE_THRESHOLD) {
+        static double padX = TOP_SCREEN_WIDTH / 2.0;
+        static double padY = TOP_SCREEN_HEIGHT / 2.0;
+        
+        // Smoother circle pad movement
+        padX += circlePos.dx / 25.0;
+        padY -= circlePos.dy / 25.0;  // Invert Y axis
+        
+        // Clamp to screen bounds
+        padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
+        padY = std::max(0.0, std::min((double)TOP_SCREEN_HEIGHT, padY));
+        
+        pointCollection.mousePos.set(padX, padY);
+    }
+}
     
     void update() {
         pointCollection.update();
