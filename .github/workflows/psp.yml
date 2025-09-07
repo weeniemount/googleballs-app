@@ -1,0 +1,111 @@
+name: Build PSP Google Balls
+
+on:
+  push:
+    branches: [ psp ]
+jobs:
+  build-psp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./psp
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up PSP toolchain
+      run: |
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake git autoconf automake libtool pkg-config
+        
+        # Create toolchain directory
+        mkdir -p $HOME/pspdev
+        export PSPDEV=$HOME/pspdev
+        export PATH=$PATH:$PSPDEV/bin
+        
+        # Download and build psptoolchain
+        cd $HOME
+        git clone https://github.com/pspdev/psptoolchain.git
+        cd psptoolchain
+        
+        # Make the toolchain build script executable
+        chmod +x toolchain.sh
+        
+        # Build the toolchain (this takes a while)
+        PSPDEV=$PSPDEV ./toolchain.sh
+        
+        # Add to PATH permanently for this job
+        echo "PSPDEV=$HOME/pspdev" >> $GITHUB_ENV
+        echo "$HOME/pspdev/bin" >> $GITHUB_PATH
+        
+    - name: Install PSP SDL
+      run: |
+        export PSPDEV=$HOME/pspdev
+        export PATH=$PATH:$PSPDEV/bin
+        
+        # Download and build SDL for PSP
+        cd $HOME
+        git clone https://github.com/pspdev/SDL.git psp-sdl
+        cd psp-sdl
+        
+        # Configure and build SDL
+        make -f Makefile.psp install
+        
+        # Download and build SDL_image for PSP
+        cd $HOME
+        git clone https://github.com/pspdev/SDL_image.git psp-sdl-image
+        cd psp-sdl-image
+        make -f Makefile.psp install
+        
+    - name: Build PSP application
+      run: |
+        export PSPDEV=$HOME/pspdev
+        export PATH=$PATH:$PSPDEV/bin
+        
+        # Build the application
+        make clean
+        make
+        
+    - name: Upload PSP EBOOT
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-psp
+        path: |
+          EBOOT.PBP
+          *.PBP
+          
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Google Balls PSP ${{ github.ref }}
+        body: |
+          PSP port of Google Balls interactive demo
+          
+          ## Installation
+          1. Copy EBOOT.PBP to your PSP's `PSP/GAME/GoogleBalls/` directory
+          2. Launch from the PSP Game menu
+          
+          ## Controls
+          - **D-Pad**: Move cursor (coarse movement)
+          - **Analog Stick**: Move cursor (fine movement) 
+          - **Start + Select**: Exit application
+          
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./EBOOT.PBP
+        asset_name: googleballs-psp.pbp
+        asset_content_type: application/octet-stream
