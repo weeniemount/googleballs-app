@@ -2,13 +2,14 @@ name: Build PSP Google Balls
 
 on:
   push:
-    branches: [ psp ]
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
   build-psp:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./psp
     
     steps:
     - name: Checkout repository
@@ -59,14 +60,40 @@ jobs:
         cd psp-sdl-image
         make -f Makefile.psp install
         
+    - name: Create PSP icons (if they don't exist)
+      run: |
+        # Create a simple ICON0.PNG if it doesn't exist
+        if [ ! -f "ICON0.PNG" ]; then
+          # Use ImageMagick to create a simple icon
+          sudo apt-get install -y imagemagick
+          convert -size 144x80 xc:blue -fill white -gravity center -pointsize 12 -annotate 0 "Google\nBalls" ICON0.PNG
+        fi
+        
+        # Create a simple PIC1.PNG if it doesn't exist
+        if [ ! -f "PIC1.PNG" ]; then
+          convert -size 480x272 xc:lightblue -fill darkblue -gravity center -pointsize 24 -annotate 0 "Google Balls PSP" PIC1.PNG
+        fi
+        
     - name: Build PSP application
       run: |
         export PSPDEV=$HOME/pspdev
         export PATH=$PATH:$PSPDEV/bin
         
-        # Build the application
-        make clean
-        make
+        # Make build script executable
+        chmod +x build.sh
+        
+        # Build the application using our build script
+        ./build.sh make
+        
+        # Verify the build was successful
+        if [ ! -f "EBOOT.PBP" ]; then
+          echo "Build failed - EBOOT.PBP not found"
+          exit 1
+        fi
+        
+        # Show build info
+        ls -la EBOOT.PBP
+        file EBOOT.PBP
         
     - name: Upload PSP EBOOT
       uses: actions/upload-artifact@v4
