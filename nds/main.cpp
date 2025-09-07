@@ -66,10 +66,12 @@ public:
     u16 ndsColor;
     int spriteId;
     u16* spriteGfx;
+    bool visible;
     
     Point(double x, double y, double z, double size, const std::string& colorHex, int id)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), radius(size), size(size), spriteId(id), spriteGfx(nullptr) {
+          velocity(0, 0, 0), radius(size), size(size), spriteId(id), 
+          spriteGfx(nullptr), visible(false) {
         color = Color::fromHex(colorHex);
         ndsColor = color.toNDS();
     }
@@ -128,8 +130,8 @@ public:
         if (radius < 2) radius = 2;
     }
     
-    void updateSprite(OamState* oam) {
-        if (spriteId >= MAX_SPRITES || !spriteGfx) return;
+    void updateSprite() {
+        if (spriteId >= MAX_SPRITES || !spriteGfx || !visible) return;
         
         // Update sprite position
         int x = static_cast<int>(curPos.x) - 4; // Center the 8x8 sprite
@@ -141,8 +143,8 @@ public:
         if (y < -8) y = -8;
         if (y > 192) y = 192;
         
-        // Set sprite attributes
-        oamSet(oam, spriteId, x, y, 0, 0, SpriteSize_8x8, SpriteColorFormat_16Color, 
+        // Set sprite attributes using correct OAM function
+        oamSet(&oamMain, spriteId, x, y, 0, 0, SpriteSize_8x8, SpriteColorFormat_16Color, 
                spriteGfx, -1, false, false, false, false, false);
     }
     
@@ -151,21 +153,21 @@ public:
         spriteGfx = oamAllocateGfx(&oamMain, SpriteSize_8x8, SpriteColorFormat_16Color);
         
         if (spriteGfx) {
-            // Create simple dot sprite data (8x8 pixels) - 4bpp format
-            // Each byte contains 2 pixels (4 bits each)
+            // Create simple filled circle sprite (8x8 pixels, 4bpp format)
             u8 dotSprite[32] = {
-                0x00,0x00,0x11,0x00,  // Row 0: 00001100
-                0x00,0x11,0x11,0x10,  // Row 1: 01111110
-                0x01,0x11,0x11,0x10,  // Row 2: 11111111
-                0x01,0x11,0x11,0x10,  // Row 3: 11111111
-                0x01,0x11,0x11,0x10,  // Row 4: 11111111
-                0x01,0x11,0x11,0x10,  // Row 5: 11111111
-                0x00,0x11,0x11,0x10,  // Row 6: 01111110
-                0x00,0x00,0x11,0x00   // Row 7: 00001100
+                0x00, 0x11, 0x11, 0x00,  // .XX..... .XX.....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
+                0x00, 0x11, 0x11, 0x00   // .XX..... .XX.....
             };
             
-            // Copy dot sprite to allocated VRAM
+            // Copy sprite data to VRAM
             dmaCopy(dotSprite, spriteGfx, 32);
+            visible = true;
         }
     }
 };
@@ -210,8 +212,7 @@ public:
             double dd = (dx * dx) + (dy * dy);
             double d = sqrt(dd);
             
-            if (d < 60) {  // Reduced interaction distance for NDS screen
-                // Match the original interaction logic
+            if (d < 60) {  // Interaction distance for NDS screen
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -223,9 +224,9 @@ public:
         }
     }
     
-    void updateSprites(OamState* oam) {
+    void updateSprites() {
         for (auto& point : points) {
-            point.updateSprite(oam);
+            point.updateSprite();
         }
     }
     
@@ -247,65 +248,59 @@ public:
     App() : running(false), touching(false) {}
     
     bool init() {
-        // Power on all systems
-        powerOn(POWER_ALL);
-        
-        // Initialize video modes
+        // Initialize video modes - CRITICAL: Must enable sprites on main screen
         videoSetMode(MODE_0_2D | DISPLAY_SPR_ACTIVE | DISPLAY_BG0_ACTIVE);
         videoSetModeSub(MODE_0_2D | DISPLAY_BG0_ACTIVE);
         
-        // Map VRAM banks
-        vramSetBankA(VRAM_A_MAIN_SPRITE);
-        vramSetBankB(VRAM_B_MAIN_BG_0x06000000);
-        vramSetBankC(VRAM_C_SUB_BG);
+        // VRAM setup - Based on common DS patterns found in forums
+        vramSetPrimaryBanks(VRAM_A_MAIN_SPRITE,      // Main sprites
+                           VRAM_B_MAIN_BG_0x06000000, // Main background  
+                           VRAM_C_SUB_BG,             // Sub background
+                           VRAM_D_LCD);               // Not used
         
-        // Initialize sprites
+        // Initialize OAM for sprites
         oamInit(&oamMain, SpriteMapping_1D_32, false);
         
-        // Clear sprite memory
+        // Clear all sprites initially
         for (int i = 0; i < 128; i++) {
             oamClearSprite(&oamMain, i);
         }
         
-        // Initialize background on main screen
+        // Initialize main background
         int mainBg = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
-        bgSetPriority(mainBg, 1);
         
-        // Initialize console on sub screen
+        // Initialize console on sub screen  
         consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
         
         // Set up background palette
         BG_PALETTE[0] = RGB15(0, 0, 8);     // Dark blue background
         BG_PALETTE[1] = RGB15(31, 31, 31);  // White text
         
-        // Clear background map
+        // Clear main background
         u16* bgMap = bgGetMapPtr(mainBg);
         dmaFillHalfWords(0, bgMap, 32*24*2);
         
-        // Set up sprite palettes - use simpler approach
+        // Initialize sprite palette - simpler approach
         SPRITE_PALETTE[0] = RGB15(0, 0, 0);    // Transparent
-        for (int i = 1; i < 16; i++) {
-            SPRITE_PALETTE[i] = RGB15(31, 0, 0); // Default red
-        }
+        SPRITE_PALETTE[1] = RGB15(31, 31, 31); // White default
         
+        printf("Initializing points...\n");
         initPoints();
+        
+        printf("Setup complete!\n");
         running = true;
         return true;
     }
     
     void initPoints() {
-        // Reduced set of points for better performance
+        // Smaller set of points for testing
         static const PointData pointData[] = {
             {87, 32, 4, "#ed9d33"}, {141, 34, 4, "#d44d61"}, {104, 28, 4, "#4f7af2"},
             {87, 24, 4, "#ef9a1e"}, {107, 15, 4, "#4976f3"}, {122, 32, 4, "#269230"},
             {119, 24, 4, "#1f9e2c"}, {18, 36, 4, "#1c48dd"}, {109, 21, 4, "#2a56ea"},
             {30, 34, 4, "#3355d8"}, {119, 3, 4, "#36b641"}, {95, 25, 4, "#2e5def"},
             {143, 17, 3, "#d53747"}, {136, 21, 3, "#eb676f"}, {84, 17, 3, "#f9b125"},
-            {130, 28, 3, "#de3646"}, {3, 24, 3, "#2a59f0"}, {73, 33, 3, "#eb9c31"},
-            {59, 26, 3, "#c41731"}, {59, 20, 3, "#d82038"}, {100, 14, 3, "#5f8af8"},
-            {68, 28, 3, "#efa11e"}, {111, 40, 3, "#2e55e2"}, {100, 49, 3, "#4167e4"},
-            {119, 17, 3, "#0b991a"}, {108, 46, 3, "#4869e3"}, {32, 27, 3, "#3059e3"},
-            {119, 9, 3, "#10a11d"}, {47, 34, 3, "#cf4055"}, {55, 32, 3, "#cd4359"}
+            {130, 28, 3, "#de3646"}
         };
         
         const int pointCount = sizeof(pointData) / sizeof(pointData[0]);
@@ -316,20 +311,21 @@ public:
         double offsetX = (TOP_SCREEN_WIDTH / 2.0) - (logoW / 2.0);
         double offsetY = (TOP_SCREEN_HEIGHT / 2.0) - (logoH / 2.0);
         
-        // Create points and set up sprite palettes
+        // Create points
         for (int i = 0; i < pointCount && i < MAX_SPRITES; i++) {
             double x = offsetX + pointData[i].x;
             double y = offsetY + pointData[i].y;
             pointCollection.addPoint(x, y, 0.0, static_cast<double>(pointData[i].size), 
                                    std::string(pointData[i].color), i);
             
-            // Set up palette color for this sprite
+            // Set up individual sprite colors
             Color c = Color::fromHex(std::string(pointData[i].color));
-            SPRITE_PALETTE[i + 1] = c.toNDS();
+            SPRITE_PALETTE[i * 16 + 1] = c.toNDS(); // Each sprite gets 16 color slot
         }
         
-        // Allocate sprite graphics memory
+        printf("Allocating sprites...\n");
         pointCollection.allocateSprites();
+        printf("Points created: %d\n", pointCount);
     }
     
     void handleInput() {
@@ -340,7 +336,7 @@ public:
         // Handle touch input
         if (keys & KEY_TOUCH) {
             touchRead(&touch);
-            if (touch.px > 0 && touch.py > 0) {
+            if (touch.px >= 0 && touch.py >= 0) {
                 touching = true;
                 // Map touch coordinates to top screen
                 pointCollection.mousePos.set(touch.px, touch.py);
@@ -380,9 +376,9 @@ public:
     
     void render() {
         // Update sprite positions
-        pointCollection.updateSprites(&oamMain);
+        pointCollection.updateSprites();
         
-        // Update OAM
+        // Critical: Update OAM to apply changes
         oamUpdate(&oamMain);
         
         // Update bottom screen text
@@ -406,6 +402,7 @@ public:
         int cursorY = static_cast<int>(pointCollection.mousePos.y);
         printf("\nCursor: (%d, %d)\n", cursorX, cursorY);
         printf("Points: %zu\n", pointCollection.points.size());
+        printf("Sprites allocated\n");
     }
     
     void run() {
@@ -425,7 +422,11 @@ public:
 int main() {
     App app;
     
+    printf("Starting DS Google Balls...\n");
+    
     if (!app.init()) {
+        printf("Failed to initialize!\n");
+        while(1) swiWaitForVBlank();
         return -1;
     }
     
