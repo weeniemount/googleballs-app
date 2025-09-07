@@ -70,8 +70,7 @@ On your TV:
 ## REMOTE WITH NUMBERS NEEDED
 Go to the APPS section.
 Go to the settings icon of the app store.
-Press 1 2 3 on the remote.
-After that, press 1 2 3 4 5.
+Press 1 2 3 4 5 on the remote.
 A developer options menu will appear. 
 Now, enable the developer options.
 Enter in Local IP of your computer where it prompts you to.
