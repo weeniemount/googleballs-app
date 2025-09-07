@@ -244,9 +244,8 @@ public:
         videoSetModeSub(MODE_0_2D | DISPLAY_BG0_ACTIVE);
         
         // Map VRAM banks - FIXED: Proper VRAM setup
-        vramSetBankA(VRAM_A_MAIN_SPRITE);    // Main sprites
-        vramSetBankC(VRAM_C_SUB_BG);         // Sub background
-        vramSetBankD(VRAM_D_MAIN_BG);        // Main background
+        vramSetBankA(VRAM_A_MAIN_SPRITE);  // Main sprites only
+        vramSetBankC(VRAM_C_SUB_BG);       // Sub screen background
         
         // Initialize sprites - use correct OAM
         oam = &oamMain;
