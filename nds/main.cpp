@@ -12,7 +12,7 @@
 #define BOTTOM_SCREEN_HEIGHT 192
 
 // Maximum number of sprites we can use
-#define MAX_SPRITES 64
+#define MAX_SPRITES 32
 
 struct Vector3 {
     double x, y, z;
@@ -35,11 +35,19 @@ struct Color {
     
     // Convert hex string to color
     static Color fromHex(const std::string& hex) {
-        if (hex[0] == '#') {
-            unsigned int value = std::stoul(hex.substr(1), nullptr, 16);
+        if (hex[0] == '#' && hex.length() == 7) {
+            unsigned int value = 0;
+            // Simple hex parsing without std::stoul
+            for (int i = 1; i < 7; i++) {
+                char c = hex[i];
+                value *= 16;
+                if (c >= '0' && c <= '9') value += c - '0';
+                else if (c >= 'a' && c <= 'f') value += c - 'a' + 10;
+                else if (c >= 'A' && c <= 'F') value += c - 'A' + 10;
+            }
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
         }
-        return Color();
+        return Color(255, 255, 255);
     }
     
     // Convert to NDS 15-bit RGB color
@@ -74,7 +82,7 @@ public:
         velocity.x *= friction;
         
         // Stop small oscillations
-        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+        if (abs(dx) < 0.1 && abs(velocity.x) < 0.01) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
@@ -88,7 +96,7 @@ public:
         velocity.y *= friction;
         
         // Stop small oscillations
-        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+        if (abs(dy) < 0.1 && abs(velocity.y) < 0.01) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
@@ -99,7 +107,7 @@ public:
         double dox = originalPos.x - curPos.x;
         double doy = originalPos.y - curPos.y;
         double dd = (dox * dox) + (doy * doy);
-        double d = std::sqrt(dd);
+        double d = sqrt(dd);
         
         targetPos.z = d / 100.0 + 1.0;
         double dz = targetPos.z - curPos.z;
@@ -108,7 +116,7 @@ public:
         velocity.z *= friction;
         
         // Stop small Z oscillations
-        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+        if (abs(dz) < 0.01 && abs(velocity.z) < 0.001) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -133,7 +141,7 @@ public:
         if (y < -8) y = -8;
         if (y > 192) y = 192;
         
-        // Set sprite attributes - proper OAM setup
+        // Set sprite attributes
         oamSet(oam, spriteId, x, y, 0, 0, SpriteSize_8x8, SpriteColorFormat_16Color, 
                spriteGfx, -1, false, false, false, false, false);
     }
@@ -143,16 +151,17 @@ public:
         spriteGfx = oamAllocateGfx(&oamMain, SpriteSize_8x8, SpriteColorFormat_16Color);
         
         if (spriteGfx) {
-            // Create simple dot sprite data (8x8 filled circle) - 4bpp format
+            // Create simple dot sprite data (8x8 pixels) - 4bpp format
+            // Each byte contains 2 pixels (4 bits each)
             u8 dotSprite[32] = {
-                0x00,0x11,0x11,0x00,  // Row 0-1: 0,0,1,1,1,1,0,0 & 0,1,1,1,1,1,1,0
-                0x11,0x11,0x11,0x10,  // Row 2-3: 1,1,1,1,1,1,1,1 & 1,1,1,1,1,1,1,1
-                0x11,0x11,0x11,0x10,  // Row 4-5: 1,1,1,1,1,1,1,1 & 1,1,1,1,1,1,1,1
-                0x01,0x11,0x10,0x00,  // Row 6-7: 0,1,1,1,1,1,1,0 & 0,0,1,1,1,1,0,0
-                0x00,0x11,0x11,0x00,
-                0x11,0x11,0x11,0x10,
-                0x11,0x11,0x11,0x10,
-                0x01,0x11,0x10,0x00
+                0x00,0x00,0x11,0x00,  // Row 0: 00001100
+                0x00,0x11,0x11,0x10,  // Row 1: 01111110
+                0x01,0x11,0x11,0x10,  // Row 2: 11111111
+                0x01,0x11,0x11,0x10,  // Row 3: 11111111
+                0x01,0x11,0x11,0x10,  // Row 4: 11111111
+                0x01,0x11,0x11,0x10,  // Row 5: 11111111
+                0x00,0x11,0x11,0x10,  // Row 6: 01111110
+                0x00,0x00,0x11,0x00   // Row 7: 00001100
             };
             
             // Copy dot sprite to allocated VRAM
@@ -165,18 +174,18 @@ public:
 struct PointData {
     int x, y;
     int size;
-    std::string color;
+    const char* color;
 };
 
-static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
+static void computeBounds(const PointData* data, int count, double& w, double& h) {
     int minX = 99999, maxX = -99999;
     int minY = 99999, maxY = -99999;
     
-    for (const auto& p : data) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+    for (int i = 0; i < count; i++) {
+        if (data[i].x < minX) minX = data[i].x;
+        if (data[i].x > maxX) maxX = data[i].x;
+        if (data[i].y < minY) minY = data[i].y;
+        if (data[i].y > maxY) maxY = data[i].y;
     }
     
     w = maxX - minX;
@@ -199,7 +208,7 @@ public:
             double dx = mousePos.x - point.curPos.x;
             double dy = mousePos.y - point.curPos.y;
             double dd = (dx * dx) + (dy * dy);
-            double d = std::sqrt(dd);
+            double d = sqrt(dd);
             
             if (d < 60) {  // Reduced interaction distance for NDS screen
                 // Match the original interaction logic
@@ -233,41 +242,51 @@ private:
     bool running;
     touchPosition touch;
     bool touching;
-    OamState* oam;
     
 public:
-    App() : running(false), touching(false), oam(nullptr) {}
+    App() : running(false), touching(false) {}
     
     bool init() {
-        // Initialize video modes - CRITICAL: Enable sprites on main screen
+        // Power on all systems
+        powerOn(POWER_ALL);
+        
+        // Initialize video modes
         videoSetMode(MODE_0_2D | DISPLAY_SPR_ACTIVE | DISPLAY_BG0_ACTIVE);
         videoSetModeSub(MODE_0_2D | DISPLAY_BG0_ACTIVE);
         
-        // Map VRAM banks - FIXED: Proper VRAM setup
-        vramSetBankA(VRAM_A_MAIN_SPRITE);  // Main sprites only
-        vramSetBankC(VRAM_C_SUB_BG);       // Sub screen background
+        // Map VRAM banks
+        vramSetBankA(VRAM_A_MAIN_SPRITE);
+        vramSetBankB(VRAM_B_MAIN_BG_0x06000000);
+        vramSetBankC(VRAM_C_SUB_BG);
         
-        // Initialize sprites - use correct OAM
-        oam = &oamMain;
-        oamInit(oam, SpriteMapping_1D_32, false);
+        // Initialize sprites
+        oamInit(&oamMain, SpriteMapping_1D_32, false);
         
-        // Initialize console on bottom screen for text
-        consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
-        
-        // Set up a simple background on main screen
-        int bg = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
-        BG_PALETTE[0] = RGB15(0, 0, 31);  // Blue background
-        BG_PALETTE[1] = RGB15(31, 31, 31); // White text
-        
-        // Fill background with blue
-        u16* bgMap = bgGetMapPtr(bg);
-        for (int i = 0; i < 32*24; i++) {
-            bgMap[i] = 0;
+        // Clear sprite memory
+        for (int i = 0; i < 128; i++) {
+            oamClearSprite(&oamMain, i);
         }
         
-        // Set up sprite palette
-        SPRITE_PALETTE[0] = RGB15(0, 0, 0);     // Transparent
-        SPRITE_PALETTE[1] = RGB15(31, 0, 0);    // Red (will be overridden per sprite)
+        // Initialize background on main screen
+        int mainBg = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
+        bgSetPriority(mainBg, 1);
+        
+        // Initialize console on sub screen
+        consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
+        
+        // Set up background palette
+        BG_PALETTE[0] = RGB15(0, 0, 8);     // Dark blue background
+        BG_PALETTE[1] = RGB15(31, 31, 31);  // White text
+        
+        // Clear background map
+        u16* bgMap = bgGetMapPtr(mainBg);
+        dmaFillHalfWords(0, bgMap, 32*24*2);
+        
+        // Set up sprite palettes - use simpler approach
+        SPRITE_PALETTE[0] = RGB15(0, 0, 0);    // Transparent
+        for (int i = 1; i < 16; i++) {
+            SPRITE_PALETTE[i] = RGB15(31, 0, 0); // Default red
+        }
         
         initPoints();
         running = true;
@@ -275,9 +294,8 @@ public:
     }
     
     void initPoints() {
-        // Reduced number of points to fit within sprite limit
-        std::vector<PointData> pointData = {
-            // First 30 most prominent points, scaled for NDS
+        // Reduced set of points for better performance
+        static const PointData pointData[] = {
             {87, 32, 4, "#ed9d33"}, {141, 34, 4, "#d44d61"}, {104, 28, 4, "#4f7af2"},
             {87, 24, 4, "#ef9a1e"}, {107, 15, 4, "#4976f3"}, {122, 32, 4, "#269230"},
             {119, 24, 4, "#1f9e2c"}, {18, 36, 4, "#1c48dd"}, {109, 21, 4, "#2a56ea"},
@@ -290,27 +308,24 @@ public:
             {119, 9, 3, "#10a11d"}, {47, 34, 3, "#cf4055"}, {55, 32, 3, "#cd4359"}
         };
         
+        const int pointCount = sizeof(pointData) / sizeof(pointData[0]);
+        
         double logoW, logoH;
-        computeBounds(pointData, logoW, logoH);
+        computeBounds(pointData, pointCount, logoW, logoH);
         
         double offsetX = (TOP_SCREEN_WIDTH / 2.0) - (logoW / 2.0);
         double offsetY = (TOP_SCREEN_HEIGHT / 2.0) - (logoH / 2.0);
         
         // Create points and set up sprite palettes
-        int pointId = 0;
-        for (const auto& data : pointData) {
-            if (pointId >= MAX_SPRITES) break;
+        for (int i = 0; i < pointCount && i < MAX_SPRITES; i++) {
+            double x = offsetX + pointData[i].x;
+            double y = offsetY + pointData[i].y;
+            pointCollection.addPoint(x, y, 0.0, static_cast<double>(pointData[i].size), 
+                                   std::string(pointData[i].color), i);
             
-            double x = offsetX + data.x;
-            double y = offsetY + data.y;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color, pointId);
-            
-            // Set up individual palette colors for each sprite
-            Color c = Color::fromHex(data.color);
-            SPRITE_PALETTE[pointId * 16] = RGB15(0, 0, 0);   // Transparent
-            SPRITE_PALETTE[pointId * 16 + 1] = c.toNDS();    // Point color
-            
-            pointId++;
+            // Set up palette color for this sprite
+            Color c = Color::fromHex(std::string(pointData[i].color));
+            SPRITE_PALETTE[i + 1] = c.toNDS();
         }
         
         // Allocate sprite graphics memory
@@ -325,9 +340,9 @@ public:
         // Handle touch input
         if (keys & KEY_TOUCH) {
             touchRead(&touch);
-            if (touch.rawx > 0 && touch.rawy > 0) {
+            if (touch.px > 0 && touch.py > 0) {
                 touching = true;
-                // Map touch coordinates from bottom screen to top screen coordinates
+                // Map touch coordinates to top screen
                 pointCollection.mousePos.set(touch.px, touch.py);
             }
         } else {
@@ -338,14 +353,16 @@ public:
         static double padX = TOP_SCREEN_WIDTH / 2.0;
         static double padY = TOP_SCREEN_HEIGHT / 2.0;
         
-        if (keys & KEY_UP) padY -= 2.0;
-        if (keys & KEY_DOWN) padY += 2.0;
-        if (keys & KEY_LEFT) padX -= 2.0;
-        if (keys & KEY_RIGHT) padX += 2.0;
+        if (keys & KEY_UP) padY -= 3.0;
+        if (keys & KEY_DOWN) padY += 3.0;
+        if (keys & KEY_LEFT) padX -= 3.0;
+        if (keys & KEY_RIGHT) padX += 3.0;
         
         // Clamp to screen bounds
-        padX = std::max(0.0, std::min((double)TOP_SCREEN_WIDTH, padX));
-        padY = std::max(0.0, std::min((double)TOP_SCREEN_HEIGHT, padY));
+        if (padX < 0) padX = 0;
+        if (padX > TOP_SCREEN_WIDTH) padX = TOP_SCREEN_WIDTH;
+        if (padY < 0) padY = 0;
+        if (padY > TOP_SCREEN_HEIGHT) padY = TOP_SCREEN_HEIGHT;
         
         if (keys & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
             pointCollection.mousePos.set(padX, padY);
@@ -363,18 +380,17 @@ public:
     
     void render() {
         // Update sprite positions
-        pointCollection.updateSprites(oam);
+        pointCollection.updateSprites(&oamMain);
         
         // Update OAM
-        oamUpdate(oam);
+        oamUpdate(&oamMain);
         
         // Update bottom screen text
         consoleClear();
         printf("Google Balls - Nintendo DS\n");
         printf("========================\n\n");
-        printf("Touch the bottom screen or\n");
-        printf("use the D-pad to interact\n");
-        printf("with the colorful dots!\n\n");
+        printf("Touch screen or use D-pad\n");
+        printf("to interact with the dots!\n\n");
         printf("Controls:\n");
         printf("Touch: Interactive cursor\n");
         printf("D-pad: Move cursor\n");
