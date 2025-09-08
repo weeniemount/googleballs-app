@@ -113,6 +113,50 @@ jobs:
             native/googleballs-desktop*
             native/*.exe
 
+  build-native-rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install OS packages (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Build native-rust (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd native-rust
+          cargo build --release
+
+      - name: Build native-rust (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          cd native-rust
+          cargo build --release
+
+      - name: Upload native-rust artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rust-${{ matrix.platform }}
+          path: |
+            native-rust/target/release/*
+
   build-native-gtk:
     strategy:
       fail-fast: false
