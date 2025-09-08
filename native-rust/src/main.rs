@@ -95,7 +95,12 @@ impl Point {
     }
 
     fn draw(&self) {
+        // Draw filled circle
         draw_circle(self.cur_pos.x, self.cur_pos.y, self.radius, self.colour);
+        // Only draw outline if radius is large enough to avoid 1px white spots
+        if self.radius > 2.5 {
+            draw_circle_lines(self.cur_pos.x, self.cur_pos.y, self.radius, 2.0, self.colour);
+        }
     }
 }
 
@@ -246,7 +251,7 @@ fn create_google_balls(canvas_width: f32, canvas_height: f32) -> PointCollection
     collection
 }
 
-#[macroquad::main("Google Balls - Rust")]
+#[macroquad::main("Google Balls")]
 async fn main() {
     let mut point_collection = create_google_balls(screen_width(), screen_height());
     let mut last_screen_size = (screen_width(), screen_height());
