@@ -51,6 +51,9 @@ Clean:
 make clean
 ```
 
+# Rust
+Ensure you are in the `rust` directory and have Rust installed. Run `cargo build -r`.
+
 # iOS
 your on your own gang
 
