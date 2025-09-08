@@ -264,7 +264,7 @@ async fn main() {
         point_collection.mouse_pos.set(mouse_x, mouse_y, 0.0);
 
         // Clear screen
-        clear_background(BLACK);
+        clear_background(WHITE);
 
         // Update and draw points
         point_collection.update();
