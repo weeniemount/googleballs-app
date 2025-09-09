@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 macroquad = "0.4.14"
+
+[build-dependencies]
+winres = "0.1"
