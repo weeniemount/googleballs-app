@@ -12,12 +12,13 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *9* flavors!
+# Available in *10* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
 - SDL2 (it's sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my favourite) - Windows, Linux
+- Rust (uses macroquad framework) - Windows, Linux, macOS
 - iOS (its only for iOS, lol. does use a webview) - iOS
 - Android (its only for Android based devices. does use a webview) - Android
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
