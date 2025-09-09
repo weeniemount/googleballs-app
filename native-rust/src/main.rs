@@ -251,7 +251,23 @@ fn create_google_balls(canvas_width: f32, canvas_height: f32) -> PointCollection
     collection
 }
 
-#[macroquad::main("Google Balls")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Google Balls".to_owned(),
+        window_width: 800,
+        window_height: 600,
+        window_resizable: true,
+        // Include icon data directly in the binary
+        icon: Some(miniquad::conf::Icon {
+            small: include_bytes!("images/icon-16.rgba"),
+            medium: include_bytes!("images/icon-32.rgba"),
+            big: include_bytes!("images/icon-64.rgba"),
+        }),
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
     let mut point_collection = create_google_balls(screen_width(), screen_height());
     let mut last_screen_size = (screen_width(), screen_height());
