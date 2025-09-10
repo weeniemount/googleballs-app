@@ -89,25 +89,15 @@ impl Point {
         self.velocity.z *= self.friction;
         self.cur_pos.z += self.velocity.z;
 
-        self.radius = self.size * self.cur_pos.z * 0.7;
-        if self.radius < 2.0 {
-            self.radius = 2.0;
+        self.radius = self.size * self.cur_pos.z;
+        if self.radius < 1.0 {
+            self.radius = 1.0;
         }
     }
 
     fn draw(&self) {
         // Draw filled circle only - removed the white border
         draw_circle(self.cur_pos.x, self.cur_pos.y, self.radius, self.colour);
-        // Only draw outline if radius is large enough to avoid 1px white spots
-        if self.radius > 2.5 {
-            draw_circle_lines(
-                self.cur_pos.x,
-                self.cur_pos.y,
-                self.radius,
-                2.0,
-                self.colour,
-            );
-        }
     }
 }
 
@@ -278,7 +268,7 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut point_collection = create_google_balls(screen_width(), screen_height());
     let mut last_screen_size = (screen_width(), screen_height());
-    
+
     // Frame rate control for 33 FPS
     let target_fps = 33.0;
     let frame_duration = Duration::from_secs_f64(1.0 / target_fps);
