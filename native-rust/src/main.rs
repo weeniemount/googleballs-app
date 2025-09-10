@@ -88,9 +88,9 @@ impl Point {
         self.velocity.z *= self.friction;
         self.cur_pos.z += self.velocity.z;
 
-        self.radius = self.size * self.cur_pos.z;
-        if self.radius < 1.0 {
-            self.radius = 1.0;
+        self.radius = self.size * self.cur_pos.z * 0.7;
+        if self.radius < 2.0 {
+            self.radius = 2.0;
         }
     }
 
