@@ -265,9 +265,9 @@ fn window_conf() -> Conf {
         window_resizable: true,
         // Include icon data directly in the binary
         icon: Some(miniquad::conf::Icon {
-            small: *include_bytes!("images/icon-16.rgba"),
-            medium: *include_bytes!("images/icon-32.rgba"),
-            big: *include_bytes!("images/icon-64.rgba"),
+            small: *include_bytes!("../images/icon-16.rgba"),
+            medium: *include_bytes!("../images/icon-32.rgba"),
+            big: *include_bytes!("../images/icon-64.rgba"),
         }),
         ..Default::default()
     }
