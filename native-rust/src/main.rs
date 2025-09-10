@@ -99,7 +99,13 @@ impl Point {
         draw_circle(self.cur_pos.x, self.cur_pos.y, self.radius, self.colour);
         // Only draw outline if radius is large enough to avoid 1px white spots
         if self.radius > 2.5 {
-            draw_circle_lines(self.cur_pos.x, self.cur_pos.y, self.radius, 2.0, self.colour);
+            draw_circle_lines(
+                self.cur_pos.x,
+                self.cur_pos.y,
+                self.radius,
+                2.0,
+                self.colour,
+            );
         }
     }
 }
