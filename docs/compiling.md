@@ -65,3 +65,6 @@ your on your own gang
 
 # 3DS
 your on your own gang
+
+# Tizen
+i have no clue

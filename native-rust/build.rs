@@ -1,5 +1,4 @@
-use std::env;
-use std::io;
+use std::{env, io};
 
 #[cfg(windows)]
 extern crate winres;

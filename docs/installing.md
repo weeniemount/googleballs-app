@@ -8,6 +8,7 @@
 | x86_64 | Tauri (msi) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop_1.0.0_x64_en-US-tauri.msi) |
 | x86_64 | Tauri (exe setup) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop_1.0.0_x64-setup-tauri.exe) |
 | x86_64 | Electron (exe setup) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.exe)
+| x86_64 | Rust (Macroquad Native) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/native-rust-windows-latest.zip)
 
 install instructions coming soon :bangbang:
 
@@ -22,6 +23,7 @@ install instructions coming soon :bangbang:
 | x86_64 | Electron (rpm) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.rpm) |
 | x86_64 | Electron (deb) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.deb)
 | x86_64 | Electron (AppImage) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.AppImage)
+| x86_64 | Rust (Macroquad Native) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/native-rust-ubuntu-latest.zip)
 
 install instructions coming soon :bangbang:
 

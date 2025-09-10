@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug)]
 struct Vector3 {
@@ -95,7 +96,7 @@ impl Point {
     }
 
     fn draw(&self) {
-        // Draw filled circle
+        // Draw filled circle only - removed the white border
         draw_circle(self.cur_pos.x, self.cur_pos.y, self.radius, self.colour);
         // Only draw outline if radius is large enough to avoid 1px white spots
         if self.radius > 2.5 {
@@ -277,6 +278,11 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut point_collection = create_google_balls(screen_width(), screen_height());
     let mut last_screen_size = (screen_width(), screen_height());
+    
+    // Frame rate control for 33 FPS
+    let target_fps = 33.0;
+    let frame_duration = Duration::from_secs_f64(1.0 / target_fps);
+    let mut last_frame_time = Instant::now();
 
     loop {
         // Handle window resize
@@ -296,6 +302,14 @@ async fn main() {
         // Update and draw points
         point_collection.update();
         point_collection.draw();
+
+        // Frame rate control
+        let elapsed = last_frame_time.elapsed();
+        if elapsed < frame_duration {
+            let sleep_time = frame_duration - elapsed;
+            std::thread::sleep(sleep_time);
+        }
+        last_frame_time = Instant::now();
 
         next_frame().await
     }
