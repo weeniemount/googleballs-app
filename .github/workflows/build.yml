@@ -231,7 +231,7 @@ jobs:
         run: |
           cd native-rust
           mkdir -p web-dist
-          cp pkg/* web-dist/ 2>/dev/null || true
+          cp -r pkg/* web-dist/ 2>/dev/null || true
           cp target/wasm32-unknown-unknown/release/*.wasm web-dist/ 2>/dev/null || true
 
       - name: Upload native-rust artifacts (Desktop)
@@ -260,8 +260,8 @@ jobs:
         with:
           name: ${{ matrix.artifact-name }}
           path: |
+            native-rust/pkg/*
             native-rust/web-dist/*
-            native-rust/target/wasm32-unknown-unknown/release/*.wasm
 
   build-native-gtk:
     strategy:
