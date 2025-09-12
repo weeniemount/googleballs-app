@@ -12,7 +12,7 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *10* flavors!
+# Available in *11* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
@@ -24,6 +24,7 @@ We have:
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 - 3DS (same with ps vita, google balls on the 3ds) - 3DS
 - Tizen (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
+- Gurted (google balls on gurted!) - Windows, Linux
 
 # How 2 download:
 See [the docs](docs/installing.md)

@@ -256,9 +256,9 @@ fn window_conf() -> Conf {
         window_resizable: true,
         // Include icon data directly in the binary
         icon: Some(miniquad::conf::Icon {
-            small: *include_bytes!("images/icon-16.rgba"),
-            medium: *include_bytes!("images/icon-32.rgba"),
-            big: *include_bytes!("images/icon-64.rgba"),
+            small: *include_bytes!("../images/icon-16.rgba"),
+            medium: *include_bytes!("../images/icon-32.rgba"),
+            big: *include_bytes!("../images/icon-64.rgba"),
         }),
         ..Default::default()
     }
@@ -268,7 +268,7 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut point_collection = create_google_balls(screen_width(), screen_height());
     let mut last_screen_size = (screen_width(), screen_height());
-    
+
     // Frame rate control for 33 FPS
     let target_fps = 33.0;
     let frame_duration = Duration::from_secs_f64(1.0 / target_fps);
