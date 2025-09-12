@@ -1,7 +1,18 @@
 [package]
 name = "googleballs"
 version = "0.2.0"
-edition = "2024"
+edition = "2021"
+
+# Binary target for desktop platforms
+[[bin]]
+name = "googleballs"
+path = "src/main.rs"
+
+# Library target for mobile and web platforms
+[lib]
+name = "googleballs"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 macroquad = "0.4.14"
