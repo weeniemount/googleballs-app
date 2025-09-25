@@ -1,0 +1,40 @@
+{
+  "name": "googleballs-vscode",
+  "publisher": "weeniemount",
+  "displayName": "Google Balls for VS Code",
+  "description": "that funny google doodle from 2010 in your code editor!",
+  "version": "1.0.0",
+  "icon": "src/images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/weeniemount/googleballs-app.git"
+  },
+
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "/src/extension.js",
+  "contributes": {
+    "commands": [{
+      "command": "googleballsTab.open",
+      "title": "Google Balls"
+    }]
+  },
+  "activationEvents": [], 
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.96.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "eslint": "^9.16.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
