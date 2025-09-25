@@ -3,7 +3,7 @@
   "publisher": "weeniemount",
   "displayName": "Google Balls for VS Code",
   "description": "that funny google doodle from 2010 in your code editor!",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "icon": "src/images/icon.png",
   "repository": {
     "type": "git",
