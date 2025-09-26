@@ -16,3 +16,5 @@ npm install
 npm install -g vsce
 vsce package
 ```
+
+**this project isnt affiliated with google**
