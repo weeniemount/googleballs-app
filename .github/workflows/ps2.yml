@@ -28,6 +28,7 @@ jobs:
         # Create symlinks so linker can find the libraries
         ln -sf /usr/local/ps2dev/gsKit/lib/libgskit.a /usr/local/ps2dev/ps2sdk/ee/lib/
         ln -sf /usr/local/ps2dev/gsKit/lib/libdmakit.a /usr/local/ps2dev/ps2sdk/ee/lib/
+        ln -sf /usr/local/ps2dev/gsKit/lib/libsbv.a /usr/local/ps2dev/ps2sdk/ee/lib/
     
     - name: Build ELF
       working-directory: ./ps2
