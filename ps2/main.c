@@ -5,6 +5,7 @@
 #include <gsToolkit.h>
 #include <math.h>
 #include <string.h>
+#include <tamtypes.h>
 #include <libpad.h>
 
 typedef struct {
@@ -33,20 +34,24 @@ typedef struct {
     int pointCount;
 } PointCollection;
 
+// Point data from original
 typedef struct {
     int x, y;
     int size;
     u32 colorHex;
 } PointData;
 
-// Pad globals
-static char padBuf[256] __attribute__((aligned(64)));
+#define PAD_PORT 0
+#define PAD_SLOT 0
+#define PAD_BUF_SIZE 256
+static char padBuf[PAD_BUF_SIZE] __attribute__((aligned(64)));
 
+// Convert hex to PS2 color format (RGBA)
 u64 hexToColor(u32 hex) {
     u8 r = (hex >> 16) & 0xFF;
     u8 g = (hex >> 8) & 0xFF;
     u8 b = hex & 0xFF;
-    u8 a = 0x80;
+    u8 a = 0x80; // Semi-transparent
     return GS_SETREG_RGBAQ(r, g, b, a, 0x00);
 }
 
@@ -90,6 +95,7 @@ void Point_init(Point* p, float x, float y, float z, float size, u32 colorHex) {
 }
 
 void Point_update(Point* p) {
+    // X axis spring physics
     float dx = p->targetPos.x - p->curPos.x;
     float ax = dx * p->springStrength;
     p->velocity.x += ax;
@@ -102,6 +108,7 @@ void Point_update(Point* p) {
         p->curPos.x += p->velocity.x;
     }
     
+    // Y axis spring physics
     float dy = p->targetPos.y - p->curPos.y;
     float ay = dy * p->springStrength;
     p->velocity.y += ay;
@@ -114,6 +121,7 @@ void Point_update(Point* p) {
         p->curPos.y += p->velocity.y;
     }
     
+    // Z axis (depth)
     float dox = p->originalPos.x - p->curPos.x;
     float doy = p->originalPos.y - p->curPos.y;
     float dd = (dox * dox) + (doy * doy);
@@ -132,12 +140,13 @@ void Point_update(Point* p) {
         p->curPos.z += p->velocity.z;
     }
     
+    // Update radius based on depth
     p->radius = p->size * p->curPos.z;
     if (p->radius < 1) p->radius = 1;
 }
 
 void Point_draw(Point* p, GSGLOBAL* gsGlobal) {
-    // Draw as sprite (square for now - circles would need custom rendering)
+    // Draw filled circle using gsKit
     gsKit_prim_sprite(gsGlobal, 
                      p->curPos.x - p->radius, 
                      p->curPos.y - p->radius,
@@ -190,41 +199,44 @@ void PointCollection_cleanup(PointCollection* pc) {
     free(pc->points);
 }
 
-int initializePad(int port, int slot) {
-    int ret;
+void pad_init_all() {
+    padInit(0); // Init pads system
+    padPortOpen(PAD_PORT, PAD_SLOT, padBuf); // Open pad 0
+}
+
+void pad_update(PointCollection* pc) {
+    struct padButtonStatus buttons;
     int state;
-    int waitTime;
-    
-    padInit(0);
-    
-    ret = padPortOpen(port, slot, padBuf);
-    if(ret == 0) {
-        return 0;
-    }
-    
-    // Wait for pad to be ready (with timeout)
-    waitTime = 1000;
-    while(waitTime > 0) {
-        state = padGetState(port, slot);
-        if((state == PAD_STATE_STABLE) || (state == PAD_STATE_FINDCTP1)) {
-            break;
-        }
-        waitTime--;
-    }
-    
-    if(waitTime <= 0) {
-        return 0;
-    }
-    
-    return 1;
+    int ret = padGetState(PAD_PORT, PAD_SLOT);
+
+    if (ret != PAD_STATE_STABLE && ret != PAD_STATE_FINDCTP1) return;
+
+    state = padRead(PAD_PORT, PAD_SLOT, &buttons);
+    if (state != 0) return;
+
+    // D-pad movement
+    if (!(buttons.btns & PAD_UP))    pc->mousePos.y -= 3;
+    if (!(buttons.btns & PAD_DOWN))  pc->mousePos.y += 3;
+    if (!(buttons.btns & PAD_LEFT))  pc->mousePos.x -= 3;
+    if (!(buttons.btns & PAD_RIGHT)) pc->mousePos.x += 3;
+
+    // Analog stick movement (scaled)
+    int lx = buttons.ljoy_h - 128; // left stick horizontal
+    int ly = buttons.ljoy_v - 128; // left stick vertical
+
+    if (abs(lx) > 20) pc->mousePos.x += lx / 20.0f; 
+    if (abs(ly) > 20) pc->mousePos.y += ly / 20.0f;
+
+    // Clamp to screen bounds
+    if (pc->mousePos.x < 0) pc->mousePos.x = 0;
+    if (pc->mousePos.y < 0) pc->mousePos.y = 0;
+    if (pc->mousePos.x > 640) pc->mousePos.x = 640; // adjust to gsGlobal->Width
+    if (pc->mousePos.y > 480) pc->mousePos.y = 480; // adjust to gsGlobal->Height
 }
 
 int main(int argc, char *argv[]) {
     GSGLOBAL* gsGlobal;
     PointCollection pointCollection;
-    struct padButtonStatus buttons;
-    int port = 0;
-    int slot = 0;
     
     // Initialize DMA
     dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
@@ -234,19 +246,24 @@ int main(int argc, char *argv[]) {
     gsGlobal = gsKit_init_global();
     gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
     
+    // Set video mode
     gsGlobal->PSM = GS_PSM_CT32;
     gsGlobal->PSMZ = GS_PSMZ_16S;
     gsGlobal->ZBuffering = GS_SETTING_OFF;
     
+    dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
+    dmaKit_chan_init(DMA_CHANNEL_GIF);
+    
     gsKit_init_screen(gsGlobal);
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
+
+    pad_init_all();
+
     
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
     
-    // Initialize controller (non-blocking, ignore failures)
-    initializePad(port, slot);
-    
+    // Point data (same as original)
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
         {214, 59, 9, 0xef9a1e}, {265, 36, 9, 0x4976f3}, {300, 78, 9, 0x269230},
@@ -274,86 +291,39 @@ int main(int argc, char *argv[]) {
     
     int pointCount = sizeof(pointData) / sizeof(PointData);
     
+    // Initialize point collection
     PointCollection_init(&pointCollection, pointCount);
     
+    // Compute bounds and center
     float logoW, logoH;
     computeBounds(pointData, pointCount, &logoW, &logoH);
     
     float offsetX = (gsGlobal->Width / 2.0f) - (logoW / 2.0f);
     float offsetY = (gsGlobal->Height / 2.0f) - (logoH / 2.0f);
     
+    // Add points
     for (int i = 0; i < pointCount; i++) {
         float x = offsetX + pointData[i].x;
         float y = offsetY + pointData[i].y;
         PointCollection_addPoint(&pointCollection, x, y, 0.0f, (float)pointData[i].size, pointData[i].colorHex);
     }
     
-    // Set initial cursor position
-    pointCollection.mousePos.x = gsGlobal->Width / 2.0f;
-    pointCollection.mousePos.y = gsGlobal->Height / 2.0f;
-    
+    // Main loop - 30 FPS (match original)
+    int frameDelay = 2; // Wait for 2 vsyncs = 30 FPS (PS2 runs at 60Hz)
     int frameCount = 0;
-    float cursorSpeed = 5.0f;
     
     while(1) {
         frameCount++;
-        
-        // Read controller
-        int ret = padRead(port, slot, &buttons);
-        if (ret != 0) {
-            int paddata = 0xffff ^ buttons.btns;
-            
-            // D-Pad movement
-            if (paddata & PAD_LEFT) {
-                pointCollection.mousePos.x -= cursorSpeed;
-            }
-            if (paddata & PAD_RIGHT) {
-                pointCollection.mousePos.x += cursorSpeed;
-            }
-            if (paddata & PAD_UP) {
-                pointCollection.mousePos.y -= cursorSpeed;
-            }
-            if (paddata & PAD_DOWN) {
-                pointCollection.mousePos.y += cursorSpeed;
-            }
-            
-            // Analog stick (more precise control)
-            if (buttons.ljoy_h < 100) {
-                pointCollection.mousePos.x -= cursorSpeed * 0.5f;
-            }
-            if (buttons.ljoy_h > 200) {
-                pointCollection.mousePos.x += cursorSpeed * 0.5f;
-            }
-            if (buttons.ljoy_v < 100) {
-                pointCollection.mousePos.y -= cursorSpeed * 0.5f;
-            }
-            if (buttons.ljoy_v > 200) {
-                pointCollection.mousePos.y += cursorSpeed * 0.5f;
-            }
+
+        pad_update(&pointCollection);
+
+        if (frameCount % frameDelay == 0) {
+            PointCollection_update(&pointCollection);
         }
-        
-        // Clamp cursor to screen
-        if (pointCollection.mousePos.x < 0) pointCollection.mousePos.x = 0;
-        if (pointCollection.mousePos.x >= gsGlobal->Width) pointCollection.mousePos.x = gsGlobal->Width - 1;
-        if (pointCollection.mousePos.y < 0) pointCollection.mousePos.y = 0;
-        if (pointCollection.mousePos.y >= gsGlobal->Height) pointCollection.mousePos.y = gsGlobal->Height - 1;
-        
-        // Update physics
-        PointCollection_update(&pointCollection);
-        
-        // Render
+
         gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0xFF, 0xFF, 0xFF, 0x80, 0x00));
-        
         PointCollection_draw(&pointCollection, gsGlobal);
-        
-        // Draw cursor
-        gsKit_prim_sprite(gsGlobal,
-                         pointCollection.mousePos.x - 3,
-                         pointCollection.mousePos.y - 3,
-                         pointCollection.mousePos.x + 3,
-                         pointCollection.mousePos.y + 3,
-                         0, GS_SETREG_RGBAQ(0xFF, 0x00, 0x00, 0x80, 0x00));
-        
+
         gsKit_sync_flip(gsGlobal);
         gsKit_queue_exec(gsGlobal);
     }
