@@ -11,7 +11,6 @@
 #include <sifrpc.h>
 #include <sifcmd.h>
 #include <loadfile.h>
-#include <sif.h>
 #include <iopcontrol.h>
 
 
