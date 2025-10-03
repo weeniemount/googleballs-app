@@ -1,7 +1,7 @@
 EE_BIN = googleballs.elf
 EE_OBJS = main.o
 
-EE_LIBS = -lgskit -ldmakit -lpadx -lm
+EE_LIBS = -lgskit -ldmakit -lpadx -lsbv -lm
 EE_INCS += -I$(GSKIT)/include
 
 all: $(EE_BIN)
