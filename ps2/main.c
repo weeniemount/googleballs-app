@@ -7,6 +7,7 @@
 #include <string.h>
 #include <tamtypes.h>
 #include <libpad.h>
+#include <stdlib.h>
 
 typedef struct {
     float x, y, z;
