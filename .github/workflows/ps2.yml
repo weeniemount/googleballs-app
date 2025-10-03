@@ -18,7 +18,7 @@ jobs:
     
     - name: Install build dependencies
       run: |
-        apk add --no-cache make git cdrkit cmake
+        apk add --no-cache make git cdrkit cmake gmp mpfr mpc1
     
     - name: Build and install gsKit
       run: |
