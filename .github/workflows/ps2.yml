@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ps2dev/ps2dev:latest
+    container: root670/ps2dev-gskit:latest
     defaults:
       run:
         working-directory: ./ps2
@@ -23,7 +23,16 @@ jobs:
       run: |
         apk add --no-cache make git zip gmp mpfr mpc1
     
+    - name: Build and install gsKit
+      run: |
+        cd /tmp
+        git clone https://github.com/ps2dev/gsKit.git
+        cd gsKit
+        make -j$(nproc)
+        make install
+    
     - name: Build ELF
+      working-directory: ./ps2
       run: |
         make clean
         make
