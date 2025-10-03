@@ -1,0 +1,67 @@
+name: Build PS2 ISO
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ps2dev/ps2dev:latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        apk add --no-cache make git zip
+    
+    - name: Build ELF
+      run: |
+        make clean
+        make
+    
+    - name: Create ISO structure
+      run: |
+        mkdir -p iso
+        cp googleballs.elf iso/
+        
+        # Create SYSTEM.CNF for PS2
+        cat > iso/SYSTEM.CNF << EOF
+        BOOT2 = cdrom0:\\googleballs.elf;1
+        VER = 1.00
+        VMODE = NTSC
+        EOF
+    
+    - name: Build ISO
+      run: |
+        # Install mkisofs if not available
+        apk add --no-cache cdrkit
+        
+        # Create ISO
+        mkisofs -o googleballs.iso \
+          -V "GOOGLEBALLS" \
+          -sysid "PLAYSTATION" \
+          -volset "GOOGLEBALLS" \
+          -publisher "WEENIE" \
+          -preparer "WEENIE" \
+          -copyright "none" \
+          -l -d -N \
+          -joliet -joliet-long \
+          iso/
+    
+    - name: Upload ISO artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: googleballs-ps2-iso
+        path: googleballs.iso
+    
+    - name: Upload ELF artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: googleballs-ps2-elf
+        path: googleballs.elf
