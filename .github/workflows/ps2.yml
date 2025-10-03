@@ -2,9 +2,9 @@ name: Build PS2 ISO
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ ps2 ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ ps2 ]
   workflow_dispatch:
 
 jobs:
