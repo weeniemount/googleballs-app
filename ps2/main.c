@@ -41,8 +41,6 @@ typedef struct {
 
 // Pad globals
 static char padBuf[256] __attribute__((aligned(64)));
-static char actAlign[6];
-static int actuators;
 
 u64 hexToColor(u32 hex) {
     u8 r = (hex >> 16) & 0xFF;
@@ -192,38 +190,31 @@ void PointCollection_cleanup(PointCollection* pc) {
     free(pc->points);
 }
 
-int waitPadReady(int port, int slot) {
-    int state;
-    int lastState;
-    char stateString[16];
-
-    state = padGetState(port, slot);
-    lastState = -1;
-    while((state != PAD_STATE_STABLE) && (state != PAD_STATE_FINDCTP1)) {
-        if (state != lastState) {
-            padStateInt2String(state, stateString);
-        }
-        lastState = state;
-        state = padGetState(port, slot);
-    }
-    return 0;
-}
-
 int initializePad(int port, int slot) {
     int ret;
-    int modes;
+    int state;
+    int waitTime;
     
     padInit(0);
     
-    if((ret = padPortOpen(port, slot, padBuf)) == 0) {
+    ret = padPortOpen(port, slot, padBuf);
+    if(ret == 0) {
         return 0;
     }
     
-    if(!waitPadReady(port, slot)) {
-        return 0;
+    // Wait for pad to be ready (with timeout)
+    waitTime = 1000;
+    while(waitTime > 0) {
+        state = padGetState(port, slot);
+        if((state == PAD_STATE_STABLE) || (state == PAD_STATE_FINDCTP1)) {
+            break;
+        }
+        waitTime--;
     }
     
-    modes = padInfoMode(port, slot, PAD_MODETABLE, -1);
+    if(waitTime <= 0) {
+        return 0;
+    }
     
     return 1;
 }
@@ -253,10 +244,8 @@ int main(int argc, char *argv[]) {
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
     
-    // Initialize controller
-    if (!initializePad(port, slot)) {
-        // Controller failed, continue anyway
-    }
+    // Initialize controller (non-blocking, ignore failures)
+    initializePad(port, slot);
     
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
