@@ -8,6 +8,12 @@
 #include <tamtypes.h>
 #include <libpad.h>
 #include <stdlib.h>
+#include <sifrpc.h>
+#include <sifcmd.h>
+#include <loadfile.h>
+#include <sif.h>
+#include <iopcontrol.h>
+
 
 typedef struct {
     float x, y, z;
@@ -201,8 +207,22 @@ void PointCollection_cleanup(PointCollection* pc) {
 }
 
 void pad_init_all() {
-    padInit(0); // Init pads system
-    padPortOpen(PAD_PORT, PAD_SLOT, padBuf); // Open pad 0
+    // Init SIF (needed to talk to IOP)
+    SifInitRpc(0);
+    SifLoadFileInit();
+
+    // Reset IOP (reloads modules cleanly)
+    SifIopReset(NULL, 0);
+    while(!SifIopSync()) {}
+
+    // Load required modules for pad
+    SifLoadModule("rom0:SIO2MAN", 0, NULL);
+    SifLoadModule("rom0:PADMAN", 0, NULL);
+
+    padInit(0); // initialize libpad system
+
+    // Open controller port
+    padPortOpen(PAD_PORT, PAD_SLOT, padBuf);
 }
 
 void pad_update(PointCollection* pc) {
@@ -257,13 +277,12 @@ int main(int argc, char *argv[]) {
     
     gsKit_init_screen(gsGlobal);
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
-
-    pad_init_all();
-
     
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
     
+    pad_init_all();
+
     // Point data (same as original)
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
