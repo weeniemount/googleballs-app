@@ -21,7 +21,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        apk add --no-cache make git zip gmp mpfr3 mpc1
+        apk add --no-cache make git zip gmp mpfr mpc1
     
     - name: Build ELF
       run: |
