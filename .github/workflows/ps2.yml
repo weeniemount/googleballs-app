@@ -11,6 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: ps2dev/ps2dev:latest
+    defaults:
+      run:
+        working-directory: ./ps2  # do our stuff in the ps2 source directory
     
     steps:
     - name: Checkout repository
