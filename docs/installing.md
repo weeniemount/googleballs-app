@@ -91,3 +91,55 @@ Select the TV with the IP you entered in to connect.
 Then, click the play button
 If you encounter an error within 58%, you are on your own here. I have no idea how to fix this, except if you did 8.0 (New) on an old tizen version TV, then make a new certificate using 7.0 (Old) as the version when selecting Distributor Certificate
 Otherwise, you're good to go.
+
+# webOS TV:
+You need npm
+
+Install the ares cli with this comand:
+```bash
+$ npm install -g @webos-tools/cli
+```
+
+## ON YOUR TV
+Go install the Developer Mode application and log into your LG Developer account.
+
+Finally enable Dev Mode, restart, and enable your Key Server.
+
+## BACK TO YOUR PC
+
+Now set up your TV for installation:
+```bash
+$ ares-setup-device
+
+[you might have some other stuff]
+
+** You can modify the device info in the above list, or add new device.
+? Select add
+? Enter Device Name: My TV
+? Enter Device IP address: 192.168.1.234
+? Enter Device Port: 9922
+? Enter ssh user: prisoner
+? Enter description: this is my tv
+? Set default ? No
+? Save ? Yes
+
+[other stuff here]
+
+** After adding your device, you\'ll need to get the key file from your webOS TV.
+Follow these steps:
+1. Ensure that the key server button in the Developer Mode app on your webOS TV is enabled.
+2. Run the command "ares-novacom --device My TV --getkey" to retrieve the key file from your webOS TV.
+3. Enter the passphrase displayed in the Developer Mode app into the prompt.
+For more details, refer to the https://webostv.developer.lge.com/develop/getting-started/developer-mode-app
+
+$ ares-novacom --device "My TV" --getkey
+Passphrase: ABCDEF
+```
+
+Now just go install the ipk:
+
+```bash
+$ ares-install -d "My TV" com.weenie.googleballs_1.0.0_all.ipk
+```
+
+If this fails, you either typed your IP wrong, your passphrase was wrong, you forgot your key, or you didn't enable Dev Mode
