@@ -3,11 +3,11 @@ OBJS = main.o
 
 INCDIR = 
 CFLAGS = -O2 -G0 -Wall -D_PSP_FW_VERSION=600
-CXXFLAGS = $(CFLAGS) -fno-rtti
+CXXFLAGS = $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS = $(CFLAGS)
 
 LIBDIR =
-LIBS = -lstdc++ -lSDL_image -lSDL -lpspirkeyb -ljpeg -lpng -lz \
+LIBS = -lSDL_image -lSDL -lpspirkeyb -ljpeg -lpng -lz \
        -lpsphprm -lpspsdk -lpspctrl -lpspumd -lpsprtc -lpsppower \
        -lpspgu -lpspgum -lpspaudiolib -lpspaudio -lpsphttp -lpspssl \
        -lpspwlan -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet_adhocctl \

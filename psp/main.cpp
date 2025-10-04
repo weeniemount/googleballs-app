@@ -3,42 +3,56 @@
 #include <pspkernel.h>
 #include <pspdebug.h>
 #include <pspctrl.h>
-#include <vector>
-#include <cmath>
-#include <string>
-#include <cstdlib>
-#include <algorithm>
+#include <math.h>
 
 PSP_MODULE_INFO("GoogleBalls", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
+#define MAX_POINTS 100
+#define abs(x) ((x) < 0 ? -(x) : (x))
+
 struct Vector3 {
     double x, y, z;
-    
-    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
-    
-    void set(double newX, double newY, double newZ = 0) {
-        x = newX; y = newY; z = newZ;
-    }
-    
-    void addX(double dx) { x += dx; }
-    void addY(double dy) { y += dy; }
-    void addZ(double dz) { z += dz; }
 };
 
 struct Color {
     Uint8 r, g, b, a;
+};
+
+class Point {
+public:
+    Vector3 curPos, originalPos, targetPos, velocity;
+    Color color;
+    double radius, size;
+    double friction;
+    double springStrength;
     
-    Color(Uint8 r = 255, Uint8 g = 255, Uint8 b = 255, Uint8 a = 255) 
-        : r(r), g(g), b(b), a(a) {}
+    Point() {
+        friction = 0.8;
+        springStrength = 0.1;
+        radius = 0;
+        size = 0;
+        velocity.x = velocity.y = velocity.z = 0;
+        curPos.x = curPos.y = curPos.z = 0;
+        originalPos.x = originalPos.y = originalPos.z = 0;
+        targetPos.x = targetPos.y = targetPos.z = 0;
+        color.r = color.g = color.b = 255;
+        color.a = 255;
+    }
     
-    // Convert hex string to color (manual parsing to avoid strtoul conflict)
-    static Color fromHex(const char* hex) {
-        if (hex[0] == '#') {
+    void init(double x, double y, double z, double sz, const char* colorHex) {
+        curPos.x = x; curPos.y = y; curPos.z = z;
+        originalPos.x = x; originalPos.y = y; originalPos.z = z;
+        targetPos.x = x; targetPos.y = y; targetPos.z = z;
+        velocity.x = velocity.y = velocity.z = 0;
+        radius = sz;
+        size = sz;
+        
+        // Parse hex color manually
+        if (colorHex[0] == '#') {
             unsigned long value = 0;
-            const char* p = hex + 1;
+            const char* p = colorHex + 1;
             
-            // Parse hex manually
             while (*p) {
                 value <<= 4;
                 if (*p >= '0' && *p <= '9') {
@@ -51,24 +65,11 @@ struct Color {
                 p++;
             }
             
-            return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
+            color.r = (value >> 16) & 0xFF;
+            color.g = (value >> 8) & 0xFF;
+            color.b = value & 0xFF;
+            color.a = 255;
         }
-        return Color();
-    }
-};
-
-class Point {
-public:
-    Vector3 curPos, originalPos, targetPos, velocity;
-    Color color;
-    double radius, size;
-    double friction = 0.8;
-    double springStrength = 0.1;
-    
-    Point(double x, double y, double z, double sz, const char* colorHex)
-        : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), radius(sz), size(sz) {
-        color = Color::fromHex(colorHex);
     }
     
     void update() {
@@ -78,8 +79,7 @@ public:
         velocity.x += ax;
         velocity.x *= friction;
         
-        // Stop small oscillations
-        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+        if (abs(dx) < 0.1 && abs(velocity.x) < 0.01) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
@@ -92,8 +92,7 @@ public:
         velocity.y += ay;
         velocity.y *= friction;
         
-        // Stop small oscillations
-        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+        if (abs(dy) < 0.1 && abs(velocity.y) < 0.01) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
@@ -104,7 +103,7 @@ public:
         double dox = originalPos.x - curPos.x;
         double doy = originalPos.y - curPos.y;
         double dd = (dox * dox) + (doy * doy);
-        double d = std::sqrt(dd);
+        double d = sqrt(dd);
         
         targetPos.z = d / 100.0 + 1.0;
         double dz = targetPos.z - curPos.z;
@@ -112,8 +111,7 @@ public:
         velocity.z += az;
         velocity.z *= friction;
         
-        // Stop small Z oscillations
-        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+        if (abs(dz) < 0.01 && abs(velocity.z) < 0.001) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -135,12 +133,11 @@ public:
     void draw(SDL_Surface* surface) {
         Uint32 pixelColor = SDL_MapRGB(surface->format, color.r, color.g, color.b);
         
-        // Simple filled circle for PSP (no anti-aliasing to save performance)
-        int x0 = static_cast<int>(curPos.x);
-        int y0 = static_cast<int>(curPos.y);
-        int r = static_cast<int>(radius);
+        int x0 = (int)(curPos.x);
+        int y0 = (int)(curPos.y);
+        int r = (int)(radius);
         
-        // Midpoint circle algorithm with fill
+        // Filled circle
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 if (x * x + y * y <= r * r) {
@@ -151,14 +148,60 @@ public:
     }
 };
 
-// Original point data from JavaScript (adjusted for PSP screen 480x272)
 struct PointData {
     int x, y;
     int size;
     const char* color;
 };
 
-static void computeBounds(const PointData* data, int count, double& w, double& h) {
+class PointCollection {
+public:
+    Vector3 mousePos;
+    Point points[MAX_POINTS];
+    int pointCount;
+    
+    PointCollection() {
+        mousePos.x = 240;
+        mousePos.y = 136;
+        mousePos.z = 0;
+        pointCount = 0;
+    }
+    
+    void addPoint(double x, double y, double z, double size, const char* color) {
+        if (pointCount < MAX_POINTS) {
+            points[pointCount].init(x, y, z, size, color);
+            pointCount++;
+        }
+    }
+    
+    void update() {
+        for (int i = 0; i < pointCount; i++) {
+            Point* point = &points[i];
+            double dx = mousePos.x - point->curPos.x;
+            double dy = mousePos.y - point->curPos.y;
+            double dd = (dx * dx) + (dy * dy);
+            double d = sqrt(dd);
+            
+            if (d < 100) {
+                point->targetPos.x = point->curPos.x - dx;
+                point->targetPos.y = point->curPos.y - dy;
+            } else {
+                point->targetPos.x = point->originalPos.x;
+                point->targetPos.y = point->originalPos.y;
+            }
+            
+            point->update();
+        }
+    }
+    
+    void draw(SDL_Surface* surface) {
+        for (int i = 0; i < pointCount; i++) {
+            points[i].draw(surface);
+        }
+    }
+};
+
+static void computeBounds(const PointData* data, int count, double* w, double* h) {
     int minX = 99999, maxX = -99999;
     int minY = 99999, maxY = -99999;
     
@@ -169,47 +212,9 @@ static void computeBounds(const PointData* data, int count, double& w, double& h
         if (data[i].y > maxY) maxY = data[i].y;
     }
     
-    w = maxX - minX;
-    h = maxY - minY;
+    *w = maxX - minX;
+    *h = maxY - minY;
 }
-
-class PointCollection {
-public:
-    Vector3 mousePos;
-    std::vector<Point> points;
-    
-    PointCollection() : mousePos(240, 136, 0) {} // Center of PSP screen
-    
-    void addPoint(double x, double y, double z, double size, const char* color) {
-        points.push_back(Point(x, y, z, size, color));
-    }
-    
-    void update() {
-        for (size_t i = 0; i < points.size(); i++) {
-            Point& point = points[i];
-            double dx = mousePos.x - point.curPos.x;
-            double dy = mousePos.y - point.curPos.y;
-            double dd = (dx * dx) + (dy * dy);
-            double d = std::sqrt(dd);
-            
-            if (d < 100) { // Reduced from 150 for PSP screen
-                point.targetPos.x = point.curPos.x - dx;
-                point.targetPos.y = point.curPos.y - dy;
-            } else {
-                point.targetPos.x = point.originalPos.x;
-                point.targetPos.y = point.originalPos.y;
-            }
-            
-            point.update();
-        }
-    }
-    
-    void draw(SDL_Surface* surface) {
-        for (size_t i = 0; i < points.size(); i++) {
-            points[i].draw(surface);
-        }
-    }
-};
 
 class App {
 private:
@@ -221,10 +226,16 @@ private:
     SceCtrlData pad, oldPad;
     
 public:
-    App() : screen(NULL), running(false), cursorPos(240, 136, 0), cursorSpeed(3.0) {}
+    App() {
+        screen = NULL;
+        running = false;
+        cursorPos.x = 240;
+        cursorPos.y = 136;
+        cursorPos.z = 0;
+        cursorSpeed = 3.0;
+    }
     
     bool init() {
-        // Initialize PSP callbacks
         sceCtrlSetSamplingCycle(0);
         sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
         
@@ -270,18 +281,17 @@ public:
         
         int dataCount = sizeof(pointData) / sizeof(pointData[0]);
         
-        // Scale and center for PSP screen (480x272)
         double logoW, logoH;
-        computeBounds(pointData, dataCount, logoW, logoH);
+        computeBounds(pointData, dataCount, &logoW, &logoH);
         
-        double scale = 0.8; // Scale down for PSP
+        double scale = 0.8;
         double offsetX = (480 / 2.0) - (logoW * scale / 2.0);
         double offsetY = (272 / 2.0) - (logoH * scale / 2.0);
         
         for (int i = 0; i < dataCount; i++) {
             double x = offsetX + pointData[i].x * scale;
             double y = offsetY + pointData[i].y * scale;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(pointData[i].size) * scale, pointData[i].color);
+            pointCollection.addPoint(x, y, 0.0, (double)(pointData[i].size) * scale, pointData[i].color);
         }
         
         pointCollection.mousePos = cursorPos;
@@ -291,13 +301,11 @@ public:
         oldPad = pad;
         sceCtrlReadBufferPositive(&pad, 1);
         
-        // Exit on Start + Select
         if ((pad.Buttons & PSP_CTRL_START) && (pad.Buttons & PSP_CTRL_SELECT)) {
             running = false;
             return;
         }
         
-        // D-pad movement
         if (pad.Buttons & PSP_CTRL_LEFT) {
             cursorPos.x -= cursorSpeed;
         }
@@ -311,19 +319,16 @@ public:
             cursorPos.y += cursorSpeed;
         }
         
-        // Analog stick movement (more precise)
         float analogX = (pad.Lx - 128) / 128.0f;
         float analogY = (pad.Ly - 128) / 128.0f;
         
-        // Dead zone
-        if (std::abs(analogX) > 0.2f) {
+        if (abs(analogX) > 0.2f) {
             cursorPos.x += analogX * cursorSpeed * 1.5;
         }
-        if (std::abs(analogY) > 0.2f) {
+        if (abs(analogY) > 0.2f) {
             cursorPos.y += analogY * cursorSpeed * 1.5;
         }
         
-        // Clamp cursor to screen bounds
         if (cursorPos.x < 0) cursorPos.x = 0;
         if (cursorPos.x >= 480) cursorPos.x = 479;
         if (cursorPos.y < 0) cursorPos.y = 0;
@@ -333,12 +338,10 @@ public:
     }
     
     void drawCursor(SDL_Surface* surface) {
-        // Draw a simple crosshair cursor
-        Uint32 cursorColor = SDL_MapRGB(surface->format, 0, 0, 0); // Black cursor
-        int x = static_cast<int>(cursorPos.x);
-        int y = static_cast<int>(cursorPos.y);
+        Uint32 cursorColor = SDL_MapRGB(surface->format, 0, 0, 0);
+        int x = (int)(cursorPos.x);
+        int y = (int)(cursorPos.y);
         
-        // Horizontal line
         for (int i = -8; i <= 8; i++) {
             if (x + i >= 0 && x + i < 480) {
                 if (y >= 0 && y < 272) {
@@ -348,7 +351,6 @@ public:
             }
         }
         
-        // Vertical line
         for (int i = -8; i <= 8; i++) {
             if (y + i >= 0 && y + i < 272) {
                 if (x >= 0 && x < 480) {
@@ -364,7 +366,6 @@ public:
     }
     
     void render() {
-        // Fill screen with white
         SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 255, 255, 255));
         
         pointCollection.draw(screen);
@@ -379,7 +380,7 @@ public:
             update();
             render();
             
-            SDL_Delay(33); // ~30 FPS
+            SDL_Delay(33);
         }
     }
     
@@ -392,7 +393,6 @@ public:
     }
 };
 
-// PSP exit callback
 int exit_callback(int arg1, int arg2, void *common) {
     sceKernelExitGame();
     return 0;
