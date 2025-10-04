@@ -1,0 +1,16 @@
+﻿<Page
+    x:Class="Google_Balls.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="White">
+
+    <Grid>
+        <Canvas x:Name="ParticleCanvas" 
+            Background="Transparent"
+            SizeChanged="ParticleCanvas_SizeChanged"
+            PointerMoved="ParticleCanvas_PointerMoved"
+            PointerPressed="ParticleCanvas_PointerPressed"
+            PointerEntered="ParticleCanvas_PointerEntered"
+            PointerExited="ParticleCanvas_PointerExited"/>
+    </Grid>
+</Page>
