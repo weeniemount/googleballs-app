@@ -2,10 +2,10 @@ name: Build PSP Google Balls
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ psp ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ psp ]
 
 jobs:
   build-psp:
