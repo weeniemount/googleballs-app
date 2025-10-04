@@ -3,7 +3,7 @@ EE_OBJS = main.o
 
 # Fixed library order and includes
 EE_LIBS = -lgskit -ldmakit -lpadx -lm
-EE_INCS += -I$(PS2SDK)/ports/include
+EE_INCS += -I/usr/local/ps2dev/gsKit/include
 
 all: $(EE_BIN)
 	$(EE_STRIP) --strip-all $(EE_BIN)
