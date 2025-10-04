@@ -10,82 +10,29 @@ on:
 jobs:
   build-psp:
     runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Set up PSP toolchain
+    - name: Install additional dependencies
       run: |
-        # Install dependencies including GMP, MPFR, and MPC libraries
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake git autoconf automake libtool pkg-config \
-          libgmp-dev libmpfr-dev libmpc-dev texinfo bison flex \
-          libncurses5-dev libreadline-dev libusb-dev
-        
-        # Create toolchain directory
-        mkdir -p $HOME/pspdev
-        export PSPDEV=$HOME/pspdev
-        export PATH=$PATH:$PSPDEV/bin
-        
-        # Download and build psptoolchain
-        cd $HOME
-        git clone https://github.com/pspdev/psptoolchain.git
-        cd psptoolchain
-        
-        # Make the toolchain build script executable
-        chmod +x toolchain.sh
-        
-        # Build the toolchain (this takes a while)
-        PSPDEV=$PSPDEV ./toolchain.sh
-        
-        # Add to PATH permanently for this job
-        echo "PSPDEV=$HOME/pspdev" >> $GITHUB_ENV
-        echo "$HOME/pspdev/bin" >> $GITHUB_PATH
-        
-    - name: Install PSP SDL
-      run: |
-        export PSPDEV=$HOME/pspdev
-        export PATH=$PATH:$PSPDEV/bin
-        
-        # Download and build SDL for PSP
-        cd $HOME
-        git clone https://github.com/pspdev/SDL.git psp-sdl
-        cd psp-sdl
-        
-        # Configure and build SDL
-        make -f Makefile.psp install
-        
-        # Download and build SDL_image for PSP
-        cd $HOME
-        git clone https://github.com/pspdev/SDL_image.git psp-sdl-image
-        cd psp-sdl-image
-        make -f Makefile.psp install
-        
-    - name: Create PSP icons (if they don't exist)
-      run: |
-        # Create a simple ICON0.PNG if it doesn't exist
-        if [ ! -f "ICON0.PNG" ]; then
-          # Use ImageMagick to create a simple icon
-          sudo apt-get install -y imagemagick
-          convert -size 144x80 xc:blue -fill white -gravity center -pointsize 12 -annotate 0 "Google\nBalls" ICON0.PNG
-        fi
-        
-        # Create a simple PIC1.PNG if it doesn't exist
-        if [ ! -f "PIC1.PNG" ]; then
-          convert -size 480x272 xc:lightblue -fill darkblue -gravity center -pointsize 24 -annotate 0 "Google Balls PSP" PIC1.PNG
-        fi
+        # Install any additional packages needed (the container uses Alpine Linux)
+        apk add --no-cache bash make imagemagick
         
     - name: Build PSP application
       run: |
-        export PSPDEV=$HOME/pspdev
-        export PATH=$PATH:$PSPDEV/bin
+        # The PSPDEV environment variable is already set in the container
+        echo "PSPDEV is set to: $PSPDEV"
+        echo "PATH is: $PATH"
         
-        # Make build script executable
-        chmod +x build.sh
+        # Verify toolchain is available
+        which psp-gcc
+        psp-gcc --version
         
-        # Build the application using our build script
-        ./build.sh make
+        # Build the application
+        make
         
         # Verify the build was successful
         if [ ! -f "EBOOT.PBP" ]; then
@@ -94,13 +41,23 @@ jobs:
         fi
         
         # Show build info
-        ls -la EBOOT.PBP
-        file EBOOT.PBP
+        ls -lah EBOOT.PBP
         
     - name: Upload PSP EBOOT
       uses: actions/upload-artifact@v4
       with:
-        name: googleballs-psp
+        name: googleballs-psp-${{ github.sha }}
         path: |
           EBOOT.PBP
           *.PBP
+          
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          EBOOT.PBP
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
