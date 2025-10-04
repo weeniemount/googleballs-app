@@ -886,3 +886,57 @@ jobs:
         with:
           name: googleballs-vscode-extension
           path: vscode/*.vsix
+  build-psp:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+    defaults:
+      run:
+        working-directory: ./psp
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install additional dependencies
+      run: |
+        apk add --no-cache bash make
+        
+    - name: Verify toolchain and files
+      run: |
+        echo "PSPDEV is set to: $PSPDEV"
+        echo "PATH is: $PATH"
+        which psp-gcc
+        psp-gcc --version
+        echo ""
+        echo "=== Files in build directory ==="
+        ls -la
+        
+    - name: Build PSP application
+      run: |
+        make
+        
+        # Verify the build was successful
+        if [ ! -f "EBOOT.PBP" ]; then
+          echo "Build failed - EBOOT.PBP not found"
+          exit 1
+        fi
+        
+        echo ""
+        echo "=== Build successful! ==="
+        ls -lah EBOOT.PBP
+        
+    - name: Upload PSP EBOOT
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-psp-${{ github.sha }}
+        path: psp/EBOOT.PBP
+          
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: psp/EBOOT.PBP
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
