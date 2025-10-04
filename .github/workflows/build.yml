@@ -980,13 +980,14 @@ jobs:
                                           -NotAfter (Get-Date).AddYears(5) `
                                           -CertStoreLocation "Cert:\CurrentUser\My"
                                           
-        # Export PFX (no password)
-        Export-PfxCertificate -Cert $cert -FilePath $certPath -Password (ConvertTo-SecureString -String "" -Force -AsPlainText)
+        # Export PFX with NO password
+        Export-PfxCertificate -Cert $cert -FilePath $certPath -NoPassword
         
         # Export CER (for installation)
         Export-Certificate -Cert $cert -FilePath $cerPath
         
         echo "Certificate created at $certPath and $cerPath"
+
 
     - name: Build x86
       shell: pwsh
