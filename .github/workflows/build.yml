@@ -987,10 +987,16 @@ jobs:
 
         Write-Host "Certificate created at $certPath and $cerPath"
 
+    - name: Set MSBuild path
+      shell: pwsh
+      run: |
+        $Env:MSBUILD_PATH = "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+        Write-Host "MSBuild path set to $Env:MSBUILD_PATH"
+
     - name: Build x86
       shell: pwsh
       run: |
-        msbuild uwp/GoogleBallsUWP.sln `
+        & $Env:MSBUILD_PATH "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=x86 `
           /p:AppxPackageSigningEnabled=true `
@@ -1001,7 +1007,7 @@ jobs:
     - name: Build x64
       shell: pwsh
       run: |
-        msbuild uwp/GoogleBallsUWP.sln `
+        & $Env:MSBUILD_PATH "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=x64 `
           /p:AppxPackageSigningEnabled=true `
@@ -1012,7 +1018,7 @@ jobs:
     - name: Build ARM
       shell: pwsh
       run: |
-        msbuild uwp/GoogleBallsUWP.sln `
+        & $Env:MSBUILD_PATH "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=ARM `
           /p:AppxPackageSigningEnabled=true `
