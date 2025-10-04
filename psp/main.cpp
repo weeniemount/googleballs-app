@@ -32,10 +32,25 @@ struct Color {
     Color(Uint8 r = 255, Uint8 g = 255, Uint8 b = 255, Uint8 a = 255) 
         : r(r), g(g), b(b), a(a) {}
     
-    // Convert hex string to color
+    // Convert hex string to color (manual parsing to avoid strtoul conflict)
     static Color fromHex(const char* hex) {
         if (hex[0] == '#') {
-            unsigned long value = strtoul(hex + 1, NULL, 16);
+            unsigned long value = 0;
+            const char* p = hex + 1;
+            
+            // Parse hex manually
+            while (*p) {
+                value <<= 4;
+                if (*p >= '0' && *p <= '9') {
+                    value += *p - '0';
+                } else if (*p >= 'a' && *p <= 'f') {
+                    value += *p - 'a' + 10;
+                } else if (*p >= 'A' && *p <= 'F') {
+                    value += *p - 'A' + 10;
+                }
+                p++;
+            }
+            
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
         }
         return Color();

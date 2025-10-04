@@ -13,7 +13,7 @@ LIBS = -lstdc++ -lSDL_image -lSDL -lpspirkeyb -ljpeg -lpng -lz \
        -lpspwlan -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet_adhocctl \
        -lpspnet -lpspnet_inet -lpspnet_apctl -lpspnet_resolver \
        -lpsputility -lpspuser -lpspkernel -lpspdebug -lpspdisplay \
-       -lpspge -lm -lc
+       -lpspge -lm
 
 EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = Google Balls PSP
