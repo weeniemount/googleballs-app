@@ -58,10 +58,7 @@ idk your on your own gang
 
 idk your on your own gang
 
-# Nightly (actions)
-Click that actions tab above, pick the latest build and download the artifacts you need
-
-# Tizen TV:
+## Tizen TV:
 Install Tizen Studio (And packages 8.0 Tizen (9.0 too if you want) and extension Samsung Certificate Extension & TV Extensions-9.0  
 Import source code of Tizen version into Tizen Studio as a project (web project, not c/c++ project)
 Create a certificate in Certificate Manager, and fill in the information. The onlything that matters is Version when you select the Distributor Certificate. Pick the one with "(Old)" if your TV is older than approximately 5 years old. Otherwise, do the "(New)" option.
@@ -69,7 +66,7 @@ Go to the directory of Tizen Studio (C:\tizen-studio\ or /Users/googleballsidkwh
 Go to the tools folder
 Open a command line there
 On your TV: 
-## REMOTE WITH NUMBERS NEEDED
+### REMOTE WITH NUMBERS NEEDED
 Go to the APPS section.
 Go to the settings icon of the app store.
 Press 1 2 3 4 5 on the remote.
@@ -92,7 +89,20 @@ Then, click the play button
 If you encounter an error within 58%, you are on your own here. I have no idea how to fix this, except if you did 8.0 (New) on an old tizen version TV, then make a new certificate using 7.0 (Old) as the version when selecting Distributor Certificate
 Otherwise, you're good to go.
 
-# webOS TV:
+## Visual Studio Code
+[Download .vsix](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+
+## UWP
+[Download .appxbundle](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download .cer](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+
+you need to install the certificate to trusted root certification publishers (or whatever its called) and then install the appxbundle
+
+## Windows Phone 8.1
+[Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+
+you need to have a jailbroken windows phone for this and know how to flash xaps
+
+## webOS TV:
 You need npm
 
 Install the ares cli with this comand:
@@ -100,12 +110,12 @@ Install the ares cli with this comand:
 $ npm install -g @webos-tools/cli
 ```
 
-## ON YOUR TV
+### ON YOUR TV
 Go install the Developer Mode application and log into your LG Developer account.
 
 Finally enable Dev Mode, restart, and enable your Key Server.
 
-## BACK TO YOUR PC
+### BACK TO YOUR PC
 
 Now set up your TV for installation:
 ```bash
@@ -143,3 +153,6 @@ $ ares-install -d "My TV" com.weenie.googleballs_1.0.0_all.ipk
 ```
 
 If this fails, you either typed your IP wrong, your passphrase was wrong, you forgot your key, or you didn't enable Dev Mode
+
+# Nightly (actions)
+Click that actions tab above, pick the latest build and download the artifacts you need

@@ -928,15 +928,5 @@ jobs:
     - name: Upload PSP EBOOT
       uses: actions/upload-artifact@v4
       with:
-        name: googleballs-psp-${{ github.sha }}
+        name: googleballs-psp
         path: psp/EBOOT.PBP
-          
-    - name: Create Release (on tag)
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: psp/EBOOT.PBP
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
