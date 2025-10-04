@@ -6,6 +6,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <cstdlib>
 #include <algorithm>
 
 PSP_MODULE_INFO("GoogleBalls", 0, 1, 0);
@@ -32,9 +33,9 @@ struct Color {
         : r(r), g(g), b(b), a(a) {}
     
     // Convert hex string to color
-    static Color fromHex(const std::string& hex) {
+    static Color fromHex(const char* hex) {
         if (hex[0] == '#') {
-            unsigned int value = std::stoul(hex.substr(1), nullptr, 16);
+            unsigned long value = strtoul(hex + 1, NULL, 16);
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
         }
         return Color();
@@ -49,9 +50,9 @@ public:
     double friction = 0.8;
     double springStrength = 0.1;
     
-    Point(double x, double y, double z, double size, const std::string& colorHex)
+    Point(double x, double y, double z, double sz, const char* colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), size(size), radius(size) {
+          velocity(0, 0, 0), radius(sz), size(sz) {
         color = Color::fromHex(colorHex);
     }
     
@@ -139,18 +140,18 @@ public:
 struct PointData {
     int x, y;
     int size;
-    std::string color;
+    const char* color;
 };
 
-static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
+static void computeBounds(const PointData* data, int count, double& w, double& h) {
     int minX = 99999, maxX = -99999;
     int minY = 99999, maxY = -99999;
     
-    for (const auto& p : data) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+    for (int i = 0; i < count; i++) {
+        if (data[i].x < minX) minX = data[i].x;
+        if (data[i].x > maxX) maxX = data[i].x;
+        if (data[i].y < minY) minY = data[i].y;
+        if (data[i].y > maxY) maxY = data[i].y;
     }
     
     w = maxX - minX;
@@ -164,12 +165,13 @@ public:
     
     PointCollection() : mousePos(240, 136, 0) {} // Center of PSP screen
     
-    void addPoint(double x, double y, double z, double size, const std::string& color) {
-        points.emplace_back(x, y, z, size, color);
+    void addPoint(double x, double y, double z, double size, const char* color) {
+        points.push_back(Point(x, y, z, size, color));
     }
     
     void update() {
-        for (auto& point : points) {
+        for (size_t i = 0; i < points.size(); i++) {
+            Point& point = points[i];
             double dx = mousePos.x - point.curPos.x;
             double dy = mousePos.y - point.curPos.y;
             double dd = (dx * dx) + (dy * dy);
@@ -188,8 +190,8 @@ public:
     }
     
     void draw(SDL_Surface* surface) {
-        for (auto& point : points) {
-            point.draw(surface);
+        for (size_t i = 0; i < points.size(); i++) {
+            points[i].draw(surface);
         }
     }
 };
@@ -204,7 +206,7 @@ private:
     SceCtrlData pad, oldPad;
     
 public:
-    App() : screen(nullptr), running(false), cursorPos(240, 136, 0), cursorSpeed(3.0) {}
+    App() : screen(NULL), running(false), cursorPos(240, 136, 0), cursorSpeed(3.0) {}
     
     bool init() {
         // Initialize PSP callbacks
@@ -226,7 +228,7 @@ public:
     }
     
     void initPoints() {
-        std::vector<PointData> pointData = {
+        static const PointData pointData[] = {
             {202, 78, 7, "#ed9d33"}, {348, 83, 7, "#d44d61"}, {256, 69, 7, "#4f7af2"},
             {214, 59, 7, "#ef9a1e"}, {265, 36, 7, "#4976f3"}, {300, 78, 7, "#269230"},
             {294, 59, 7, "#1f9e2c"}, {45, 88, 7, "#1c48dd"}, {268, 52, 7, "#2a56ea"},
@@ -251,18 +253,20 @@ public:
             {17, 17, 4, "#4779f7"}, {232, 93, 4, "#4b78f1"}
         };
         
+        int dataCount = sizeof(pointData) / sizeof(pointData[0]);
+        
         // Scale and center for PSP screen (480x272)
         double logoW, logoH;
-        computeBounds(pointData, logoW, logoH);
+        computeBounds(pointData, dataCount, logoW, logoH);
         
         double scale = 0.8; // Scale down for PSP
         double offsetX = (480 / 2.0) - (logoW * scale / 2.0);
         double offsetY = (272 / 2.0) - (logoH * scale / 2.0);
         
-        for (const auto& data : pointData) {
-            double x = offsetX + data.x * scale;
-            double y = offsetY + data.y * scale;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size) * scale, data.color);
+        for (int i = 0; i < dataCount; i++) {
+            double x = offsetX + pointData[i].x * scale;
+            double y = offsetY + pointData[i].y * scale;
+            pointCollection.addPoint(x, y, 0.0, static_cast<double>(pointData[i].size) * scale, pointData[i].color);
         }
         
         pointCollection.mousePos = cursorPos;

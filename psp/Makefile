@@ -2,12 +2,18 @@ TARGET = googleballs
 OBJS = main.o
 
 INCDIR = 
-CFLAGS = -O2 -G0 -Wall -D_PSP_FW_VERSION=500
-CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+CFLAGS = -O2 -G0 -Wall -D_PSP_FW_VERSION=600
+CXXFLAGS = $(CFLAGS) -fno-rtti
 ASFLAGS = $(CFLAGS)
 
 LIBDIR =
-LIBS = -lSDL_image -lSDL -lGL -lGLU -lglut -ljpeg -lpng -lz -lm -lpsphprm -lpspsdk -lpspctrl -lpspumd -lpsprtc -lpsppower -lpspgu -lpspgum -lpspaudiolib -lpspaudio -lpsphttp -lpspssl -lpspwlan -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet_adhocctl -lpspnet -lpspnet_inet -lpspnet_apctl -lpspnet_resolver -lpsputility -lpspuser -lpspkernel
+LIBS = -lstdc++ -lSDL_image -lSDL -lpspirkeyb -ljpeg -lpng -lz \
+       -lpsphprm -lpspsdk -lpspctrl -lpspumd -lpsprtc -lpsppower \
+       -lpspgu -lpspgum -lpspaudiolib -lpspaudio -lpsphttp -lpspssl \
+       -lpspwlan -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet_adhocctl \
+       -lpspnet -lpspnet_inet -lpspnet_apctl -lpspnet_resolver \
+       -lpsputility -lpspuser -lpspkernel -lpspdebug -lpspdisplay \
+       -lpspge -lm -lc
 
 EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = Google Balls PSP
