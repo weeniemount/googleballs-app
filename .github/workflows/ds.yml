@@ -2,9 +2,9 @@ name: Build Nintendo DS ROM
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ ds ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ ds ]
   workflow_dispatch:
 
 jobs:
