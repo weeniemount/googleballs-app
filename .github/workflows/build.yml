@@ -964,6 +964,20 @@ jobs:
     - name: Install NuGet
       uses: NuGet/setup-nuget@v1
 
+    - name: Update Target Platform Version for ARM compatibility
+      shell: pwsh
+      run: |
+        # Update the .csproj to use a lower target platform version for ARM compatibility
+        $csprojPath = "$PWD/uwp/GoogleBallsUWP/GoogleBallsUWP.csproj"
+        $csprojContent = Get-Content $csprojPath -Raw
+        
+        # Replace the target platform version with one that supports ARM
+        $csprojContent = $csprojContent -replace '<TargetPlatformVersion>10\.0\.26100\.0</TargetPlatformVersion>', '<TargetPlatformVersion>10.0.22621.0</TargetPlatformVersion>'
+        $csprojContent = $csprojContent -replace '<TargetPlatformMinVersion>10\.0\.\d+\.0</TargetPlatformMinVersion>', '<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>'
+        
+        Set-Content -Path $csprojPath -Value $csprojContent
+        Write-Host "Updated Target Platform Version to 10.0.22621.0 for ARM compatibility"
+
     - name: Restore UWP dependencies
       run: nuget restore uwp/GoogleBallsUWP.sln
 
