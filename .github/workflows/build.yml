@@ -967,7 +967,7 @@ jobs:
     - name: Restore UWP dependencies
       run: nuget restore uwp/GoogleBallsUWP.sln
 
-    - name: Create self-signed certificate and export .cer and PFX
+    - name: Create self-signed certificate
       shell: pwsh
       run: |
         $certPassword = ConvertTo-SecureString "googleballs" -Force -AsPlainText
@@ -988,7 +988,17 @@ jobs:
         # Export CER for installation
         Export-Certificate -Cert $cert -FilePath $cerPath
 
-        Write-Host "Certificate created at $certPath and $cerPath"
+        # Get the thumbprint
+        $thumbprint = $cert.Thumbprint
+        Write-Host "Certificate thumbprint: $thumbprint"
+        
+        # Update the .csproj file with the new thumbprint
+        $csprojPath = "$PWD/uwp/GoogleBallsUWP/GoogleBallsUWP.csproj"
+        $csprojContent = Get-Content $csprojPath -Raw
+        $csprojContent = $csprojContent -replace '<PackageCertificateThumbprint>.*?</PackageCertificateThumbprint>', "<PackageCertificateThumbprint>$thumbprint</PackageCertificateThumbprint>"
+        Set-Content -Path $csprojPath -Value $csprojContent
+        
+        Write-Host "Updated .csproj with new thumbprint"
 
     - name: Build x86
       shell: pwsh
