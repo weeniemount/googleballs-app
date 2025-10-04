@@ -176,7 +176,7 @@ public:
     }
 };
 
-int main(void) {
+extern "C" int main(void) {
     // Initialize video mode for main screen
     videoSetMode(MODE_FB0);
     vramSetBankA(VRAM_A_LCD);
