@@ -4,6 +4,7 @@
 #include <graph.h>
 #include <draw.h>
 #include <packet.h>
+#include <gs_psm.h>
 #include <math.h>
 
 #define SCREEN_WIDTH 640
