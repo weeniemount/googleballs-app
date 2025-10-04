@@ -1,9 +1,9 @@
 EE_BIN = googleballs.elf
 EE_OBJS = main.o
 
-# Fixed library order and includes
-EE_LIBS = -lgskit -ldmakit -lpadx -lpatches -lm
-EE_INCS += -I/usr/local/ps2dev/gsKit/include
+# Using raw draw library instead
+EE_LIBS = -ldraw -lgraph -lpacket -lm
+EE_INCS +=
 
 all: $(EE_BIN)
 	$(EE_STRIP) --strip-all $(EE_BIN)

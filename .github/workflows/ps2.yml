@@ -22,19 +22,7 @@ jobs:
     
     - name: Build and install gsKit
       run: |
-        git clone https://github.com/ps2dev/gsKit.git /tmp/gsKit
-        cd /tmp/gsKit
-        cmake -S . -B build -Wno-dev \
-          "-DCMAKE_TOOLCHAIN_FILE=/usr/local/ps2dev/ps2sdk/ps2dev.cmake" \
-          "-DCMAKE_INSTALL_PREFIX=/usr/local/ps2dev/gsKit" \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        cmake --build build
-        cmake --build build --target install
-        
-        # Create symlinks so the SDK can find gsKit
-        ln -sf /usr/local/ps2dev/gsKit/lib/*.a /usr/local/ps2dev/ps2sdk/ee/lib/
-        ln -sf /usr/local/ps2dev/gsKit/include/*.h /usr/local/ps2dev/ps2sdk/ee/include/
+        echo "Skipping gsKit - using native draw library"
     
     - name: Build ELF
       working-directory: ./ps2
