@@ -1,90 +1,84 @@
 #include <nds.h>
 #include <stdio.h>
+#include <math.h>
 #include <vector>
-#include <cmath>
-#include <string>
 #include <algorithm>
 
-// NDS screen dimensions
-#define TOP_SCREEN_WIDTH  256
-#define TOP_SCREEN_HEIGHT 192
-#define BOTTOM_SCREEN_WIDTH  256
-#define BOTTOM_SCREEN_HEIGHT 192
-
-// Maximum number of sprites we can use
-#define MAX_SPRITES 32
-
-struct Vector3 {
-    double x, y, z;
+// Color structure for DS
+struct Color {
+    u16 rgb15;  // 15-bit RGB color for DS
     
-    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
-    
-    void set(double newX, double newY, double newZ = 0) {
-        x = newX; y = newY; z = newZ;
+    Color(u8 r = 255, u8 g = 255, u8 b = 255) {
+        // Convert 8-bit RGB to 15-bit RGB (5 bits per component)
+        u8 r5 = r >> 3;
+        u8 g5 = g >> 3;
+        u8 b5 = b >> 3;
+        rgb15 = RGB15(r5, g5, b5);
     }
     
-    void addX(double dx) { x += dx; }
-    void addY(double dy) { y += dy; }
-    void addZ(double dz) { z += dz; }
+    // Convert hex string to color (simplified for DS)
+    static Color fromHex(const char* hex) {
+        u32 value = 0;
+        if (hex[0] == '#') {
+            // Simple hex parsing
+            for (int i = 1; hex[i] != '\0' && i <= 6; i++) {
+                value = value * 16;
+                if (hex[i] >= '0' && hex[i] <= '9') {
+                    value += hex[i] - '0';
+                } else if (hex[i] >= 'a' && hex[i] <= 'f') {
+                    value += hex[i] - 'a' + 10;
+                } else if (hex[i] >= 'A' && hex[i] <= 'F') {
+                    value += hex[i] - 'A' + 10;
+                }
+            }
+        }
+        u8 r = (value >> 16) & 0xFF;
+        u8 g = (value >> 8) & 0xFF;
+        u8 b = value & 0xFF;
+        return Color(r, g, b);
+    }
 };
 
-struct Color {
-    u8 r, g, b;
+// Vector structure
+struct Vector3 {
+    float x, y, z;
     
-    Color(u8 r = 255, u8 g = 255, u8 b = 255) : r(r), g(g), b(b) {}
+    Vector3(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
     
-    // Convert hex string to color
-    static Color fromHex(const std::string& hex) {
-        if (hex[0] == '#' && hex.length() == 7) {
-            unsigned int value = 0;
-            // Simple hex parsing without std::stoul
-            for (int i = 1; i < 7; i++) {
-                char c = hex[i];
-                value *= 16;
-                if (c >= '0' && c <= '9') value += c - '0';
-                else if (c >= 'a' && c <= 'f') value += c - 'a' + 10;
-                else if (c >= 'A' && c <= 'F') value += c - 'A' + 10;
-            }
-            return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
-        }
-        return Color(255, 255, 255);
+    void set(float newX, float newY, float newZ = 0) {
+        x = newX; y = newY; z = newZ;
     }
-    
-    // Convert to NDS 15-bit RGB color
-    u16 toNDS() const {
-        return RGB15(r >> 3, g >> 3, b >> 3);
-    }
+};
+
+// Point data structure
+struct PointData {
+    int x, y;
+    int size;
+    const char* color;
 };
 
 class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    double radius, size;
-    double friction = 0.8;
-    double springStrength = 0.1;
-    u16 ndsColor;
-    int spriteId;
-    u16* spriteGfx;
-    bool visible;
+    float radius, size;
+    float friction = 0.8f;
+    float springStrength = 0.1f;
     
-    Point(double x, double y, double z, double size, const std::string& colorHex, int id)
+    Point(float x, float y, float z, float size, const char* colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), radius(size), size(size), spriteId(id), 
-          spriteGfx(nullptr), visible(false) {
-        color = Color::fromHex(colorHex);
-        ndsColor = color.toNDS();
+          velocity(0, 0, 0), size(size), radius(size), color(Color::fromHex(colorHex)) {
     }
     
     void update() {
         // X axis spring physics
-        double dx = targetPos.x - curPos.x;
-        double ax = dx * springStrength;
+        float dx = targetPos.x - curPos.x;
+        float ax = dx * springStrength;
         velocity.x += ax;
         velocity.x *= friction;
         
         // Stop small oscillations
-        if (abs(dx) < 0.1 && abs(velocity.x) < 0.01) {
+        if (fabsf(dx) < 0.1f && fabsf(velocity.x) < 0.01f) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
@@ -92,13 +86,13 @@ public:
         }
         
         // Y axis spring physics
-        double dy = targetPos.y - curPos.y;
-        double ay = dy * springStrength;
+        float dy = targetPos.y - curPos.y;
+        float ay = dy * springStrength;
         velocity.y += ay;
         velocity.y *= friction;
         
         // Stop small oscillations
-        if (abs(dy) < 0.1 && abs(velocity.y) < 0.01) {
+        if (fabsf(dy) < 0.1f && fabsf(velocity.y) < 0.01f) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
@@ -106,19 +100,19 @@ public:
         }
         
         // Z axis (depth) based on distance from original position
-        double dox = originalPos.x - curPos.x;
-        double doy = originalPos.y - curPos.y;
-        double dd = (dox * dox) + (doy * doy);
-        double d = sqrt(dd);
+        float dox = originalPos.x - curPos.x;
+        float doy = originalPos.y - curPos.y;
+        float dd = (dox * dox) + (doy * doy);
+        float d = sqrtf(dd);
         
-        targetPos.z = d / 100.0 + 1.0;
-        double dz = targetPos.z - curPos.z;
-        double az = dz * springStrength;
+        targetPos.z = d / 100.0f + 1.0f;
+        float dz = targetPos.z - curPos.z;
+        float az = dz * springStrength;
         velocity.z += az;
         velocity.z *= friction;
         
         // Stop small Z oscillations
-        if (abs(dz) < 0.01 && abs(velocity.z) < 0.001) {
+        if (fabsf(dz) < 0.01f && fabsf(velocity.z) < 0.001f) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -127,92 +121,52 @@ public:
         
         // Update radius based on depth
         radius = size * curPos.z;
-        if (radius < 2) radius = 2;
+        if (radius < 1) radius = 1;
     }
     
-    void updateSprite() {
-        if (spriteId >= MAX_SPRITES || !spriteGfx || !visible) return;
-        
-        // Update sprite position
-        int x = static_cast<int>(curPos.x) - 4; // Center the 8x8 sprite
-        int y = static_cast<int>(curPos.y) - 4;
-        
-        // Clamp to screen bounds
-        if (x < -8) x = -8;
-        if (x > 256) x = 256;
-        if (y < -8) y = -8;
-        if (y > 192) y = 192;
-        
-        // Set sprite attributes using correct OAM function
-        oamSet(&oamMain, spriteId, x, y, 0, 0, SpriteSize_8x8, SpriteColorFormat_16Color, 
-               spriteGfx, -1, false, false, false, false, false);
+    void drawPixel(u16* framebuffer, int screenWidth, int screenHeight, int px, int py) {
+        if (px >= 0 && px < screenWidth && py >= 0 && py < screenHeight) {
+            framebuffer[py * screenWidth + px] = color.rgb15;
+        }
     }
     
-    void allocateSprite() {
-        // Allocate graphics memory for this sprite
-        spriteGfx = oamAllocateGfx(&oamMain, SpriteSize_8x8, SpriteColorFormat_16Color);
+    void draw(u16* framebuffer, int screenWidth, int screenHeight) {
+        int x0 = (int)curPos.x;
+        int y0 = (int)curPos.y;
+        int r = (int)radius;
         
-        if (spriteGfx) {
-            // Create simple filled circle sprite (8x8 pixels, 4bpp format)
-            u8 dotSprite[32] = {
-                0x00, 0x11, 0x11, 0x00,  // .XX..... .XX.....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x01, 0x11, 0x11, 0x10,  // XXXX.... XXXX....
-                0x00, 0x11, 0x11, 0x00   // .XX..... .XX.....
-            };
-            
-            // Copy sprite data to VRAM
-            dmaCopy(dotSprite, spriteGfx, 32);
-            visible = true;
+        // Simple filled circle using midpoint circle algorithm
+        for (int x = -r; x <= r; x++) {
+            for (int y = -r; y <= r; y++) {
+                float dist = sqrtf((float)(x * x + y * y));
+                if (dist <= radius) {
+                    drawPixel(framebuffer, screenWidth, screenHeight, x0 + x, y0 + y);
+                }
+            }
         }
     }
 };
 
-// Point data scaled for NDS top screen (256x192)
-struct PointData {
-    int x, y;
-    int size;
-    const char* color;
-};
-
-static void computeBounds(const PointData* data, int count, double& w, double& h) {
-    int minX = 99999, maxX = -99999;
-    int minY = 99999, maxY = -99999;
-    
-    for (int i = 0; i < count; i++) {
-        if (data[i].x < minX) minX = data[i].x;
-        if (data[i].x > maxX) maxX = data[i].x;
-        if (data[i].y < minY) minY = data[i].y;
-        if (data[i].y > maxY) maxY = data[i].y;
-    }
-    
-    w = maxX - minX;
-    h = maxY - minY;
-}
-
 class PointCollection {
 public:
-    Vector3 mousePos;
+    Vector3 touchPos;
     std::vector<Point> points;
     
-    PointCollection() : mousePos(128, 96, 0) {} // Start in center
+    PointCollection() : touchPos(0, 0, 0) {}
     
-    void addPoint(double x, double y, double z, double size, const std::string& color, int id) {
-        points.emplace_back(x, y, z, size, color, id);
+    void addPoint(float x, float y, float z, float size, const char* color) {
+        points.emplace_back(x, y, z, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            double dx = mousePos.x - point.curPos.x;
-            double dy = mousePos.y - point.curPos.y;
-            double dd = (dx * dx) + (dy * dy);
-            double d = sqrt(dd);
+            float dx = touchPos.x - point.curPos.x;
+            float dy = touchPos.y - point.curPos.y;
+            float dd = (dx * dx) + (dy * dy);
+            float d = sqrtf(dd);
             
-            if (d < 60) {  // Interaction distance for NDS screen
+            if (d < 75) {  // Reduced interaction radius for DS screen
+                // Match original logic
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -224,214 +178,137 @@ public:
         }
     }
     
-    void updateSprites() {
+    void draw(u16* framebuffer, int screenWidth, int screenHeight) {
         for (auto& point : points) {
-            point.updateSprite();
-        }
-    }
-    
-    void allocateSprites() {
-        for (auto& point : points) {
-            point.allocateSprite();
+            point.draw(framebuffer, screenWidth, screenHeight);
         }
     }
 };
 
-class App {
-private:
-    PointCollection pointCollection;
-    bool running;
-    touchPosition touch;
-    bool touching;
-    
-public:
-    App() : running(false), touching(false) {}
-    
-    bool init() {
-        // Initialize video modes - CRITICAL: Must enable sprites on main screen
-        videoSetMode(MODE_0_2D | DISPLAY_SPR_ACTIVE | DISPLAY_BG0_ACTIVE);
-        videoSetModeSub(MODE_0_2D | DISPLAY_BG0_ACTIVE);
-        
-        // VRAM setup - Based on common DS patterns found in forums
-        vramSetPrimaryBanks(VRAM_A_MAIN_SPRITE,      // Main sprites
-                           VRAM_B_MAIN_BG_0x06000000, // Main background  
-                           VRAM_C_SUB_BG,             // Sub background
-                           VRAM_D_LCD);               // Not used
-        
-        // Initialize OAM for sprites
-        oamInit(&oamMain, SpriteMapping_1D_32, false);
-        
-        // Clear all sprites initially
-        for (int i = 0; i < 128; i++) {
-            oamClearSprite(&oamMain, i);
-        }
-        
-        // Initialize main background
-        int mainBg = bgInit(0, BgType_Text4bpp, BgSize_T_256x256, 0, 1);
-        
-        // Initialize console on sub screen  
-        consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
-        
-        // Set up background palette
-        BG_PALETTE[0] = RGB15(0, 0, 8);     // Dark blue background
-        BG_PALETTE[1] = RGB15(31, 31, 31);  // White text
-        
-        // Clear main background
-        u16* bgMap = bgGetMapPtr(mainBg);
-        dmaFillHalfWords(0, bgMap, 32*24*2);
-        
-        // Initialize sprite palette - simpler approach
-        SPRITE_PALETTE[0] = RGB15(0, 0, 0);    // Transparent
-        SPRITE_PALETTE[1] = RGB15(31, 31, 31); // White default
-        
-        printf("Initializing points...\n");
-        initPoints();
-        
-        printf("Setup complete!\n");
-        running = true;
-        return true;
-    }
-    
-    void initPoints() {
-        // Smaller set of points for testing
-        static const PointData pointData[] = {
-            {87, 32, 4, "#ed9d33"}, {141, 34, 4, "#d44d61"}, {104, 28, 4, "#4f7af2"},
-            {87, 24, 4, "#ef9a1e"}, {107, 15, 4, "#4976f3"}, {122, 32, 4, "#269230"},
-            {119, 24, 4, "#1f9e2c"}, {18, 36, 4, "#1c48dd"}, {109, 21, 4, "#2a56ea"},
-            {30, 34, 4, "#3355d8"}, {119, 3, 4, "#36b641"}, {95, 25, 4, "#2e5def"},
-            {143, 17, 3, "#d53747"}, {136, 21, 3, "#eb676f"}, {84, 17, 3, "#f9b125"},
-            {130, 28, 3, "#de3646"}
-        };
-        
-        const int pointCount = sizeof(pointData) / sizeof(pointData[0]);
-        
-        double logoW, logoH;
-        computeBounds(pointData, pointCount, logoW, logoH);
-        
-        double offsetX = (TOP_SCREEN_WIDTH / 2.0) - (logoW / 2.0);
-        double offsetY = (TOP_SCREEN_HEIGHT / 2.0) - (logoH / 2.0);
-        
-        // Create points
-        for (int i = 0; i < pointCount && i < MAX_SPRITES; i++) {
-            double x = offsetX + pointData[i].x;
-            double y = offsetY + pointData[i].y;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(pointData[i].size), 
-                                   std::string(pointData[i].color), i);
-            
-            // Set up individual sprite colors
-            Color c = Color::fromHex(std::string(pointData[i].color));
-            SPRITE_PALETTE[i * 16 + 1] = c.toNDS(); // Each sprite gets 16 color slot
-        }
-        
-        printf("Allocating sprites...\n");
-        pointCollection.allocateSprites();
-        printf("Points created: %d\n", pointCount);
-    }
-    
-    void handleInput() {
-        scanKeys();
-        
-        u32 keys = keysHeld();
-        
-        // Handle touch input
-        if (keys & KEY_TOUCH) {
-            touchRead(&touch);
-            if (touch.px >= 0 && touch.py >= 0) {
-                touching = true;
-                // Map touch coordinates to top screen
-                pointCollection.mousePos.set(touch.px, touch.py);
-            }
-        } else {
-            touching = false;
-        }
-        
-        // Handle D-pad input as alternative to touch
-        static double padX = TOP_SCREEN_WIDTH / 2.0;
-        static double padY = TOP_SCREEN_HEIGHT / 2.0;
-        
-        if (keys & KEY_UP) padY -= 3.0;
-        if (keys & KEY_DOWN) padY += 3.0;
-        if (keys & KEY_LEFT) padX -= 3.0;
-        if (keys & KEY_RIGHT) padX += 3.0;
-        
-        // Clamp to screen bounds
-        if (padX < 0) padX = 0;
-        if (padX > TOP_SCREEN_WIDTH) padX = TOP_SCREEN_WIDTH;
-        if (padY < 0) padY = 0;
-        if (padY > TOP_SCREEN_HEIGHT) padY = TOP_SCREEN_HEIGHT;
-        
-        if (keys & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
-            pointCollection.mousePos.set(padX, padY);
-        }
-        
-        // Exit on start button
-        if (keys & KEY_START) {
-            running = false;
-        }
-    }
-    
-    void update() {
-        pointCollection.update();
-    }
-    
-    void render() {
-        // Update sprite positions
-        pointCollection.updateSprites();
-        
-        // Critical: Update OAM to apply changes
-        oamUpdate(&oamMain);
-        
-        // Update bottom screen text
-        consoleClear();
-        printf("Google Balls - Nintendo DS\n");
-        printf("========================\n\n");
-        printf("Touch screen or use D-pad\n");
-        printf("to interact with the dots!\n\n");
-        printf("Controls:\n");
-        printf("Touch: Interactive cursor\n");
-        printf("D-pad: Move cursor\n");
-        printf("START: Exit\n\n");
-        
-        if (touching) {
-            printf("Status: TOUCHING!\n");
-        } else {
-            printf("Status: Idle\n");
-        }
-        
-        int cursorX = static_cast<int>(pointCollection.mousePos.x);
-        int cursorY = static_cast<int>(pointCollection.mousePos.y);
-        printf("\nCursor: (%d, %d)\n", cursorX, cursorY);
-        printf("Points: %zu\n", pointCollection.points.size());
-        printf("Sprites allocated\n");
-    }
-    
-    void run() {
-        while (running) {
-            handleInput();
-            update();
-            render();
-            swiWaitForVBlank(); // Wait for vertical blank (60 FPS)
-        }
-    }
-    
-    void cleanup() {
-        // Nothing special needed for cleanup on NDS
-    }
+// Global variables
+PointCollection pointCollection;
+
+// Original point data (scaled down for DS resolution)
+static const PointData pointData[] = {
+    {101, 39, 4, "#ed9d33"}, {174, 41, 4, "#d44d61"}, {128, 34, 4, "#4f7af2"},
+    {107, 29, 4, "#ef9a1e"}, {132, 18, 4, "#4976f3"}, {150, 39, 4, "#269230"},
+    {147, 29, 4, "#1f9e2c"}, {22, 44, 4, "#1c48dd"}, {134, 26, 4, "#2a56ea"},
+    {36, 41, 4, "#3355d8"}, {147, 3, 4, "#36b641"}, {117, 31, 4, "#2e5def"},
+    {176, 21, 4, "#d53747"}, {168, 26, 4, "#eb676f"}, {104, 20, 4, "#f9b125"},
+    {160, 35, 4, "#de3646"}, {4, 30, 4, "#2a59f0"}, {90, 40, 4, "#eb9c31"},
+    {73, 32, 4, "#c41731"}, {72, 24, 4, "#d82038"}, {123, 17, 4, "#5f8af8"},
+    {84, 34, 4, "#efa11e"}, {136, 49, 4, "#2e55e2"}, {124, 60, 4, "#4167e4"},
+    {147, 20, 4, "#0b991a"}, {133, 57, 4, "#4869e3"}, {39, 33, 4, "#3059e3"},
+    {147, 11, 4, "#10a11d"}, {58, 41, 4, "#cf4055"}, {68, 40, 4, "#cd4359"},
+    {7, 35, 4, "#2855ea"}, {165, 40, 4, "#ca273c"}, {12, 41, 4, "#2650e1"},
+    {116, 23, 4, "#4a7bf9"}, {36, 6, 4, "#3d65e7"}, {163, 17, 3, "#f47875"},
+    {159, 23, 3, "#f36764"}, {128, 40, 3, "#1d4eeb"}, {122, 44, 3, "#698bf1"},
+    {97, 16, 3, "#fac652"}, {48, 28, 3, "#ee5257"}, {52, 37, 3, "#cf2a3f"},
+    {21, 2, 3, "#5681f5"}, {5, 13, 3, "#4577f6"}, {83, 27, 3, "#f7b326"},
+    {133, 44, 3, "#2b58e8"}, {89, 17, 3, "#facb5e"}, {50, 32, 3, "#e02e3d"},
+    {171, 16, 3, "#f16d6f"}, {29, 2, 3, "#507bf2"}, {13, 4, 3, "#5683f7"},
+    {116, 58, 3, "#3158e2"}, {61, 16, 3, "#f0696c"}, {3, 19, 3, "#3769f6"},
+    {31, 31, 3, "#6084ef"}, {3, 24, 3, "#2a5cf4"}, {54, 18, 3, "#f4716e"},
+    {84, 21, 3, "#f8c247"}, {68, 18, 3, "#e74653"}, {159, 29, 3, "#ec4147"},
+    {113, 50, 2, "#4876f1"}, {50, 23, 2, "#ef5c5c"}, {113, 54, 2, "#2552ea"},
+    {8, 8, 2, "#4779f7"}, {116, 46, 2, "#4b78f1"}
 };
+
+static const int NUM_POINTS = sizeof(pointData) / sizeof(pointData[0]);
+
+void initPoints() {
+    // Center the logo on the main screen (256x192)
+    const int screenWidth = 256;
+    const int screenHeight = 192;
+    
+    // Find bounds of original data
+    int minX = 999, maxX = -999, minY = 999, maxY = -999;
+    for (int i = 0; i < NUM_POINTS; i++) {
+        if (pointData[i].x < minX) minX = pointData[i].x;
+        if (pointData[i].x > maxX) maxX = pointData[i].x;
+        if (pointData[i].y < minY) minY = pointData[i].y;
+        if (pointData[i].y > maxY) maxY = pointData[i].y;
+    }
+    
+    int logoW = maxX - minX;
+    int logoH = maxY - minY;
+    
+    int offsetX = (screenWidth / 2) - (logoW / 2) - minX;
+    int offsetY = (screenHeight / 2) - (logoH / 2) - minY;
+    
+    // Add points with centering offset
+    for (int i = 0; i < NUM_POINTS; i++) {
+        float x = offsetX + pointData[i].x;
+        float y = offsetY + pointData[i].y;
+        pointCollection.addPoint(x, y, 0.0f, (float)pointData[i].size, pointData[i].color);
+    }
+}
+
+void handleInput() {
+    scanKeys();
+    touchPosition touch;
+    
+    if (keysHeld() & KEY_TOUCH) {
+        touchRead(&touch);
+        pointCollection.touchPos.set((float)touch.px, (float)touch.py);
+    }
+    
+    // Handle D-pad for moving interaction point (for testing without stylus)
+    if (keysHeld() & KEY_LEFT) pointCollection.touchPos.x -= 2;
+    if (keysHeld() & KEY_RIGHT) pointCollection.touchPos.x += 2;
+    if (keysHeld() & KEY_UP) pointCollection.touchPos.y -= 2;
+    if (keysHeld() & KEY_DOWN) pointCollection.touchPos.y += 2;
+}
 
 int main() {
-    App app;
+    // Initialize DS systems
+    powerOn(POWER_ALL);
     
-    printf("Starting DS Google Balls...\n");
+    // Set up main screen for 16-bit bitmap mode
+    videoSetMode(MODE_5_2D);
+    videoSetModeSub(MODE_0_2D);
     
-    if (!app.init()) {
-        printf("Failed to initialize!\n");
-        while(1) swiWaitForVBlank();
-        return -1;
+    vramSetBankA(VRAM_A_MAIN_BG);
+    vramSetBankC(VRAM_C_SUB_BG);
+    
+    // Initialize main screen background
+    int bg = bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    
+    // Initialize sub screen for text
+    consoleInit(NULL, 1, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
+    
+    // Get framebuffer pointer
+    u16* framebuffer = bgGetGfxPtr(bg);
+    
+    // Initialize points
+    initPoints();
+    
+    // Print instructions on bottom screen
+    iprintf("\x1b[0;0HGoogle Balls DS\n");
+    iprintf("Touch screen to interact\n");
+    iprintf("Use D-pad to move cursor\n");
+    iprintf("Press START to exit\n");
+    
+    // Main game loop
+    while (1) {
+        // Handle input
+        handleInput();
+        
+        // Exit if START is pressed
+        if (keysDown() & KEY_START) break;
+        
+        // Clear framebuffer (white background)
+        for (int i = 0; i < 256 * 256; i++) {
+            framebuffer[i] = RGB15(31, 31, 31); // White
+        }
+        
+        // Update and draw points
+        pointCollection.update();
+        pointCollection.draw(framebuffer, 256, 192);
+        
+        // Wait for VBlank
+        swiWaitForVBlank();
     }
-    
-    app.run();
-    app.cleanup();
     
     return 0;
 }
