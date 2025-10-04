@@ -966,13 +966,14 @@ jobs:
     - name: Restore UWP dependencies
       run: nuget restore uwp/GoogleBallsUWP.sln
 
-    - name: Create self-signed certificate (no password) and export .cer
+    - name: Create self-signed certificate and export .cer and PFX
       shell: pwsh
       run: |
+        $certPassword = ConvertTo-SecureString "googleballs" -Force -AsPlainText
         $certPath = "$PWD/uwp/GoogleBalls_TempCert.pfx"
         $cerPath  = "$PWD/uwp/GoogleBalls_TempCert.cer"
 
-        # Create a self-signed certificate
+        # Create self-signed certificate
         $cert = New-SelfSignedCertificate -Type Custom `
                                           -Subject "CN=Google Balls TempCert" `
                                           -KeyExportPolicy Exportable `
@@ -980,14 +981,13 @@ jobs:
                                           -NotAfter (Get-Date).AddYears(5) `
                                           -CertStoreLocation "Cert:\CurrentUser\My"
 
-        # Export PFX without a password
-        Export-PfxCertificate -Cert $cert -FilePath $certPath
+        # Export PFX with password
+        Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $certPassword
 
-        # Export CER
+        # Export CER for installation
         Export-Certificate -Cert $cert -FilePath $cerPath
 
         Write-Host "Certificate created at $certPath and $cerPath"
-
 
     - name: Build x86
       shell: pwsh
@@ -997,7 +997,7 @@ jobs:
           /p:Platform=x86 `
           /p:AppxPackageSigningEnabled=true `
           /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
-          /p:PackageCertificatePassword="" `
+          /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
     - name: Build x64
@@ -1008,7 +1008,7 @@ jobs:
           /p:Platform=x64 `
           /p:AppxPackageSigningEnabled=true `
           /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
-          /p:PackageCertificatePassword="" `
+          /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
     - name: Build ARM
@@ -1019,7 +1019,7 @@ jobs:
           /p:Platform=ARM `
           /p:AppxPackageSigningEnabled=true `
           /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
-          /p:PackageCertificatePassword="" `
+          /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
     - name: Upload Appx and certificate artifacts
