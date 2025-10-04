@@ -1,0 +1,13 @@
+{
+  "id": "com.weenie.googleballs",
+  "version": "1.0.0",
+  "vendor": "WeenieMount",
+  "type": "web",
+  "main": "index.html",
+  "title": "Google Balls",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "splashBackground": "splashScreen.png",
+  "iconColor": "#ffffff",
+  "appDescription": "The Google Balls doodle now on webOS!"
+}

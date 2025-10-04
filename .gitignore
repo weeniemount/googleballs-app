@@ -30,6 +30,9 @@ tauri/*.local
 
 native/*.exe
 
+# IPK build
+*.ipk
+
 # Build artifacts (C/C/C++)
 *.obj
 *.a

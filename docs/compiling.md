@@ -68,3 +68,18 @@ your on your own gang
 
 # Tizen
 i have no clue
+
+# webOS
+ou need npm
+
+Install the ares cli with this comand:
+```bash
+$ npm install -g @webos-tools/cli
+```
+
+It is recommended you set up your TV if you want to run this, see installing.md
+
+Now just package the ipk:
+```bash
+$ ares-package .
+```
