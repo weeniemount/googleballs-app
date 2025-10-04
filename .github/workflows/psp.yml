@@ -13,7 +13,7 @@ jobs:
     container: pspdev/pspdev:latest
     defaults:
       run:
-        working-directory: ./psp  # do our stuff in the psp source directory
+        working-directory: ./psp
     
     steps:
     - name: Checkout repository
@@ -21,20 +21,20 @@ jobs:
       
     - name: Install additional dependencies
       run: |
-        # Install any additional packages needed (the container uses Alpine Linux)
-        apk add --no-cache bash make imagemagick
+        apk add --no-cache bash make
+        
+    - name: Verify toolchain and files
+      run: |
+        echo "PSPDEV is set to: $PSPDEV"
+        echo "PATH is: $PATH"
+        which psp-gcc
+        psp-gcc --version
+        echo ""
+        echo "=== Files in build directory ==="
+        ls -la
         
     - name: Build PSP application
       run: |
-        # The PSPDEV environment variable is already set in the container
-        echo "PSPDEV is set to: $PSPDEV"
-        echo "PATH is: $PATH"
-        
-        # Verify toolchain is available
-        which psp-gcc
-        psp-gcc --version
-        
-        # Build the application
         make
         
         # Verify the build was successful
@@ -43,23 +43,21 @@ jobs:
           exit 1
         fi
         
-        # Show build info
+        echo ""
+        echo "=== Build successful! ==="
         ls -lah EBOOT.PBP
         
     - name: Upload PSP EBOOT
       uses: actions/upload-artifact@v4
       with:
         name: googleballs-psp-${{ github.sha }}
-        path: |
-          EBOOT.PBP
-          *.PBP
+        path: psp/EBOOT.PBP
           
     - name: Create Release (on tag)
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          EBOOT.PBP
+        files: psp/EBOOT.PBP
         draft: false
         prerelease: false
       env:
