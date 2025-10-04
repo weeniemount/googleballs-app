@@ -11,6 +11,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef struct {
     float x, y, z;
@@ -78,7 +79,6 @@ void Point_init(Point* p, float x, float y, float z, float size, u32 colorHex) {
 }
 
 void Point_update(Point* p) {
-    // X axis
     float dx = p->targetPos.x - p->curPos.x;
     float ax = dx * p->springStrength;
     p->velocity.x += ax;
@@ -89,7 +89,7 @@ void Point_update(Point* p) {
     } else {
         p->curPos.x += p->velocity.x;
     }
-    // Y axis
+    
     float dy = p->targetPos.y - p->curPos.y;
     float ay = dy * p->springStrength;
     p->velocity.y += ay;
@@ -100,7 +100,7 @@ void Point_update(Point* p) {
     } else {
         p->curPos.y += p->velocity.y;
     }
-    // Z axis (depth)
+    
     float dox = p->originalPos.x - p->curPos.x;
     float doy = p->originalPos.y - p->curPos.y;
     float dd = (dox * dox) + (doy * doy);
@@ -116,7 +116,7 @@ void Point_update(Point* p) {
     } else {
         p->curPos.z += p->velocity.z;
     }
-    // Update radius
+    
     p->radius = p->size * p->curPos.z;
     if (p->radius < 1.0f) p->radius = 1.0f;
 }
@@ -171,17 +171,16 @@ void PointCollection_cleanup(PointCollection* pc) {
     free(pc->points);
 }
 
-// Draw cursor
 void drawCursor(GSGLOBAL* gsGlobal, float x, float y) {
     u64 cursorColor = GS_SETREG_RGBAQ(0xFF, 0x00, 0x00, 0x80, 0x00);
     gsKit_prim_sprite(gsGlobal, x - 5.0f, y - 5.0f, x + 5.0f, y + 5.0f, 0, cursorColor);
 }
 
-// ——— pad / IOP setup ———
 #define PAD_PORT 0
 #define PAD_SLOT 0
 #define PAD_BUF_SIZE 256
 static char padBuf[PAD_BUF_SIZE] __attribute__((aligned(64)));
+static int padInitialized = 0;
 
 void init_iop_modules() {
     SifInitRpc(0);
@@ -210,20 +209,25 @@ int pad_init_all() {
         return -2;
     }
     
-    // CRITICAL: Wait for pad to be ready
+    // Wait up to 1 second for pad
     int state;
     int waitTime = 0;
     do {
         state = padGetState(PAD_PORT, PAD_SLOT);
-        if (waitTime++ > 2000) {
-            return -3; // Timeout
+        if (waitTime++ > 100) {
+            // Timeout - no controller, but continue anyway
+            return -3;
         }
+        // Small delay
+        for (volatile int i = 0; i < 100000; i++);
     } while ((state != PAD_STATE_STABLE) && (state != PAD_STATE_FINDCTP1));
     
     return 0;
 }
 
 void pad_update(PointCollection* pc, int screenW, int screenH) {
+    if (!padInitialized) return;
+    
     int state = padGetState(PAD_PORT, PAD_SLOT);
     if (state != PAD_STATE_STABLE && state != PAD_STATE_FINDCTP1) {
         return;
@@ -233,19 +237,16 @@ void pad_update(PointCollection* pc, int screenW, int screenH) {
     int ret = padRead(PAD_PORT, PAD_SLOT, &buttons);
     if (ret != 0) return;
     
-    // D-pad movement (faster)
     if (!(buttons.btns & PAD_UP))    pc->mousePos.y -= 5.0f;
     if (!(buttons.btns & PAD_DOWN))  pc->mousePos.y += 5.0f;
     if (!(buttons.btns & PAD_LEFT))  pc->mousePos.x -= 5.0f;
     if (!(buttons.btns & PAD_RIGHT)) pc->mousePos.x += 5.0f;
     
-    // Analog stick (left stick) - more sensitive
     int lx = buttons.ljoy_h - 128;
     int ly = buttons.ljoy_v - 128;
     if (abs(lx) > 20) pc->mousePos.x += lx / 10.0f;
     if (abs(ly) > 20) pc->mousePos.y += ly / 10.0f;
     
-    // Clamp inside screen
     if (pc->mousePos.x < 0.0f) pc->mousePos.x = 0.0f;
     if (pc->mousePos.y < 0.0f) pc->mousePos.y = 0.0f;
     if (pc->mousePos.x > screenW)  pc->mousePos.x = screenW;
@@ -256,7 +257,7 @@ int main(int argc, char *argv[]) {
     GSGLOBAL *gsGlobal;
     PointCollection pointCollection;
     
-    // Init DMA / GSKit
+    // Init DMA / GSKit FIRST
     dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
                 D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
     dmaKit_chan_init(DMA_CHANNEL_GIF);
@@ -272,11 +273,11 @@ int main(int argc, char *argv[]) {
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0,1,0,1,0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
     
-    // Initialize pad (controller) - MOVED AFTER GSKIT INIT
+    // Try to init pad (non-blocking if it fails)
     int padResult = pad_init_all();
-    // Continue even if pad init fails (will just not have controller input)
+    padInitialized = (padResult == 0);
     
-    // Setup your point data
+    // Setup point data
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
         {214, 59, 9, 0xef9a1e}, {265, 36, 9, 0x4976f3}, {300, 78, 9, 0x269230},
@@ -305,7 +306,6 @@ int main(int argc, char *argv[]) {
     
     PointCollection_init(&pointCollection, pointCount);
     
-    // Compute bounds, center offset
     float logoW, logoH;
     computeBounds(pointData, pointCount, &logoW, &logoH);
     float offsetX = (gsGlobal->Width / 2.0f) - (logoW / 2.0f);
@@ -320,12 +320,17 @@ int main(int argc, char *argv[]) {
     
     int frameDelay = 2;
     int frameCount = 0;
+    float autoMoveAngle = 0.0f;
     
     while (1) {
         frameCount++;
         
-        // Update controller input only if pad initialized successfully
-        if (padResult == 0) {
+        // Auto-animate if no controller
+        if (!padInitialized) {
+            autoMoveAngle += 0.05f;
+            pointCollection.mousePos.x = (gsGlobal->Width / 2.0f) + cosf(autoMoveAngle) * 100.0f;
+            pointCollection.mousePos.y = (gsGlobal->Height / 2.0f) + sinf(autoMoveAngle) * 100.0f;
+        } else {
             pad_update(&pointCollection, gsGlobal->Width, gsGlobal->Height);
         }
         
@@ -335,8 +340,6 @@ int main(int argc, char *argv[]) {
         
         gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0xFF,0xFF,0xFF,0x80,0x00));
         PointCollection_draw(&pointCollection, gsGlobal);
-        
-        // Draw cursor so you can see where you are
         drawCursor(gsGlobal, pointCollection.mousePos.x, pointCollection.mousePos.y);
         
         gsKit_sync_flip(gsGlobal);
