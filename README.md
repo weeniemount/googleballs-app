@@ -26,6 +26,8 @@ We have:
 - Tizen (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
 - Gurted (google balls on gurted!) - Windows, Linux
 - Visual Studio Code (yes, its a visual studio code extension too) - VS Code
+- Universal Windows Platform (mainly for Windows Phone 10 but works on desktop too) - UWP
+- Windows Phone 8.1 (goog balls on wp8) - WP8
 - webOS (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
 
 # How 2 download:
