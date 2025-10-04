@@ -17,7 +17,7 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	google-balls-nds
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source .
 DATA		:=	data
 INCLUDES	:=	include
 
