@@ -1035,17 +1035,6 @@ jobs:
           /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
-    - name: Build ARM
-      shell: pwsh
-      run: |
-        & "MSBuild" "uwp/GoogleBallsUWP.sln" `
-          /p:Configuration=Release `
-          /p:Platform=ARM `
-          /p:AppxPackageSigningEnabled=true `
-          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
-          /p:PackageCertificatePassword="googleballs" `
-          /p:AppxBundle=Always
-
     - name: Upload Appx and certificate artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -1053,5 +1042,4 @@ jobs:
         path: |
           uwp/bin/x86/Release/Appx/
           uwp/bin/x64/Release/Appx/
-          uwp/bin/ARM/Release/Appx/
           uwp/GoogleBalls_TempCert.cer
