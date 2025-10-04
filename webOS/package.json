@@ -1,0 +1,14 @@
+{
+    "name": "googleballs-webos",
+    "version": "1.0.0",
+    "description": "Google Balls webOS real!!!!!",
+    "scripts": {
+        "build": "echo 'No build step defined'",
+        "package": "ares-package . -o ./webos"
+    },
+    "author": "weenie",
+    "license": "MIT",
+    "devDependencies": {
+        "@webosose/ares-cli": "^3.0.0"
+    }
+}
