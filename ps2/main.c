@@ -1,25 +1,13 @@
 #include <kernel.h>
-#include <sifrpc.h>
-#include <loadfile.h>
-#include <iopcontrol.h>
-#include <sbv_patches.h>
-#include <libpad.h>
 #include <malloc.h>
 #include <gsKit.h>
 #include <dmaKit.h>
-#include <gsToolkit.h>
 #include <math.h>
-#include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 typedef struct {
     float x, y, z;
 } Vector3;
-
-typedef struct {
-    u64 color;
-} Color;
 
 typedef struct {
     Vector3 curPos;
@@ -30,7 +18,7 @@ typedef struct {
     float size;
     float friction;
     float springStrength;
-    Color color;
+    u64 color;
 } Point;
 
 typedef struct {
@@ -75,7 +63,7 @@ void Point_init(Point* p, float x, float y, float z, float size, u32 colorHex) {
     p->radius = size;
     p->friction = 0.8f;
     p->springStrength = 0.1f;
-    p->color.color = hexToColor(colorHex);
+    p->color = hexToColor(colorHex);
 }
 
 void Point_update(Point* p) {
@@ -127,7 +115,7 @@ void Point_draw(Point* p, GSGLOBAL* gsGlobal) {
                       p->curPos.y - p->radius,
                       p->curPos.x + p->radius,
                       p->curPos.y + p->radius,
-                      0, p->color.color);
+                      0, p->color);
 }
 
 void PointCollection_init(PointCollection* pc, int maxPoints) {
@@ -167,97 +155,15 @@ void PointCollection_draw(PointCollection* pc, GSGLOBAL* gsGlobal) {
     }
 }
 
-void PointCollection_cleanup(PointCollection* pc) {
-    free(pc->points);
-}
-
 void drawCursor(GSGLOBAL* gsGlobal, float x, float y) {
     u64 cursorColor = GS_SETREG_RGBAQ(0xFF, 0x00, 0x00, 0x80, 0x00);
     gsKit_prim_sprite(gsGlobal, x - 5.0f, y - 5.0f, x + 5.0f, y + 5.0f, 0, cursorColor);
-}
-
-#define PAD_PORT 0
-#define PAD_SLOT 0
-#define PAD_BUF_SIZE 256
-static char padBuf[PAD_BUF_SIZE] __attribute__((aligned(64)));
-static int padInitialized = 0;
-
-void init_iop_modules() {
-    SifInitRpc(0);
-    SifLoadFileInit();
-    
-    SifIopReset(NULL, 0);
-    while (!SifIopSync()) {}
-    
-    SifInitRpc(0);
-    
-    sbv_patch_enable_lmb();
-    sbv_patch_disable_prefix_check();
-    
-    SifLoadModule("rom0:SIO2MAN", 0, NULL);
-    SifLoadModule("rom0:PADMAN", 0, NULL);
-}
-
-int pad_init_all() {
-    init_iop_modules();
-    
-    if (padInit(0) != 1) {
-        return -1;
-    }
-    
-    if (padPortOpen(PAD_PORT, PAD_SLOT, padBuf) == 0) {
-        return -2;
-    }
-    
-    // Wait up to 1 second for pad
-    int state;
-    int waitTime = 0;
-    do {
-        state = padGetState(PAD_PORT, PAD_SLOT);
-        if (waitTime++ > 100) {
-            // Timeout - no controller, but continue anyway
-            return -3;
-        }
-        // Small delay
-        for (volatile int i = 0; i < 100000; i++);
-    } while ((state != PAD_STATE_STABLE) && (state != PAD_STATE_FINDCTP1));
-    
-    return 0;
-}
-
-void pad_update(PointCollection* pc, int screenW, int screenH) {
-    if (!padInitialized) return;
-    
-    int state = padGetState(PAD_PORT, PAD_SLOT);
-    if (state != PAD_STATE_STABLE && state != PAD_STATE_FINDCTP1) {
-        return;
-    }
-    
-    struct padButtonStatus buttons;
-    int ret = padRead(PAD_PORT, PAD_SLOT, &buttons);
-    if (ret != 0) return;
-    
-    if (!(buttons.btns & PAD_UP))    pc->mousePos.y -= 5.0f;
-    if (!(buttons.btns & PAD_DOWN))  pc->mousePos.y += 5.0f;
-    if (!(buttons.btns & PAD_LEFT))  pc->mousePos.x -= 5.0f;
-    if (!(buttons.btns & PAD_RIGHT)) pc->mousePos.x += 5.0f;
-    
-    int lx = buttons.ljoy_h - 128;
-    int ly = buttons.ljoy_v - 128;
-    if (abs(lx) > 20) pc->mousePos.x += lx / 10.0f;
-    if (abs(ly) > 20) pc->mousePos.y += ly / 10.0f;
-    
-    if (pc->mousePos.x < 0.0f) pc->mousePos.x = 0.0f;
-    if (pc->mousePos.y < 0.0f) pc->mousePos.y = 0.0f;
-    if (pc->mousePos.x > screenW)  pc->mousePos.x = screenW;
-    if (pc->mousePos.y > screenH) pc->mousePos.y = screenH;
 }
 
 int main(int argc, char *argv[]) {
     GSGLOBAL *gsGlobal;
     PointCollection pointCollection;
     
-    // Init DMA / GSKit FIRST
     dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
                 D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
     dmaKit_chan_init(DMA_CHANNEL_GIF);
@@ -273,11 +179,6 @@ int main(int argc, char *argv[]) {
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0,1,0,1,0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
     
-    // Try to init pad (non-blocking if it fails)
-    int padResult = pad_init_all();
-    padInitialized = (padResult == 0);
-    
-    // Setup point data
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
         {214, 59, 9, 0xef9a1e}, {265, 36, 9, 0x4976f3}, {300, 78, 9, 0x269230},
@@ -318,25 +219,15 @@ int main(int argc, char *argv[]) {
                                  (float)pointData[i].size, pointData[i].colorHex);
     }
     
-    int frameDelay = 2;
-    int frameCount = 0;
-    float autoMoveAngle = 0.0f;
+    float angle = 0.0f;
     
     while (1) {
-        frameCount++;
+        // Auto-animate cursor in a circle
+        angle += 0.05f;
+        pointCollection.mousePos.x = (gsGlobal->Width / 2.0f) + cosf(angle) * 100.0f;
+        pointCollection.mousePos.y = (gsGlobal->Height / 2.0f) + sinf(angle) * 100.0f;
         
-        // Auto-animate if no controller
-        if (!padInitialized) {
-            autoMoveAngle += 0.05f;
-            pointCollection.mousePos.x = (gsGlobal->Width / 2.0f) + cosf(autoMoveAngle) * 100.0f;
-            pointCollection.mousePos.y = (gsGlobal->Height / 2.0f) + sinf(autoMoveAngle) * 100.0f;
-        } else {
-            pad_update(&pointCollection, gsGlobal->Width, gsGlobal->Height);
-        }
-        
-        if (frameCount % frameDelay == 0) {
-            PointCollection_update(&pointCollection);
-        }
+        PointCollection_update(&pointCollection);
         
         gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0xFF,0xFF,0xFF,0x80,0x00));
         PointCollection_draw(&pointCollection, gsGlobal);
@@ -346,6 +237,5 @@ int main(int argc, char *argv[]) {
         gsKit_queue_exec(gsGlobal);
     }
     
-    PointCollection_cleanup(&pointCollection);
     return 0;
 }
