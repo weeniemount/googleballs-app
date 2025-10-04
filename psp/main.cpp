@@ -146,24 +146,38 @@ public:
         int y0 = (int)(curPos.y);
         int r = (int)(radius);
         
+        // Skip if completely off screen
+        if (x0 + r < 0 || x0 - r >= surface->w || y0 + r < 0 || y0 - r >= surface->h) {
+            return;
+        }
+        
         // Lock surface once for entire circle
         if (SDL_MUSTLOCK(surface)) {
             if (SDL_LockSurface(surface) < 0) return;
         }
         
         Uint32* pixels = (Uint32*)surface->pixels;
-        int pitch = surface->pitch / 4; // pitch is in bytes, convert to pixels
+        int pitch = surface->pitch / 4;
         
-        // Filled circle
-        for (int x = -r; x <= r; x++) {
-            for (int y = -r; y <= r; y++) {
-                if (x * x + y * y <= r * r) {
-                    int px = x0 + x;
-                    int py = y0 + y;
-                    if (px >= 0 && px < surface->w && py >= 0 && py < surface->h) {
-                        pixels[py * pitch + px] = pixelColor;
-                    }
-                }
+        // More efficient filled circle - scan line approach
+        int r_squared = r * r;
+        for (int y = -r; y <= r; y++) {
+            int py = y0 + y;
+            if (py < 0 || py >= surface->h) continue;
+            
+            // Calculate x range for this scanline
+            int x_extent = (int)sqrt(r_squared - y * y);
+            int x_start = x0 - x_extent;
+            int x_end = x0 + x_extent;
+            
+            // Clamp to screen bounds
+            if (x_start < 0) x_start = 0;
+            if (x_end >= surface->w) x_end = surface->w - 1;
+            
+            // Draw horizontal line
+            Uint32* row = &pixels[py * pitch];
+            for (int px = x_start; px <= x_end; px++) {
+                row[px] = pixelColor;
             }
         }
         
