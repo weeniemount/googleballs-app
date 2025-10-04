@@ -955,8 +955,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Set up MSBuild
+      uses: microsoft/setup-msbuild@v1.0.0
 
     - name: Install NuGet
       uses: NuGet/setup-nuget@v1
@@ -971,7 +974,7 @@ jobs:
         $certPath = "$PWD/uwp/GoogleBalls_TempCert.pfx"
         $cerPath  = "$PWD/uwp/GoogleBalls_TempCert.cer"
 
-        # Create a self-signed certificate
+        # Create self-signed certificate
         $cert = New-SelfSignedCertificate -Type Custom `
                                           -Subject "CN=Google Balls TempCert" `
                                           -KeyExportPolicy Exportable `
@@ -982,26 +985,15 @@ jobs:
         # Export PFX with password
         Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $certPassword
 
-        # Export CER
+        # Export CER for installation
         Export-Certificate -Cert $cert -FilePath $cerPath
 
         Write-Host "Certificate created at $certPath and $cerPath"
 
-    - name: Set MSBuild path
-      shell: pwsh
-      run: |
-        $msbuildPath = "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
-        if (-Not (Test-Path $msbuildPath)) {
-            Write-Error "MSBuild.exe not found at $msbuildPath"
-            exit 1
-        }
-        $Env:MSBUILD_PATH = $msbuildPath
-        Write-Host "MSBuild path set to $Env:MSBUILD_PATH"
-
     - name: Build x86
       shell: pwsh
       run: |
-        & "$Env:MSBUILD_PATH" "uwp/GoogleBallsUWP.sln" `
+        & "MSBuild" "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=x86 `
           /p:AppxPackageSigningEnabled=true `
@@ -1012,7 +1004,7 @@ jobs:
     - name: Build x64
       shell: pwsh
       run: |
-        & "$Env:MSBUILD_PATH" "uwp/GoogleBallsUWP.sln" `
+        & "MSBuild" "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=x64 `
           /p:AppxPackageSigningEnabled=true `
@@ -1023,7 +1015,7 @@ jobs:
     - name: Build ARM
       shell: pwsh
       run: |
-        & "$Env:MSBUILD_PATH" "uwp/GoogleBallsUWP.sln" `
+        & "MSBuild" "uwp/GoogleBallsUWP.sln" `
           /p:Configuration=Release `
           /p:Platform=ARM `
           /p:AppxPackageSigningEnabled=true `
