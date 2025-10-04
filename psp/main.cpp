@@ -126,8 +126,17 @@ public:
     void drawPixel(SDL_Surface* surface, int x, int y, Uint32 color) {
         if (x < 0 || x >= surface->w || y < 0 || y >= surface->h) return;
         
+        // Lock surface if needed
+        if (SDL_MUSTLOCK(surface)) {
+            if (SDL_LockSurface(surface) < 0) return;
+        }
+        
         Uint32* pixels = (Uint32*)surface->pixels;
-        pixels[y * surface->w + x] = color;
+        pixels[y * (surface->pitch / 4) + x] = color;
+        
+        if (SDL_MUSTLOCK(surface)) {
+            SDL_UnlockSurface(surface);
+        }
     }
     
     void draw(SDL_Surface* surface) {
@@ -137,13 +146,29 @@ public:
         int y0 = (int)(curPos.y);
         int r = (int)(radius);
         
+        // Lock surface once for entire circle
+        if (SDL_MUSTLOCK(surface)) {
+            if (SDL_LockSurface(surface) < 0) return;
+        }
+        
+        Uint32* pixels = (Uint32*)surface->pixels;
+        int pitch = surface->pitch / 4; // pitch is in bytes, convert to pixels
+        
         // Filled circle
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 if (x * x + y * y <= r * r) {
-                    drawPixel(surface, x0 + x, y0 + y, pixelColor);
+                    int px = x0 + x;
+                    int py = y0 + y;
+                    if (px >= 0 && px < surface->w && py >= 0 && py < surface->h) {
+                        pixels[py * pitch + px] = pixelColor;
+                    }
                 }
             }
+        }
+        
+        if (SDL_MUSTLOCK(surface)) {
+            SDL_UnlockSurface(surface);
         }
     }
 };
@@ -243,7 +268,8 @@ public:
             return false;
         }
         
-        screen = SDL_SetVideoMode(480, 272, 32, SDL_SWSURFACE);
+        // Use hardware surface with double buffering for PSP
+        screen = SDL_SetVideoMode(480, 272, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
         if (!screen) {
             return false;
         }
@@ -342,22 +368,29 @@ public:
         int x = (int)(cursorPos.x);
         int y = (int)(cursorPos.y);
         
+        if (SDL_MUSTLOCK(surface)) {
+            if (SDL_LockSurface(surface) < 0) return;
+        }
+        
+        Uint32* pixels = (Uint32*)surface->pixels;
+        int pitch = surface->pitch / 4;
+        
+        // Horizontal line
         for (int i = -8; i <= 8; i++) {
-            if (x + i >= 0 && x + i < 480) {
-                if (y >= 0 && y < 272) {
-                    Uint32* pixels = (Uint32*)surface->pixels;
-                    pixels[y * surface->w + (x + i)] = cursorColor;
-                }
+            if (x + i >= 0 && x + i < 480 && y >= 0 && y < 272) {
+                pixels[y * pitch + (x + i)] = cursorColor;
             }
         }
         
+        // Vertical line
         for (int i = -8; i <= 8; i++) {
-            if (y + i >= 0 && y + i < 272) {
-                if (x >= 0 && x < 480) {
-                    Uint32* pixels = (Uint32*)surface->pixels;
-                    pixels[(y + i) * surface->w + x] = cursorColor;
-                }
+            if (y + i >= 0 && y + i < 272 && x >= 0 && x < 480) {
+                pixels[(y + i) * pitch + x] = cursorColor;
             }
+        }
+        
+        if (SDL_MUSTLOCK(surface)) {
+            SDL_UnlockSurface(surface);
         }
     }
     
