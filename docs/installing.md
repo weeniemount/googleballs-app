@@ -81,7 +81,7 @@ Back on your PC:
 Now in that command line, enter either ./sdb connect (ip) or just sdb connect (ip)
 After this, you will see the device appear on your emulators dropdown.
 
-<img width="307" height="102" alt="Screenshot 2025-09-06 at 9 09 06 PM" src="https://github.com/user-attachments/assets/4520b86f-b230-4bf6-9158-2281462065cc" />
+<img width="307" height="102" alt="Screenshot 2025-09-06 at 9 09 06 PM" src="./486450008-4520b86f-b230-4bf6-9158-2281462065cc.png" />
 
 
 Select the TV with the IP you entered in to connect.
@@ -101,6 +101,10 @@ you need to install the certificate to trusted root certification publishers (or
 [Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
 
 you need to have a jailbroken windows phone for this and know how to flash xaps
+
+## PSP
+[Download EBOOT](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+you on your own gang
 
 ## webOS TV:
 You need npm

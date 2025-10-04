@@ -1,5 +1,5 @@
 # google balls app!!!
-[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![webOS](images/badges/webos.svg)
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![PSP](images/badges/psp.svg) ![webOS](images/badges/webos.svg)
 
 <img src="images/balls.png" alt="google balls" width="200"/>
 
@@ -28,6 +28,7 @@ We have:
 - Visual Studio Code (yes, its a visual studio code extension too) - VS Code
 - Universal Windows Platform (mainly for Windows Phone 10 but works on desktop too) - UWP
 - Windows Phone 8.1 (goog balls on wp8) - WP8
+- PSP (ps vita and psp got google balls now) - PSP
 - webOS (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
 
 # How 2 download:

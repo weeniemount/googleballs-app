@@ -82,6 +82,9 @@ open it in visual studio 2017 and just run it
 # Windows Phone 8.1
 open it in visual studio 2015 and just run it
 
+# PSP
+i have no clue
+
 # webOS
 You need to download and install npm
 
