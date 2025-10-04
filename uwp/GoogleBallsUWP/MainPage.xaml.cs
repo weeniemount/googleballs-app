@@ -14,7 +14,6 @@ namespace GoogleBallsUWP
     public sealed partial class MainPage : Page
     {
         private PointCollection pointCollection;
-        private DispatcherTimer animationTimer;
         private const double DT = 0.1;
         private bool isAnimating = false;
         private int frameCounter = 0;

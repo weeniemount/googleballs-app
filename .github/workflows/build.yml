@@ -784,17 +784,6 @@ jobs:
         path: |
           ./3ds/*.3dsx
           ./3ds/*.smdh
-
-    - name: Upload to release (if release)
-      if: github.event_name == 'release'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: '**.3dsx'
-        asset_name: google-balls-3ds
-        asset_content_type: application/octet-stream
   build-tizen:
     runs-on: ubuntu-latest
 
@@ -930,3 +919,114 @@ jobs:
       with:
         name: googleballs-psp
         path: psp/EBOOT.PBP
+  build-webos:
+    runs-on: ubuntu-latest
+
+    steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with:
+              node-version: '20'
+
+        - name: Install dependencies
+          run: |
+              npm install -g @webosose/ares-cli
+              npm install
+
+        - name: Build project
+          run: |
+              npm run build || echo "No build script found, skipping"
+
+        - name: Package webOS app
+          run: |
+              mkdir -p webos
+              ares-package . -o ./webos
+
+        - name: List output
+          run: ls -R webos
+
+        - name: Upload IPK artifact
+          uses: actions/upload-artifact@v4
+          with:
+              name: webos-ipk
+              path: webos/*.ipk
+  build-uwp:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Install NuGet
+      uses: NuGet/setup-nuget@v1
+
+    - name: Restore UWP dependencies
+      run: nuget restore uwp/GoogleBallsUWP.sln
+
+    - name: Create self-signed certificate (no password) and export .cer
+      shell: pwsh
+      run: |
+        $certPath = "$PWD/uwp/GoogleBalls_TempCert.pfx"
+        $cerPath  = "$PWD/uwp/GoogleBalls_TempCert.cer"
+        
+        # Create self-signed certificate
+        $cert = New-SelfSignedCertificate -Type Custom `
+                                          -Subject "CN=Google Balls TempCert" `
+                                          -KeyExportPolicy Exportable `
+                                          -KeySpec Signature `
+                                          -NotAfter (Get-Date).AddYears(5) `
+                                          -CertStoreLocation "Cert:\CurrentUser\My"
+                                          
+        # Export PFX (no password)
+        Export-PfxCertificate -Cert $cert -FilePath $certPath -Password (ConvertTo-SecureString -String "" -Force -AsPlainText)
+        
+        # Export CER (for installation)
+        Export-Certificate -Cert $cert -FilePath $cerPath
+        
+        echo "Certificate created at $certPath and $cerPath"
+
+    - name: Build x86
+      shell: pwsh
+      run: |
+        msbuild uwp/GoogleBallsUWP.sln `
+          /p:Configuration=Release `
+          /p:Platform=x86 `
+          /p:AppxPackageSigningEnabled=true `
+          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
+          /p:PackageCertificatePassword="" `
+          /p:AppxBundle=Always
+
+    - name: Build x64
+      shell: pwsh
+      run: |
+        msbuild uwp/GoogleBallsUWP.sln `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:AppxPackageSigningEnabled=true `
+          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
+          /p:PackageCertificatePassword="" `
+          /p:AppxBundle=Always
+
+    - name: Build ARM
+      shell: pwsh
+      run: |
+        msbuild uwp/GoogleBallsUWP.sln `
+          /p:Configuration=Release `
+          /p:Platform=ARM `
+          /p:AppxPackageSigningEnabled=true `
+          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
+          /p:PackageCertificatePassword="" `
+          /p:AppxBundle=Always
+
+    - name: Upload Appx and certificate artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: GoogleBalls-Appx-and-Cert
+        path: |
+          uwp/bin/x86/Release/Appx/
+          uwp/bin/x64/Release/Appx/
+          uwp/bin/ARM/Release/Appx/
+          uwp/GoogleBalls_TempCert.cer
