@@ -18,17 +18,20 @@ jobs:
     
     - name: Install build dependencies
       run: |
-        apk add --no-cache make git cdrkit cmake gmp mpfr mpc1
+        apk add --no-cache make git cdrkit cmake
     
     - name: Build and install gsKit
       run: |
         git clone https://github.com/ps2dev/gsKit.git /tmp/gsKit
         cd /tmp/gsKit
-        make -j$(nproc) install
-        # Create symlinks so linker can find the libraries
-        ln -sf /usr/local/ps2dev/gsKit/lib/libgskit.a /usr/local/ps2dev/ps2sdk/ee/lib/
-        ln -sf /usr/local/ps2dev/gsKit/lib/libdmakit.a /usr/local/ps2dev/ps2sdk/ee/lib/
-        ln -sf /usr/local/ps2dev/gsKit/lib/libsbv.a /usr/local/ps2dev/ps2sdk/ee/lib/
+        cmake -S . -B build -Wno-dev \
+          "-DCMAKE_TOOLCHAIN_FILE=/usr/local/ps2dev/ps2sdk/ps2dev.cmake" \
+          "-DCMAKE_INSTALL_PREFIX=/usr/local/ps2dev/ps2sdk/ports" \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          "-DCMAKE_PREFIX_PATH=/usr/local/ps2dev/ps2sdk/ports"
+        cmake --build build
+        cmake --build build --target install
     
     - name: Build ELF
       working-directory: ./ps2
@@ -42,7 +45,6 @@ jobs:
         mkdir -p iso
         cp googleballs.elf iso/
         
-        # Create SYSTEM.CNF for PS2
         cat > iso/SYSTEM.CNF << 'EOF'
         BOOT2 = cdrom0:\googleballs.elf;1
         VER = 1.00

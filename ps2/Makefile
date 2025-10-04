@@ -1,8 +1,9 @@
 EE_BIN = googleballs.elf
 EE_OBJS = main.o
 
-EE_LIBS = -lgskit -ldmakit -lpadx -lsbv -lm
-EE_INCS += -I$(GSKIT)/include
+# Fixed library order and includes
+EE_LIBS = -lgskit -ldmakit -lpadx -lm
+EE_INCS += -I$(PS2SDK)/ports/include
 
 all: $(EE_BIN)
 	$(EE_STRIP) --strip-all $(EE_BIN)
