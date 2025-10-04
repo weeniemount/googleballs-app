@@ -921,6 +921,9 @@ jobs:
         path: psp/EBOOT.PBP
   build-webos:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: './webOS'
 
     steps:
         - name: Checkout repository
@@ -934,16 +937,11 @@ jobs:
         - name: Install dependencies
           run: |
               npm install -g @webosose/ares-cli
-              npm install
-
-        - name: Build project
-          run: |
-              npm run build || echo "No build script found, skipping"
 
         - name: Package webOS app
           run: |
               mkdir -p webos
-              ares-package . -o ./webos
+              ares-package . -o ./build
 
         - name: List output
           run: ls -R webos
@@ -951,8 +949,8 @@ jobs:
         - name: Upload IPK artifact
           uses: actions/upload-artifact@v4
           with:
-              name: webos-ipk
-              path: webos/*.ipk
+              name: googleballs-webos-ipk
+              path: build/*.ipk
   build-uwp:
     runs-on: windows-latest
 
