@@ -17,8 +17,8 @@ LIBS = -lSDL_image -lSDL -lpspirkeyb -ljpeg -lpng -lz \
 
 EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = Google Balls PSP
-PSP_EBOOT_ICON = ICON0.PNG
-PSP_EBOOT_PIC1 = PIC1.PNG
+PSP_EBOOT_ICON = ICON0.png
+PSP_EBOOT_PIC1 = PIC1.png
 
 PSPSDK=$(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
