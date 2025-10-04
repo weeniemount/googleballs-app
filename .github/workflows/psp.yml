@@ -11,6 +11,9 @@ jobs:
   build-psp:
     runs-on: ubuntu-latest
     container: pspdev/pspdev:latest
+    defaults:
+      run:
+        working-directory: ./psp  # do our stuff in the psp source directory
     
     steps:
     - name: Checkout repository
