@@ -10,7 +10,7 @@
 #include <gsToolkit.h>
 #include <math.h>
 #include <string.h>
-#include <stdlib.h>   // for abs()
+#include <stdlib.h>
 
 typedef struct {
     float x, y, z;
@@ -48,7 +48,7 @@ u64 hexToColor(u32 hex) {
     u8 r = (hex >> 16) & 0xFF;
     u8 g = (hex >> 8) & 0xFF;
     u8 b = hex & 0xFF;
-    u8 a = 0x80;  // semi-transparent
+    u8 a = 0x80;
     return GS_SETREG_RGBAQ(r, g, b, a, 0x00);
 }
 
@@ -122,7 +122,6 @@ void Point_update(Point* p) {
 }
 
 void Point_draw(Point* p, GSGLOBAL* gsGlobal) {
-    // Draw a filled circle (via sprite hack)
     gsKit_prim_sprite(gsGlobal,
                       p->curPos.x - p->radius,
                       p->curPos.y - p->radius,
@@ -172,6 +171,12 @@ void PointCollection_cleanup(PointCollection* pc) {
     free(pc->points);
 }
 
+// Draw cursor
+void drawCursor(GSGLOBAL* gsGlobal, float x, float y) {
+    u64 cursorColor = GS_SETREG_RGBAQ(0xFF, 0x00, 0x00, 0x80, 0x00);
+    gsKit_prim_sprite(gsGlobal, x - 5.0f, y - 5.0f, x + 5.0f, y + 5.0f, 0, cursorColor);
+}
+
 // ——— pad / IOP setup ———
 #define PAD_PORT 0
 #define PAD_SLOT 0
@@ -181,24 +186,41 @@ static char padBuf[PAD_BUF_SIZE] __attribute__((aligned(64)));
 void init_iop_modules() {
     SifInitRpc(0);
     SifLoadFileInit();
-
-    // Reset IOP so modules reload fresh
+    
     SifIopReset(NULL, 0);
     while (!SifIopSync()) {}
-
-    // Enable SBV patches so we can load from ROM, etc.
+    
+    SifInitRpc(0);
+    
     sbv_patch_enable_lmb();
     sbv_patch_disable_prefix_check();
-
-    // Load pad / SIO2 modules
+    
     SifLoadModule("rom0:SIO2MAN", 0, NULL);
     SifLoadModule("rom0:PADMAN", 0, NULL);
 }
 
-void pad_init_all() {
+int pad_init_all() {
     init_iop_modules();
-    padInit(0);
-    padPortOpen(PAD_PORT, PAD_SLOT, padBuf);
+    
+    if (padInit(0) != 1) {
+        return -1;
+    }
+    
+    if (padPortOpen(PAD_PORT, PAD_SLOT, padBuf) == 0) {
+        return -2;
+    }
+    
+    // CRITICAL: Wait for pad to be ready
+    int state;
+    int waitTime = 0;
+    do {
+        state = padGetState(PAD_PORT, PAD_SLOT);
+        if (waitTime++ > 2000) {
+            return -3; // Timeout
+        }
+    } while ((state != PAD_STATE_STABLE) && (state != PAD_STATE_FINDCTP1));
+    
+    return 0;
 }
 
 void pad_update(PointCollection* pc, int screenW, int screenH) {
@@ -206,22 +228,23 @@ void pad_update(PointCollection* pc, int screenW, int screenH) {
     if (state != PAD_STATE_STABLE && state != PAD_STATE_FINDCTP1) {
         return;
     }
+    
     struct padButtonStatus buttons;
     int ret = padRead(PAD_PORT, PAD_SLOT, &buttons);
     if (ret != 0) return;
-
-    // D-pad
-    if (!(buttons.btns & PAD_UP))    pc->mousePos.y -= 3.0f;
-    if (!(buttons.btns & PAD_DOWN))  pc->mousePos.y += 3.0f;
-    if (!(buttons.btns & PAD_LEFT))  pc->mousePos.x -= 3.0f;
-    if (!(buttons.btns & PAD_RIGHT)) pc->mousePos.x += 3.0f;
-
-    // Analog stick (left stick)
+    
+    // D-pad movement (faster)
+    if (!(buttons.btns & PAD_UP))    pc->mousePos.y -= 5.0f;
+    if (!(buttons.btns & PAD_DOWN))  pc->mousePos.y += 5.0f;
+    if (!(buttons.btns & PAD_LEFT))  pc->mousePos.x -= 5.0f;
+    if (!(buttons.btns & PAD_RIGHT)) pc->mousePos.x += 5.0f;
+    
+    // Analog stick (left stick) - more sensitive
     int lx = buttons.ljoy_h - 128;
     int ly = buttons.ljoy_v - 128;
-    if (abs(lx) > 20) pc->mousePos.x += lx / 20.0f;
-    if (abs(ly) > 20) pc->mousePos.y += ly / 20.0f;
-
+    if (abs(lx) > 20) pc->mousePos.x += lx / 10.0f;
+    if (abs(ly) > 20) pc->mousePos.y += ly / 10.0f;
+    
     // Clamp inside screen
     if (pc->mousePos.x < 0.0f) pc->mousePos.x = 0.0f;
     if (pc->mousePos.y < 0.0f) pc->mousePos.y = 0.0f;
@@ -232,26 +255,27 @@ void pad_update(PointCollection* pc, int screenW, int screenH) {
 int main(int argc, char *argv[]) {
     GSGLOBAL *gsGlobal;
     PointCollection pointCollection;
-
+    
     // Init DMA / GSKit
     dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
                 D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
     dmaKit_chan_init(DMA_CHANNEL_GIF);
-
+    
     gsGlobal = gsKit_init_global();
     gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
     gsGlobal->PSM = GS_PSM_CT32;
     gsGlobal->PSMZ = GS_PSMZ_16S;
     gsGlobal->ZBuffering = GS_SETTING_OFF;
-
+    
     gsKit_init_screen(gsGlobal);
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
     gsKit_set_primalpha(gsGlobal, GS_SETREG_ALPHA(0,1,0,1,0), 0);
     gsKit_set_test(gsGlobal, GS_ATEST_OFF);
-
-    // Initialize pad (controller)
-    pad_init_all();
-
+    
+    // Initialize pad (controller) - MOVED AFTER GSKIT INIT
+    int padResult = pad_init_all();
+    // Continue even if pad init fails (will just not have controller input)
+    
     // Setup your point data
     PointData pointData[] = {
         {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
@@ -278,42 +302,47 @@ int main(int argc, char *argv[]) {
         {17, 17, 5, 0x4779f7}, {232, 93, 5, 0x4b78f1}
     };
     int pointCount = sizeof(pointData) / sizeof(PointData);
-
+    
     PointCollection_init(&pointCollection, pointCount);
-
+    
     // Compute bounds, center offset
     float logoW, logoH;
     computeBounds(pointData, pointCount, &logoW, &logoH);
     float offsetX = (gsGlobal->Width / 2.0f) - (logoW / 2.0f);
     float offsetY = (gsGlobal->Height / 2.0f) - (logoH / 2.0f);
-
+    
     for (int i = 0; i < pointCount; i++) {
         float x = offsetX + (float)pointData[i].x;
         float y = offsetY + (float)pointData[i].y;
         PointCollection_addPoint(&pointCollection, x, y, 0.0f,
                                  (float)pointData[i].size, pointData[i].colorHex);
     }
-
+    
     int frameDelay = 2;
     int frameCount = 0;
-
+    
     while (1) {
         frameCount++;
-
-        // Update controller input
-        pad_update(&pointCollection, gsGlobal->Width, gsGlobal->Height);
-
+        
+        // Update controller input only if pad initialized successfully
+        if (padResult == 0) {
+            pad_update(&pointCollection, gsGlobal->Width, gsGlobal->Height);
+        }
+        
         if (frameCount % frameDelay == 0) {
             PointCollection_update(&pointCollection);
         }
-
+        
         gsKit_clear(gsGlobal, GS_SETREG_RGBAQ(0xFF,0xFF,0xFF,0x80,0x00));
         PointCollection_draw(&pointCollection, gsGlobal);
-
+        
+        // Draw cursor so you can see where you are
+        drawCursor(gsGlobal, pointCollection.mousePos.x, pointCollection.mousePos.y);
+        
         gsKit_sync_flip(gsGlobal);
         gsKit_queue_exec(gsGlobal);
     }
-
+    
     PointCollection_cleanup(&pointCollection);
     return 0;
 }
