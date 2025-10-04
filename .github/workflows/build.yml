@@ -971,22 +971,22 @@ jobs:
       run: |
         $certPath = "$PWD/uwp/GoogleBalls_TempCert.pfx"
         $cerPath  = "$PWD/uwp/GoogleBalls_TempCert.cer"
-        
-        # Create self-signed certificate
+
+        # Create a self-signed certificate
         $cert = New-SelfSignedCertificate -Type Custom `
                                           -Subject "CN=Google Balls TempCert" `
                                           -KeyExportPolicy Exportable `
                                           -KeySpec Signature `
                                           -NotAfter (Get-Date).AddYears(5) `
                                           -CertStoreLocation "Cert:\CurrentUser\My"
-                                          
-        # Export PFX with NO password
-        Export-PfxCertificate -Cert $cert -FilePath $certPath -NoPassword
-        
-        # Export CER (for installation)
+
+        # Export PFX without a password
+        Export-PfxCertificate -Cert $cert -FilePath $certPath
+
+        # Export CER
         Export-Certificate -Cert $cert -FilePath $cerPath
-        
-        echo "Certificate created at $certPath and $cerPath"
+
+        Write-Host "Certificate created at $certPath and $cerPath"
 
 
     - name: Build x86
