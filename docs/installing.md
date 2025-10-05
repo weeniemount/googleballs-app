@@ -96,7 +96,7 @@ Otherwise, you're good to go.
 ## UWP
 [Download .appxbundle](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download .cer](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
 
-you need to install the certificate to trusted root certification publishers (or whatever its called) and then install the appxbundle
+you need to install the certificate to trusted root certification authorities/publishers (or whatever its called) and then install the dependencies inside of Dependencies/(your cpu architecture). then you can go back and install the appxbundle
 
 ## Windows Phone 8.1
 [Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
