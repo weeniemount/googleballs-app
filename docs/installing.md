@@ -101,7 +101,7 @@ you need to install the certificate to trusted root certification authorities/pu
 ## Windows Phone 8.1
 [Download .appx](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls_1.0.0.0_AnyCPU_wp8.appx)
 
-you need to have a jailbroken windows phone for this and know how to flash xaps
+you need to have a jailbroken windows phone for this and know how to flash appxs
 
 ## PSP
 [Download EBOOT.PBP](https://github.com/weeniemount/googleballs-app/releases/latest/download/EBOOT.PBP)
