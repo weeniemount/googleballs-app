@@ -1038,7 +1038,7 @@ jobs:
     - name: Upload Appx and certificate artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: GoogleBalls-Appx-and-Cert
+        name: googleballs-uwp-windows
         path: |
           uwp/**/AppPackages/GoogleBallsUWP*.appxbundle
           uwp/**/AppPackages/GoogleBallsUWP*.appx
