@@ -4,7 +4,7 @@
   <mp:PhoneIdentity PhoneProductId="ef8ac1ea-2797-4c2a-9f5b-4789525342ed" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Google Balls</DisplayName>
-    <PublisherDisplayName>Bonki</PublisherDisplayName>
+    <PublisherDisplayName>weenie</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Prerequisites>
