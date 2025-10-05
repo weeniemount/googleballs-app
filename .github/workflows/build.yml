@@ -1040,6 +1040,7 @@ jobs:
       with:
         name: GoogleBalls-Appx-and-Cert
         path: |
-          uwp/bin/x86/Release/Appx/
-          uwp/bin/x64/Release/Appx/
+          uwp/**/*.appxbundle
+          uwp/**/*.appx
+
           uwp/GoogleBalls_TempCert.cer
