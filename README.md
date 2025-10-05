@@ -9,6 +9,8 @@ google balls!! that one doodle from 2010! yeah its an app now
 
 
 https://github.com/user-attachments/assets/59469b97-d8c2-4446-8d83-b97b5a44e904
+<!-- i tried to embed the video in images/yji9l9.mp4 but it didnt work but the video is still there -->
+presntation made by @GattoDev-debug
 
 # Credits!
 Google for making the original doodle back in 2010!
