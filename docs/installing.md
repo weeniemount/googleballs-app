@@ -99,7 +99,7 @@ Otherwise, you're good to go.
 you need to install the certificate to trusted root certification authorities/publishers (or whatever its called) on local machine and then install the dependencies inside of Dependencies/(your cpu architecture). then you can go back and install the appxbundle
 
 ## Windows Phone 8.1
-[Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls_1.0.0.0_AnyCPU_wp8.appx)
+[Download .appx](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls_1.0.0.0_AnyCPU_wp8.appx)
 
 you need to have a jailbroken windows phone for this and know how to flash xaps
 
