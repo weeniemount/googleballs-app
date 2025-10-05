@@ -1081,7 +1081,7 @@ jobs:
       - name: Build Terminal App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          cd terminal
+          cd native-terminal
           g++ -std=c++11 -O3 -o googleballs-terminal balls.cpp
           strip googleballs-terminal
 
@@ -1111,7 +1111,7 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
-          cd terminal
+          cd native-terminal
           file googleballs-terminal.exe
           ls -lh googleballs-terminal.exe
 
@@ -1120,7 +1120,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-terminal-linux
-          path: terminal/googleballs-terminal
+          path: native-terminal/googleballs-terminal
           if-no-files-found: error
 
       - name: Upload Artifacts (macOS)
@@ -1128,7 +1128,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-terminal-macos
-          path: terminal/googleballs-terminal
+          path: native-terminal/googleballs-terminal
           if-no-files-found: error
 
       - name: Upload Artifacts (Windows)
@@ -1136,5 +1136,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-terminal-windows
-          path: terminal/googleballs-terminal.exe
+          path: native-terminal/googleballs-terminal.exe
           if-no-files-found: error
