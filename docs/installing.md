@@ -90,7 +90,7 @@ If you encounter an error within 58%, you are on your own here. I have no idea h
 Otherwise, you're good to go.
 
 ## Visual Studio Code
-[Download .vsix](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download .vsix](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download from Extension Marketplace](https://marketplace.visualstudio.com/items?itemName=weeniemount.googleballs-vscode)
 
 ## UWP
 [Download .appxbundle](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download .cer](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
