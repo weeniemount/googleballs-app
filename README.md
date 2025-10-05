@@ -7,6 +7,11 @@ google balls!! that one doodle from 2010! yeah its an app now
 
 <img alt="image" src="images/screenshot.png" />
 
+
+<p align="center">
+  <video src="images/yji9l9.mp4" width="500px"></video>
+</p>
+
 # Credits!
 Google for making the original doodle back in 2010!
 
