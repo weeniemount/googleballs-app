@@ -1082,28 +1082,28 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           cd terminal
-          g++ -std=c++11 -O3 -o googleballs-terminal terminal_balls.cpp
+          g++ -std=c++11 -O3 -o googleballs-terminal balls.cpp
           strip googleballs-terminal
 
       - name: Build Terminal App (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
-          cd terminal
-          g++ -std=c++11 -O3 -o googleballs-terminal terminal_balls.cpp
+          cd native-terminal
+          g++ -std=c++11 -O3 -o googleballs-terminal balls.cpp
           strip googleballs-terminal
 
       - name: Build Terminal App (Windows)
         if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
-          cd terminal
-          g++ -std=c++11 -O3 -static -o googleballs-terminal.exe terminal_balls.cpp
+          cd native-terminal
+          g++ -std=c++11 -O3 -static -o googleballs-terminal.exe balls.cpp
           strip googleballs-terminal.exe
 
       - name: Test Executable
         if: matrix.platform != 'windows-latest'
         run: |
-          cd terminal
+          cd native-terminal
           file googleballs-terminal
           ls -lh googleballs-terminal
 
