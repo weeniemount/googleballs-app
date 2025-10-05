@@ -59,6 +59,7 @@ idk your on your own gang
 idk your on your own gang
 
 ## Tizen TV:
+[Download .wgt](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
 Install Tizen Studio (And packages 8.0 Tizen (9.0 too if you want) and extension Samsung Certificate Extension & TV Extensions-9.0  
 Import source code of Tizen version into Tizen Studio as a project (web project, not c/c++ project)
 Create a certificate in Certificate Manager, and fill in the information. The onlything that matters is Version when you select the Distributor Certificate. Pick the one with "(Old)" if your TV is older than approximately 5 years old. Otherwise, do the "(New)" option.
@@ -107,6 +108,7 @@ you need to have a jailbroken windows phone for this and know how to flash xaps
 you on your own gang
 
 ## webOS TV:
+[Download .ipk](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
 You need npm
 
 Install the ares cli with this comand:
