@@ -27,14 +27,14 @@ install instructions coming soon :bangbang:
 
 install instructions coming soon :bangbang:
 
-### MacOS
-[Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.dmg)
-NOTE: The macos version is electron.
+### macOS
+[Download .dmg](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.dmg)
+NOTE: The macOS version is electron.
 
 install instructions coming soon :bangbang:
 
 ### iOS
-[Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls-ios.ipa)
+[Download .ipa](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls-ios.ipa)
 ```
 donate 100$ to me and google balls will be on the app store for a year
 - ploszukiwacz 2025
@@ -43,7 +43,7 @@ donate 100$ to me and google balls will be on the app store for a year
 install instructions coming soon :bangbang:
 
 ## Android
-[Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls-signed.apk)
+[Download .apk](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls-signed.apk)
 
 install instructions coming soon :bangbang:
 
@@ -105,11 +105,13 @@ you need to have a jailbroken windows phone for this and know how to flash xaps
 
 ## PSP
 [Download EBOOT.PBP](https://github.com/weeniemount/googleballs-app/releases/latest/download/EBOOT.PBP)
+
 you on your own gang
 
 ## webOS TV:
 [Download .ipk](https://github.com/weeniemount/googleballs-app/releases/latest/download/com.weenie.googleballs_1.0.0_all.ipk)
-You need npm
+
+You need ``npm``
 
 Install the ares cli with this comand:
 ```bash
