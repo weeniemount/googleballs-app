@@ -59,7 +59,7 @@ idk your on your own gang
 idk your on your own gang
 
 ## Tizen TV:
-[Download .wgt](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download .wgt](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-app-unsigned.wgt)
 Install Tizen Studio (And packages 8.0 Tizen (9.0 too if you want) and extension Samsung Certificate Extension & TV Extensions-9.0  
 Import source code of Tizen version into Tizen Studio as a project (web project, not c/c++ project)
 Create a certificate in Certificate Manager, and fill in the information. The onlything that matters is Version when you select the Distributor Certificate. Pick the one with "(Old)" if your TV is older than approximately 5 years old. Otherwise, do the "(New)" option.
@@ -91,24 +91,24 @@ If you encounter an error within 58%, you are on your own here. I have no idea h
 Otherwise, you're good to go.
 
 ## Visual Studio Code
-[Download .vsix](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download from Extension Marketplace](https://marketplace.visualstudio.com/items?itemName=weeniemount.googleballs-vscode)
+[Download .vsix](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-vscode-1.0.1.vsix) [Download from Extension Marketplace](https://marketplace.visualstudio.com/items?itemName=weeniemount.googleballs-vscode)
 
 ## UWP
-[Download .appxbundle](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder) [Download .cer](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download .appxbundle + .cer + Dependencies in a .zip](https://github.com/weeniemount/googleballs-app/releases/latest/download/GoogleBallsUWP_1.0.0.0_Test.zip)
 
-you need to install the certificate to trusted root certification authorities/publishers (or whatever its called) and then install the dependencies inside of Dependencies/(your cpu architecture). then you can go back and install the appxbundle
+you need to install the certificate to trusted root certification authorities/publishers (or whatever its called) on local machine and then install the dependencies inside of Dependencies/(your cpu architecture). then you can go back and install the appxbundle
 
 ## Windows Phone 8.1
-[Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download .xap](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls_1.0.0.0_AnyCPU_wp8.appx)
 
 you need to have a jailbroken windows phone for this and know how to flash xaps
 
 ## PSP
-[Download EBOOT](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download EBOOT.PBP](https://github.com/weeniemount/googleballs-app/releases/latest/download/EBOOT.PBP)
 you on your own gang
 
 ## webOS TV:
-[Download .ipk](https://github.com/weeniemount/googleballs-app/releases/latest/download/placeholder)
+[Download .ipk](https://github.com/weeniemount/googleballs-app/releases/latest/download/com.weenie.googleballs_1.0.0_all.ipk)
 You need npm
 
 Install the ares cli with this comand:
