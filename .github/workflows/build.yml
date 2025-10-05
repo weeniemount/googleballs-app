@@ -1040,7 +1040,7 @@ jobs:
       with:
         name: googleballs-uwp-windows
         path: |
-          uwp/**/GoogleBallsUWP*.appxbundle
-          uwp/**/GoogleBallsUWP*.appx
+          uwp/**/*.appxbundle
+          uwp/**/*.appx
 
           uwp/**/*.cer
