@@ -8,7 +8,7 @@ google balls!! that one doodle from 2010! yeah its an app now
 <img alt="image" src="images/screenshot.png" />
 
 
-<video src="https://raw.githubusercontent.com/weeniemount/googleballs-app/refs/heads/master/images/yji9l9.mp4" height="400"></video>
+![presentation](images/yji9l9.mp4)
 
 # Credits!
 Google for making the original doodle back in 2010!
