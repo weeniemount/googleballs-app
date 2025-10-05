@@ -980,12 +980,12 @@ jobs:
       shell: pwsh
       run: |
         $certPassword = ConvertTo-SecureString "googleballs" -Force -AsPlainText
-        $certPath = "$PWD/uwp/GoogleBalls_TempCert.pfx"
-        $cerPath  = "$PWD/uwp/GoogleBalls_TempCert.cer"
+        $certPath = "$PWD/uwp/GoogleBalls.pfx"
+        $cerPath  = "$PWD/uwp/GoogleBalls.cer"
 
         # Create a proper code signing certificate with the right enhanced key usage
         $cert = New-SelfSignedCertificate -Type CodeSigningCert `
-                                          -Subject "CN=Google Balls Temp Cert, O=Google Balls, C=US" `
+                                          -Subject "CN=weenie, O=Google Balls, C=US" `
                                           -KeyUsage DigitalSignature `
                                           -KeyAlgorithm RSA `
                                           -KeyLength 2048 `
@@ -1020,7 +1020,7 @@ jobs:
           /p:Configuration=Release `
           /p:Platform=x86 `
           /p:AppxPackageSigningEnabled=true `
-          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
+          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls.pfx" `
           /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
@@ -1031,7 +1031,7 @@ jobs:
           /p:Configuration=Release `
           /p:Platform=x64 `
           /p:AppxPackageSigningEnabled=true `
-          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls_TempCert.pfx" `
+          /p:PackageCertificateKeyFile="$PWD/uwp/GoogleBalls.pfx" `
           /p:PackageCertificatePassword="googleballs" `
           /p:AppxBundle=Always
 
@@ -1040,7 +1040,7 @@ jobs:
       with:
         name: GoogleBalls-Appx-and-Cert
         path: |
-          uwp/**/*.appxbundle
-          uwp/**/*.appx
+          uwp/**/GoogleBallsUWP*.appxbundle
+          uwp/**/GoogleBallsUWP*.appx
 
           uwp/GoogleBalls_TempCert.cer
