@@ -1,6 +1,6 @@
 {
 	"name": "Google Balls",
-	"short_name": "GoogleBalls",
+	"short_name": "Google Balls",
 	"description": "Google Balls PWA real!!!!!!!",
 	"start_url": "/index.html",
 	"display": "standalone",
