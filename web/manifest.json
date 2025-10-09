@@ -1,0 +1,21 @@
+{
+	"name": "Google Balls",
+	"short_name": "GoogleBalls",
+	"description": "Google Balls PWA real!!!!!!!",
+	"start_url": "/index.html",
+	"display": "standalone",
+	"background_color": "#FFFFFF",
+	"theme_color": "#FFFFFF",
+	"icons": [
+		{
+			"src": "/balls.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/balls.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		}
+	]
+}

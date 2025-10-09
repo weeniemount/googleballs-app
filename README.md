@@ -35,6 +35,7 @@ We have:
 - Windows Phone 8.1 (goog balls on wp8) - WP8
 - PSP (ps vita and psp got google balls now) - PSP
 - webOS (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
+- web (just open it in your browser https://googleballs.com. also can be installed as a PWA which works offline) - Chrome/ChromeOS
 
 # How 2 download:
 See [the docs](docs/installing.md)
