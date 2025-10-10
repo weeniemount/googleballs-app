@@ -24,62 +24,85 @@ jobs:
         distribution: 'temurin'
         java-version: '8'
     
-    - name: Cache WTK
-      id: cache-wtk
-      uses: actions/cache@v3
-      with:
-        path: ~/wtk
-        key: ${{ runner.os }}-wtk-2.5.2
-    
-    - name: Download and Install Sun Java Wireless Toolkit
-      if: steps.cache-wtk.outputs.cache-hit != 'true'
+    - name: Download J2ME Libraries
       run: |
-        mkdir -p ~/wtk
-        cd ~/wtk
-        # Download a minimal MIDP/CLDC implementation
-        wget https://github.com/ichisadashioko/midp-emulator/raw/master/lib/midpapi20.jar || echo "Fallback download"
-        wget https://github.com/ichisadashioko/midp-emulator/raw/master/lib/cldcapi11.jar || echo "Fallback download"
+        mkdir -p ~/wtk/lib
+        cd ~/wtk/lib
         
-        # Alternative: use microemulator JARs
-        if [ ! -f "midpapi20.jar" ]; then
-          wget -O midpapi20.jar https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar
+        # Download MicroEmulator libraries (these contain the MIDP/CLDC APIs)
+        wget -O midpapi20.jar https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar
+        wget -O cldcapi11.jar https://repo1.maven.org/maven2/org/microemu/microemu-cldc/2.0.4/microemu-cldc-2.0.4.jar
+        
+        echo "Downloaded libraries:"
+        ls -lh
+        
+        # Create bin directory with dummy preverify
+        mkdir -p ~/wtk/bin
+        cat > ~/wtk/bin/preverify << 'EOF'
+        #!/bin/bash
+        # Simple preverify that just copies files
+        while [[ $# -gt 0 ]]; do
+          case $1 in
+            -d)
+              DEST="$2"
+              shift 2
+              ;;
+            -classpath)
+              shift 2
+              ;;
+            *)
+              SOURCE="$1"
+              shift
+              ;;
+          esac
+        done
+        
+        mkdir -p "$DEST"
+        if [ -d "$SOURCE" ]; then
+          cp -r "$SOURCE"/* "$DEST/"
         fi
-        if [ ! -f "cldcapi11.jar" ]; then
-          wget -O cldcapi11.jar https://repo1.maven.org/maven2/org/microemu/microemu-cldc/2.0.4/microemu-cldc-2.0.4.jar
-        fi
+        EOF
+        chmod +x ~/wtk/bin/preverify
+    
+    - name: Verify Libraries
+      run: |
+        echo "WTK Home contents:"
+        ls -R ~/wtk/
         
-        # Create lib directory structure
-        mkdir -p lib bin
-        mv midpapi20.jar lib/ 2>/dev/null || true
-        mv cldcapi11.jar lib/ 2>/dev/null || true
-        
-        # Create a simple preverify script (for compatibility)
-        echo '#!/bin/bash' > bin/preverify
-        echo 'echo "Preverify skipped in CI"' >> bin/preverify
-        echo 'mkdir -p "$4"' >> bin/preverify
-        echo 'cp -r "$5"/* "$4/"' >> bin/preverify
-        chmod +x bin/preverify
+        echo "Checking JAR contents:"
+        jar tf ~/wtk/lib/midpapi20.jar | head -20
+        jar tf ~/wtk/lib/cldcapi11.jar | head -20
     
     - name: Create source directory structure
       run: |
-        mkdir -p src
-        cp GoogleBallsMIDlet.java src/ || echo "File already in src/"
+        mkdir -p j2me/src
+        if [ -f GoogleBallsMIDlet.java ]; then
+          cp GoogleBallsMIDlet.java j2me/src/
+        fi
+        
+        if [ ! -f j2me/src/GoogleBallsMIDlet.java ]; then
+          echo "ERROR: Source file not found!"
+          echo "Current directory contents:"
+          ls -la
+          exit 1
+        fi
     
     - name: Build with Ant
       env:
         WTK_HOME: /home/runner/wtk
       run: |
+        cd j2me
         ant clean package
     
     - name: List build artifacts
       run: |
         echo "Build artifacts:"
-        ls -lh dist/
+        ls -lh j2me/dist/
         
     - name: Upload JAR artifact
       uses: actions/upload-artifact@v4
       with:
         name: GoogleBalls-MIDlet
         path: |
-          dist/GoogleBalls-J2ME.jar
-          dist/GoogleBalls-J2ME.jad
+          j2me/dist/GoogleBalls.jar
+          j2me/dist/GoogleBalls.jad

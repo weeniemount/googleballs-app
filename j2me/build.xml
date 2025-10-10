@@ -52,6 +52,9 @@
             </manifest>
         </jar>
         
+        <!-- Get JAR file size -->
+        <length file="${dist.dir}/GoogleBalls.jar" property="jar.size"/>
+        
         <!-- Create JAD -->
         <echo file="${dist.dir}/GoogleBalls.jad">MIDlet-1: ${midlet.name}, ${midlet.icon}, GoogleBallsMIDlet
 MIDlet-Name: ${midlet.name}
@@ -59,7 +62,7 @@ MIDlet-Vendor: ${midlet.vendor}
 MIDlet-Version: ${midlet.version}
 MicroEdition-Configuration: CLDC-${wtk.cldc.version}
 MicroEdition-Profile: MIDP-${wtk.midp.version}
-MIDlet-Jar-Size: ${toString:${length:${dist.dir}/GoogleBalls.jar}}
+MIDlet-Jar-Size: ${jar.size}
 MIDlet-Jar-URL: GoogleBalls.jar
 </echo>
     </target>
