@@ -73,26 +73,22 @@ jobs:
         jar tf ~/wtk/lib/midpapi20.jar | head -20
         jar tf ~/wtk/lib/cldcapi11.jar | head -20
     
-    - name: Create source directory structure
+    - name: Verify Project Structure
       run: |
-        mkdir -p j2me/src
-        if [ -f GoogleBallsMIDlet.java ]; then
-          cp GoogleBallsMIDlet.java j2me/src/
-        fi
-        
-        if [ ! -f j2me/src/GoogleBallsMIDlet.java ]; then
-          echo "ERROR: Source file not found!"
-          echo "Current directory contents:"
-          ls -la
-          exit 1
-        fi
+        echo "Repository structure:"
+        ls -la
+        echo ""
+        echo "J2ME directory:"
+        ls -la j2me/ || echo "j2me directory not found!"
+        echo ""
+        echo "Looking for build.xml:"
+        find . -name "build.xml"
     
     - name: Build with Ant
+      working-directory: ./j2me
       env:
         WTK_HOME: /home/runner/wtk
-      run: |
-        cd j2me
-        ant clean package
+      run: ant clean package
     
     - name: List build artifacts
       run: |
