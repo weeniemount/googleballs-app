@@ -10,9 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./j2me  # do our stuff in the j2me source directory
     
     steps:
     - name: Checkout code
@@ -29,9 +26,12 @@ jobs:
         mkdir -p ~/wtk/lib
         cd ~/wtk/lib
         
-        # Download MicroEmulator libraries (these contain the MIDP/CLDC APIs)
-        wget -O midpapi20.jar https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar
-        wget -O cldcapi11.jar https://repo1.maven.org/maven2/org/microemu/microemu-cldc/2.0.4/microemu-cldc-2.0.4.jar
+        # Download proper J2ME libraries from j2me-build-tools (actual WTK 2.5.2 JARs)
+        echo "Downloading MIDP API..."
+        wget -O midpapi20.jar https://github.com/vipaoL/j2me-build-tools/raw/c1598b6916f2ba2ad5be1c0accd1ed2a54c156f3/WTK2.5.2/lib/midpapi20.jar
+        
+        echo "Downloading CLDC API..."
+        wget -O cldcapi11.jar https://github.com/vipaoL/j2me-build-tools/raw/c1598b6916f2ba2ad5be1c0accd1ed2a54c156f3/WTK2.5.2/lib/cldcapi11.jar
         
         echo "Downloaded libraries:"
         ls -lh
@@ -69,9 +69,21 @@ jobs:
         echo "WTK Home contents:"
         ls -R ~/wtk/
         
-        echo "Checking JAR contents:"
-        jar tf ~/wtk/lib/midpapi20.jar | head -20
-        jar tf ~/wtk/lib/cldcapi11.jar | head -20
+        echo ""
+        echo "Checking JAR files exist:"
+        ls -lh ~/wtk/lib/*.jar
+        
+        echo ""
+        echo "Checking MIDP JAR contents (should contain javax.microedition.lcdui):"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "javax/microedition/lcdui" | head -10
+        
+        echo ""
+        echo "Checking CLDC JAR contents (should contain javax.microedition.midlet):"
+        jar tf ~/wtk/lib/cldcapi11.jar | grep "javax/microedition" | head -10
+        
+        echo ""
+        echo "Testing if JARs are valid:"
+        java -cp ~/wtk/lib/midpapi20.jar:~/wtk/lib/cldcapi11.jar -version || echo "JARs loaded successfully"
     
     - name: Verify Project Structure
       run: |
@@ -81,8 +93,35 @@ jobs:
         echo "J2ME directory:"
         ls -la j2me/ || echo "j2me directory not found!"
         echo ""
+        echo "J2ME src directory:"
+        ls -la j2me/src/ || echo "j2me/src directory not found!"
+        echo ""
         echo "Looking for build.xml:"
         find . -name "build.xml"
+        echo ""
+        echo "Looking for source files:"
+        find . -name "*.java"
+    
+    - name: Ensure src directory exists
+      run: |
+        mkdir -p j2me/src
+        # Check if source file is in j2me/src already
+        if [ ! -f j2me/src/GoogleBallsMIDlet.java ]; then
+          # Check if it's in the j2me root
+          if [ -f j2me/GoogleBallsMIDlet.java ]; then
+            echo "Moving source file from j2me/ to j2me/src/"
+            mv j2me/GoogleBallsMIDlet.java j2me/src/
+          # Check if it's in the repo root
+          elif [ -f GoogleBallsMIDlet.java ]; then
+            echo "Moving source file from root to j2me/src/"
+            mv GoogleBallsMIDlet.java j2me/src/
+          else
+            echo "ERROR: GoogleBallsMIDlet.java not found!"
+            exit 1
+          fi
+        fi
+        echo "Source file location verified:"
+        ls -la j2me/src/
     
     - name: Build with Ant
       working-directory: ./j2me
