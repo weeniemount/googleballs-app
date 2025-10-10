@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="GoogleBalls" default="package" basedir=".">
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build"/>
+    <property name="dist.dir" value="dist"/>
+    <property name="wtk.home" value="${env.WTK_HOME}"/>
+    <property name="wtk.midp.version" value="2.0"/>
+    <property name="wtk.cldc.version" value="1.1"/>
+    
+    <property name="midlet.name" value="Google Balls"/>
+    <property name="midlet.vendor" value="weenie"/>
+    <property name="midlet.version" value="1.0.0"/>
+    <property name="midlet.icon" value="/balls.png"/>
+    
+    <target name="init">
+        <mkdir dir="${build.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+    </target>
+    
+    <target name="compile" depends="init">
+        <javac srcdir="${src.dir}" 
+               destdir="${build.dir}"
+               bootclasspath="${wtk.home}/lib/midpapi20.jar:${wtk.home}/lib/cldcapi11.jar"
+               target="1.3"
+               source="1.3"
+               debug="false"
+               optimize="true">
+        </javac>
+    </target>
+    
+    <target name="preverify" depends="compile">
+        <exec executable="${wtk.home}/bin/preverify">
+            <arg value="-classpath"/>
+            <arg value="${wtk.home}/lib/midpapi20.jar:${wtk.home}/lib/cldcapi11.jar"/>
+            <arg value="-d"/>
+            <arg value="${build.dir}/verified"/>
+            <arg value="${build.dir}"/>
+        </exec>
+    </target>
+    
+    <target name="package" depends="preverify">
+        <!-- Create JAR -->
+        <jar destfile="${dist.dir}/GoogleBalls.jar"
+             basedir="${build.dir}/verified">
+            <manifest>
+                <attribute name="MIDlet-1" value="${midlet.name}, ${midlet.icon}, GoogleBallsMIDlet"/>
+                <attribute name="MIDlet-Name" value="${midlet.name}"/>
+                <attribute name="MIDlet-Vendor" value="${midlet.vendor}"/>
+                <attribute name="MIDlet-Version" value="${midlet.version}"/>
+                <attribute name="MicroEdition-Configuration" value="CLDC-${wtk.cldc.version}"/>
+                <attribute name="MicroEdition-Profile" value="MIDP-${wtk.midp.version}"/>
+            </manifest>
+        </jar>
+        
+        <!-- Create JAD -->
+        <echo file="${dist.dir}/GoogleBalls.jad">MIDlet-1: ${midlet.name}, ${midlet.icon}, GoogleBallsMIDlet
+MIDlet-Name: ${midlet.name}
+MIDlet-Vendor: ${midlet.vendor}
+MIDlet-Version: ${midlet.version}
+MicroEdition-Configuration: CLDC-${wtk.cldc.version}
+MicroEdition-Profile: MIDP-${wtk.midp.version}
+MIDlet-Jar-Size: ${toString:${length:${dist.dir}/GoogleBalls.jar}}
+MIDlet-Jar-URL: GoogleBalls.jar
+</echo>
+    </target>
+    
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+    
+    <target name="rebuild" depends="clean,package"/>
+</project>

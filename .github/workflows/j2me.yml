@@ -1,0 +1,85 @@
+name: Build J2ME Application
+
+on:
+  push:
+    branches: [ j2me ]
+  pull_request:
+    branches: [ j2me ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./j2me  # do our stuff in the j2me source directory
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '8'
+    
+    - name: Cache WTK
+      id: cache-wtk
+      uses: actions/cache@v3
+      with:
+        path: ~/wtk
+        key: ${{ runner.os }}-wtk-2.5.2
+    
+    - name: Download and Install Sun Java Wireless Toolkit
+      if: steps.cache-wtk.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/wtk
+        cd ~/wtk
+        # Download a minimal MIDP/CLDC implementation
+        wget https://github.com/ichisadashioko/midp-emulator/raw/master/lib/midpapi20.jar || echo "Fallback download"
+        wget https://github.com/ichisadashioko/midp-emulator/raw/master/lib/cldcapi11.jar || echo "Fallback download"
+        
+        # Alternative: use microemulator JARs
+        if [ ! -f "midpapi20.jar" ]; then
+          wget -O midpapi20.jar https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar
+        fi
+        if [ ! -f "cldcapi11.jar" ]; then
+          wget -O cldcapi11.jar https://repo1.maven.org/maven2/org/microemu/microemu-cldc/2.0.4/microemu-cldc-2.0.4.jar
+        fi
+        
+        # Create lib directory structure
+        mkdir -p lib bin
+        mv midpapi20.jar lib/ 2>/dev/null || true
+        mv cldcapi11.jar lib/ 2>/dev/null || true
+        
+        # Create a simple preverify script (for compatibility)
+        echo '#!/bin/bash' > bin/preverify
+        echo 'echo "Preverify skipped in CI"' >> bin/preverify
+        echo 'mkdir -p "$4"' >> bin/preverify
+        echo 'cp -r "$5"/* "$4/"' >> bin/preverify
+        chmod +x bin/preverify
+    
+    - name: Create source directory structure
+      run: |
+        mkdir -p src
+        cp GoogleBallsMIDlet.java src/ || echo "File already in src/"
+    
+    - name: Build with Ant
+      env:
+        WTK_HOME: /home/runner/wtk
+      run: |
+        ant clean package
+    
+    - name: List build artifacts
+      run: |
+        echo "Build artifacts:"
+        ls -lh dist/
+        
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GoogleBalls-MIDlet
+        path: |
+          dist/GoogleBalls-J2ME.jar
+          dist/GoogleBalls-J2ME.jad
