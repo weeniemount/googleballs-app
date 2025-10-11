@@ -14,9 +14,9 @@
     <property name="wtk.cldc.version" value="1.1"/>
     
     <property name="midlet.name" value="Google Balls"/>
-    <property name="midlet.vendor" value="Your Name"/>
+    <property name="midlet.vendor" value="weenie"/>
     <property name="midlet.version" value="1.0.0"/>
-    <property name="midlet.icon" value="/icon.png"/>
+    <property name="midlet.icon" value="/balls.png"/>
     
     <target name="init">
         <mkdir dir="${build.dir}"/>
