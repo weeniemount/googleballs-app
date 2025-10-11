@@ -11,12 +11,11 @@
     </condition>
     
     <property name="wtk.midp.version" value="2.0"/>
-    <property name="wtk.cldc.version" value="1.1"/>
+    <property name="wtk.cldc.version" value="1.0"/>
     
-    <property name="midlet.name" value="Google Balls"/>
-    <property name="midlet.vendor" value="weenie"/>
-    <property name="midlet.version" value="1.0.0"/>
-    <property name="midlet.icon" value="/balls_48.png"/>
+    <property name="midlet.name" value="GoogleBalls"/>
+    <property name="midlet.vendor" value="Vendor"/>
+    <property name="midlet.version" value="1.0"/>
     <property name="midlet.class" value="GoogleBallsMIDlet"/>
     
     <target name="init">
@@ -28,25 +27,30 @@
         <echo message="=== Compilation Settings ==="/>
         <echo message="WTK_HOME: ${wtk.home}"/>
         <echo message="MIDP JAR: ${wtk.home}/lib/midpapi20.jar"/>
-        <echo message="CLDC JAR: ${wtk.home}/lib/cldcapi11.jar"/>
+        <echo message="CLDC JAR: ${wtk.home}/lib/cldcapi10.jar"/>
         <echo message="Source dir: ${src.dir}"/>
         <echo message="Build dir: ${build.dir}"/>
         
-        <!-- Check if JARs exist -->
+        <!-- Try CLDC 1.0 for better compatibility -->
+        <available file="${wtk.home}/lib/cldcapi10.jar" property="cldc10.present"/>
+        <available file="${wtk.home}/lib/cldcapi11.jar" property="cldc11.present"/>
         <available file="${wtk.home}/lib/midpapi20.jar" property="midp.present"/>
-        <available file="${wtk.home}/lib/cldcapi11.jar" property="cldc.present"/>
-        <fail unless="midp.present" message="MIDP JAR not found at ${wtk.home}/lib/midpapi20.jar"/>
-        <fail unless="cldc.present" message="CLDC JAR not found at ${wtk.home}/lib/cldcapi11.jar"/>
+        
+        <condition property="cldc.jar" value="${wtk.home}/lib/cldcapi10.jar" else="${wtk.home}/lib/cldcapi11.jar">
+            <isset property="cldc10.present"/>
+        </condition>
+        
+        <fail unless="midp.present" message="MIDP JAR not found"/>
         
         <javac srcdir="${src.dir}" 
                destdir="${build.dir}"
                includeantruntime="false"
-               target="1.3"
+               target="1.1"
                source="1.3"
                debug="false"
                optimize="true">
             <bootclasspath>
-                <pathelement location="${wtk.home}/lib/cldcapi11.jar"/>
+                <pathelement location="${cldc.jar}"/>
                 <pathelement location="${wtk.home}/lib/midpapi20.jar"/>
             </bootclasspath>
         </javac>
@@ -55,7 +59,7 @@
     <target name="preverify" depends="compile">
         <exec executable="${wtk.home}/bin/preverify">
             <arg value="-classpath"/>
-            <arg value="${wtk.home}/lib/midpapi20.jar:${wtk.home}/lib/cldcapi11.jar"/>
+            <arg value="${wtk.home}/lib/midpapi20.jar:${cldc.jar}"/>
             <arg value="-d"/>
             <arg value="${build.dir}/verified"/>
             <arg value="${build.dir}"/>
@@ -63,46 +67,55 @@
     </target>
     
     <target name="package" depends="preverify">
-        <!-- Copy icon to verified build directory -->
-        <copy file="balls_48.png" todir="${build.dir}/verified" failonerror="false"/>
-        
-        <!-- Create JAR with proper manifest -->
+        <!-- Create minimal JAR without icon -->
         <jar destfile="${dist.dir}/GoogleBalls.jar"
              basedir="${build.dir}/verified">
             <manifest>
-                <attribute name="MIDlet-1" value="${midlet.name}, ${midlet.icon}, ${midlet.class}"/>
                 <attribute name="MIDlet-Name" value="${midlet.name}"/>
-                <attribute name="MIDlet-Vendor" value="${midlet.vendor}"/>
                 <attribute name="MIDlet-Version" value="${midlet.version}"/>
-                <attribute name="MicroEdition-Configuration" value="CLDC-${wtk.cldc.version}"/>
+                <attribute name="MIDlet-Vendor" value="${midlet.vendor}"/>
+                <attribute name="MIDlet-1" value="${midlet.name},, ${midlet.class}"/>
                 <attribute name="MicroEdition-Profile" value="MIDP-${wtk.midp.version}"/>
-                <attribute name="MIDlet-Icon" value="${midlet.icon}"/>
-                <attribute name="MIDlet-Description" value="Interactive Google logo with physics"/>
+                <attribute name="MicroEdition-Configuration" value="CLDC-${wtk.cldc.version}"/>
             </manifest>
         </jar>
         
         <!-- Get JAR file size -->
         <length file="${dist.dir}/GoogleBalls.jar" property="jar.size"/>
         
-        <!-- Create JAD with proper line endings (CRLF) -->
-        <echo file="${dist.dir}/GoogleBalls.jad">MIDlet-Name: ${midlet.name}&#13;&#10;MIDlet-Version: ${midlet.version}&#13;&#10;MIDlet-Vendor: ${midlet.vendor}&#13;&#10;MIDlet-Icon: ${midlet.icon}&#13;&#10;MIDlet-Description: Interactive Google logo with physics&#13;&#10;MIDlet-1: ${midlet.name}, ${midlet.icon}, ${midlet.class}&#13;&#10;MicroEdition-Profile: MIDP-${wtk.midp.version}&#13;&#10;MicroEdition-Configuration: CLDC-${wtk.cldc.version}&#13;&#10;MIDlet-Jar-URL: GoogleBalls.jar&#13;&#10;MIDlet-Jar-Size: ${jar.size}&#13;&#10;</echo>
+        <!-- Create minimal JAD -->
+        <echo file="${dist.dir}/GoogleBalls.jad" encoding="ISO-8859-1">MIDlet-Name: ${midlet.name}
+MIDlet-Version: ${midlet.version}
+MIDlet-Vendor: ${midlet.vendor}
+MIDlet-Jar-URL: GoogleBalls.jar
+MIDlet-Jar-Size: ${jar.size}
+MicroEdition-Profile: MIDP-${wtk.midp.version}
+MicroEdition-Configuration: CLDC-${wtk.cldc.version}
+MIDlet-1: ${midlet.name},, ${midlet.class}
+</echo>
         
-        <!-- Verify JAR contents -->
+        <!-- Create alternative JAD with CLDC 1.0 for maximum compatibility -->
+        <echo file="${dist.dir}/GoogleBalls-cldc10.jad" encoding="ISO-8859-1">MIDlet-Name: ${midlet.name}
+MIDlet-Version: ${midlet.version}
+MIDlet-Vendor: ${midlet.vendor}
+MIDlet-Jar-URL: GoogleBalls.jar
+MIDlet-Jar-Size: ${jar.size}
+MicroEdition-Profile: MIDP-2.0
+MicroEdition-Configuration: CLDC-1.0
+MIDlet-1: ${midlet.name},, ${midlet.class}
+</echo>
+        
+        <!-- Verify -->
         <echo message=""/>
         <echo message="=== Build Complete ==="/>
         <echo message="JAR Size: ${jar.size} bytes"/>
         <echo message=""/>
-        <echo message="JAR Contents:"/>
-        <exec executable="jar">
-            <arg value="tf"/>
-            <arg value="${dist.dir}/GoogleBalls.jar"/>
-        </exec>
-        
+        <echo message="Files created:"/>
+        <echo message="  - GoogleBalls.jar"/>
+        <echo message="  - GoogleBalls.jad (CLDC-${wtk.cldc.version})"/>
+        <echo message="  - GoogleBalls-cldc10.jad (CLDC-1.0 for maximum compatibility)"/>
         <echo message=""/>
-        <echo message="JAD Contents:"/>
-        <exec executable="cat">
-            <arg value="${dist.dir}/GoogleBalls.jad"/>
-        </exec>
+        <echo message="Try installing with GoogleBalls-cldc10.jad if default fails"/>
     </target>
     
     <target name="clean">
