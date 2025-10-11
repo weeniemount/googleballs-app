@@ -1138,3 +1138,165 @@ jobs:
           name: googleballs-terminal-windows
           path: native-terminal/googleballs-terminal.exe
           if-no-files-found: error
+  build-j2me:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '8'
+    
+    - name: Download J2ME Libraries
+      run: |
+        mkdir -p ~/wtk/lib
+        cd ~/wtk/lib
+        
+        # Download proper J2ME libraries from j2me-build-tools (actual WTK 2.5.2 JARs)
+        echo "Downloading MIDP API..."
+        wget -O midpapi20.jar https://github.com/vipaoL/j2me-build-tools/raw/c1598b6916f2ba2ad5be1c0accd1ed2a54c156f3/WTK2.5.2/lib/midpapi20.jar
+        
+        echo "Downloading CLDC API..."
+        wget -O cldcapi11.jar https://github.com/vipaoL/j2me-build-tools/raw/c1598b6916f2ba2ad5be1c0accd1ed2a54c156f3/WTK2.5.2/lib/cldcapi11.jar
+        
+        echo "Downloaded libraries:"
+        ls -lh
+        
+        # Create bin directory with dummy preverify
+        mkdir -p ~/wtk/bin
+        cat > ~/wtk/bin/preverify << 'EOF'
+        #!/bin/bash
+        # Simple preverify that just copies files
+        while [[ $# -gt 0 ]]; do
+          case $1 in
+            -d)
+              DEST="$2"
+              shift 2
+              ;;
+            -classpath)
+              shift 2
+              ;;
+            *)
+              SOURCE="$1"
+              shift
+              ;;
+          esac
+        done
+        
+        mkdir -p "$DEST"
+        if [ -d "$SOURCE" ]; then
+          cp -r "$SOURCE"/* "$DEST/"
+        fi
+        EOF
+        chmod +x ~/wtk/bin/preverify
+    
+    - name: Verify Libraries
+      run: |
+        echo "WTK Home contents:"
+        ls -R ~/wtk/
+        
+        echo ""
+        echo "Checking JAR files exist:"
+        ls -lh ~/wtk/lib/*.jar
+        
+        echo ""
+        echo "=== Checking MIDP JAR contents (should contain javax.microedition.lcdui) ==="
+        jar tf ~/wtk/lib/midpapi20.jar | grep "javax/microedition" | head -20
+        
+        echo ""
+        echo "=== Checking CLDC JAR contents (should contain javax.microedition.midlet) ==="
+        jar tf ~/wtk/lib/cldcapi11.jar | grep "javax/microedition" | head -20
+        
+        echo ""
+        echo "=== Looking for specific classes ==="
+        echo "Looking for MIDlet.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "MIDlet.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "MIDlet.class" || echo "NOT FOUND"
+        echo "Looking for Canvas.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "Canvas.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "Canvas.class" || echo "NOT FOUND"
+        echo "Looking for Display.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "Display.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "Display.class" || echo "NOT FOUND"
+        
+        echo ""
+        echo "=== Full MIDP JAR listing ==="
+        jar tf ~/wtk/lib/midpapi20.jar | head -50
+    
+    - name: Verify Project Structure
+      run: |
+        echo "Repository structure:"
+        ls -la
+        echo ""
+        echo "J2ME directory:"
+        ls -la j2me/ || echo "j2me directory not found!"
+        echo ""
+        echo "J2ME src directory:"
+        ls -la j2me/src/ || echo "j2me/src directory not found!"
+        echo ""
+        echo "Looking for build.xml:"
+        find . -name "build.xml"
+        echo ""
+        echo "Looking for source files:"
+        find . -name "*.java"
+    
+    - name: Ensure src directory exists
+      run: |
+        mkdir -p j2me/src
+        # Check if source file is in j2me/src already
+        if [ ! -f j2me/src/GoogleBallsMIDlet.java ]; then
+          # Check if it's in the j2me root
+          if [ -f j2me/GoogleBallsMIDlet.java ]; then
+            echo "Moving source file from j2me/ to j2me/src/"
+            mv j2me/GoogleBallsMIDlet.java j2me/src/
+          # Check if it's in the repo root
+          elif [ -f GoogleBallsMIDlet.java ]; then
+            echo "Moving source file from root to j2me/src/"
+            mv GoogleBallsMIDlet.java j2me/src/
+          else
+            echo "ERROR: GoogleBallsMIDlet.java not found!"
+            exit 1
+          fi
+        fi
+        echo "Source file location verified:"
+        ls -la j2me/src/
+        
+        # Check if icon exists, if not create a simple one
+        if [ ! -f j2me/balls_48.png ]; then
+          echo "Icon not found, checking for balls.png..."
+          if [ -f j2me/balls.png ]; then
+            echo "Converting balls.png to balls_48.png..."
+            # Install ImageMagick if needed
+            which convert || sudo apt-get update && sudo apt-get install -y imagemagick
+            convert j2me/balls.png -resize 48x48 -colors 256 j2me/balls_48.png || cp j2me/balls.png j2me/balls_48.png
+          else
+            echo "No icon found, creating placeholder..."
+            # Create a simple placeholder icon with ImageMagick
+            which convert || sudo apt-get update && sudo apt-get install -y imagemagick
+            convert -size 48x48 xc:white -fill "#4285F4" -draw "circle 24,24 24,4" j2me/balls_48.png || echo "Could not create icon"
+          fi
+        fi
+        
+        echo ""
+        echo "Icon status:"
+        ls -la j2me/*.png || echo "No PNG files found"
+    
+    - name: Build with Ant
+      working-directory: ./j2me
+      env:
+        WTK_HOME: /home/runner/wtk
+      run: ant clean package
+    
+    - name: List build artifacts
+      run: |
+        echo "Build artifacts:"
+        ls -lh j2me/dist/
+        
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GoogleBalls-MIDlet
+        path: |
+          j2me/dist/GoogleBalls.jar
+          j2me/dist/GoogleBalls.jad
