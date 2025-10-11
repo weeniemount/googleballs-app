@@ -16,7 +16,7 @@
     <property name="midlet.name" value="Google Balls"/>
     <property name="midlet.vendor" value="weenie"/>
     <property name="midlet.version" value="1.0.0"/>
-    <property name="midlet.icon" value="/balls.png"/>
+    <property name="midlet.icon" value="balls_48.png"/>
     
     <target name="init">
         <mkdir dir="${build.dir}"/>
