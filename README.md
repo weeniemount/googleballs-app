@@ -43,5 +43,6 @@ See [the docs](docs/installing.md)
 # How 2 compile:
 See [the docs](docs/compiling.md)
 
+btw be sure to check out https://github.com/hn1fsLandfill/google-balls-kernel/ which is basically google balls in the form of a kernel
 
 **this project isnt affiliated with google**
