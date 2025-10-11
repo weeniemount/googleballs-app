@@ -62,7 +62,10 @@
     </target>
     
     <target name="package" depends="preverify">
-        <!-- Create JAR -->
+        <!-- Copy icon to verified build directory -->
+        <copy file="balls.png" todir="${build.dir}/verified" failonerror="false"/>
+        
+        <!-- Create JAR with icon -->
         <jar destfile="${dist.dir}/GoogleBalls.jar"
              basedir="${build.dir}/verified">
             <manifest>
@@ -88,6 +91,13 @@ MicroEdition-Profile: MIDP-${wtk.midp.version}
 MIDlet-Jar-Size: ${jar.size}
 MIDlet-Jar-URL: GoogleBalls.jar
 </echo>
+        
+        <!-- Verify icon is in JAR -->
+        <echo message="Verifying JAR contents..."/>
+        <exec executable="jar">
+            <arg value="tf"/>
+            <arg value="${dist.dir}/GoogleBalls.jar"/>
+        </exec>
     </target>
     
     <target name="clean">

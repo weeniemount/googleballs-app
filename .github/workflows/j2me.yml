@@ -131,6 +131,26 @@ jobs:
         fi
         echo "Source file location verified:"
         ls -la j2me/src/
+        
+        # Check if icon exists, if not create a simple one
+        if [ ! -f j2me/balls_48.png ]; then
+          echo "Icon not found, checking for balls.png..."
+          if [ -f j2me/balls.png ]; then
+            echo "Converting balls.png to balls_48.png..."
+            # Install ImageMagick if needed
+            which convert || sudo apt-get update && sudo apt-get install -y imagemagick
+            convert j2me/balls.png -resize 48x48 -colors 256 j2me/balls_48.png || cp j2me/balls.png j2me/balls_48.png
+          else
+            echo "No icon found, creating placeholder..."
+            # Create a simple placeholder icon with ImageMagick
+            which convert || sudo apt-get update && sudo apt-get install -y imagemagick
+            convert -size 48x48 xc:white -fill "#4285F4" -draw "circle 24,24 24,4" j2me/balls_48.png || echo "Could not create icon"
+          fi
+        fi
+        
+        echo ""
+        echo "Icon status:"
+        ls -la j2me/*.png || echo "No PNG files found"
     
     - name: Build with Ant
       working-directory: ./j2me
