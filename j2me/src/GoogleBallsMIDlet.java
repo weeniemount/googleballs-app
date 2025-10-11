@@ -42,8 +42,9 @@ class BallCanvas extends Canvas implements Runnable {
     private int mouseX, mouseY;
     private int width, height;
     private boolean hasPointerEvents;
+    private float scaleFactor;
     
-    // Google logo ball data (x, y, size, color)
+    // Google logo ball data (x, y, size, color) - base coordinates for ~400x300
     private static final int[][] BALL_DATA = {
         {202, 78, 9, 0xED9D33}, {348, 83, 9, 0xD44D61}, {256, 69, 9, 0x4F7AF2},
         {214, 59, 9, 0xEF9A1E}, {265, 36, 9, 0x4976F3}, {300, 78, 9, 0x269230},
@@ -69,22 +70,34 @@ class BallCanvas extends Canvas implements Runnable {
         {17, 17, 5, 0x4779F7}, {232, 93, 5, 0x4B78F1}
     };
     
+    // Base dimensions the logo was designed for
+    private static final int BASE_WIDTH = 360;
+    private static final int BASE_HEIGHT = 130;
+    
     public BallCanvas() {
         width = getWidth();
         height = getHeight();
         
+        // Calculate scale factor to fit screen
+        float scaleX = (float)width / BASE_WIDTH;
+        float scaleY = (float)height / BASE_HEIGHT;
+        scaleFactor = Math.min(scaleX, scaleY);
+        
+        // Don't scale up, only down
+        if (scaleFactor > 1.0f) scaleFactor = 1.0f;
+        
         // Check if device has touch support
         hasPointerEvents = hasPointerEvents();
         
-        // Initialize points
+        // Initialize points with scaling
         points = new Point[BALL_DATA.length];
-        int offsetX = width / 2 - 180;
-        int offsetY = height / 2 - 65;
+        int offsetX = width / 2 - (int)(BASE_WIDTH * scaleFactor / 2);
+        int offsetY = height / 2 - (int)(BASE_HEIGHT * scaleFactor / 2);
         
         for (int i = 0; i < BALL_DATA.length; i++) {
-            int x = BALL_DATA[i][0] + offsetX;
-            int y = BALL_DATA[i][1] + offsetY;
-            int size = BALL_DATA[i][2];
+            int x = (int)(BALL_DATA[i][0] * scaleFactor) + offsetX;
+            int y = (int)(BALL_DATA[i][1] * scaleFactor) + offsetY;
+            int size = Math.max(2, (int)(BALL_DATA[i][2] * scaleFactor));
             int color = BALL_DATA[i][3];
             points[i] = new Point(x, y, size, color);
         }
@@ -131,10 +144,13 @@ class BallCanvas extends Canvas implements Runnable {
             points[i].draw(g);
         }
         
-        // Draw touch indicator if supported
+        // Draw controls hint
+        g.setColor(0xCCCCCC);
+        g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN, Font.SIZE_SMALL));
         if (hasPointerEvents) {
-            g.setColor(0xCCCCCC);
-            g.drawString("Touch to interact", 5, height - 15, Graphics.LEFT | Graphics.BOTTOM);
+            g.drawString("Touch/Keys", 2, height - 2, Graphics.LEFT | Graphics.BOTTOM);
+        } else {
+            g.drawString("Arrow Keys", 2, height - 2, Graphics.LEFT | Graphics.BOTTOM);
         }
     }
     
@@ -154,21 +170,21 @@ class BallCanvas extends Canvas implements Runnable {
         mouseY = y;
     }
     
-    // Key event handling for non-touch devices
+    // Key event handling for non-touch devices - faster movement
     protected void keyPressed(int keyCode) {
         int action = getGameAction(keyCode);
         switch (action) {
             case UP:
-                mouseY = Math.max(0, mouseY - 10);
+                mouseY = Math.max(0, mouseY - 20);
                 break;
             case DOWN:
-                mouseY = Math.min(height, mouseY + 10);
+                mouseY = Math.min(height, mouseY + 20);
                 break;
             case LEFT:
-                mouseX = Math.max(0, mouseX - 10);
+                mouseX = Math.max(0, mouseX - 20);
                 break;
             case RIGHT:
-                mouseX = Math.min(width, mouseX + 10);
+                mouseX = Math.min(width, mouseX + 20);
                 break;
         }
     }
