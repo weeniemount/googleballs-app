@@ -3,14 +3,20 @@
     <property name="src.dir" value="src"/>
     <property name="build.dir" value="build"/>
     <property name="dist.dir" value="dist"/>
-    <property name="wtk.home" value="${env.WTK_HOME}"/>
+    
+    <!-- Get WTK_HOME from environment, fallback to user home -->
+    <property environment="env"/>
+    <condition property="wtk.home" value="${env.WTK_HOME}" else="${user.home}/wtk">
+        <isset property="env.WTK_HOME"/>
+    </condition>
+    
     <property name="wtk.midp.version" value="2.0"/>
     <property name="wtk.cldc.version" value="1.1"/>
     
     <property name="midlet.name" value="Google Balls"/>
-    <property name="midlet.vendor" value="weenie"/>
+    <property name="midlet.vendor" value="Your Name"/>
     <property name="midlet.version" value="1.0.0"/>
-    <property name="midlet.icon" value="/balls.png"/>
+    <property name="midlet.icon" value="/icon.png"/>
     
     <target name="init">
         <mkdir dir="${build.dir}"/>
@@ -18,9 +24,18 @@
     </target>
     
     <target name="compile" depends="init">
-        <echo message="Compiling with WTK_HOME=${wtk.home}"/>
-        <echo message="Using MIDP: ${wtk.home}/lib/midpapi20.jar"/>
-        <echo message="Using CLDC: ${wtk.home}/lib/cldcapi11.jar"/>
+        <echo message="=== Compilation Settings ==="/>
+        <echo message="WTK_HOME: ${wtk.home}"/>
+        <echo message="MIDP JAR: ${wtk.home}/lib/midpapi20.jar"/>
+        <echo message="CLDC JAR: ${wtk.home}/lib/cldcapi11.jar"/>
+        <echo message="Source dir: ${src.dir}"/>
+        <echo message="Build dir: ${build.dir}"/>
+        
+        <!-- Check if JARs exist -->
+        <available file="${wtk.home}/lib/midpapi20.jar" property="midp.present"/>
+        <available file="${wtk.home}/lib/cldcapi11.jar" property="cldc.present"/>
+        <fail unless="midp.present" message="MIDP JAR not found at ${wtk.home}/lib/midpapi20.jar"/>
+        <fail unless="cldc.present" message="CLDC JAR not found at ${wtk.home}/lib/cldcapi11.jar"/>
         
         <javac srcdir="${src.dir}" 
                destdir="${build.dir}"
