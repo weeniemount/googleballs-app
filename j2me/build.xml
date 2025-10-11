@@ -18,18 +18,21 @@
     </target>
     
     <target name="compile" depends="init">
+        <echo message="Compiling with WTK_HOME=${wtk.home}"/>
+        <echo message="Using MIDP: ${wtk.home}/lib/midpapi20.jar"/>
+        <echo message="Using CLDC: ${wtk.home}/lib/cldcapi11.jar"/>
+        
         <javac srcdir="${src.dir}" 
                destdir="${build.dir}"
                includeantruntime="false"
-               bootclasspath="${wtk.home}/lib/cldcapi11.jar:${wtk.home}/lib/midpapi20.jar"
                target="1.3"
                source="1.3"
                debug="false"
                optimize="true">
-            <classpath>
+            <bootclasspath>
                 <pathelement location="${wtk.home}/lib/cldcapi11.jar"/>
                 <pathelement location="${wtk.home}/lib/midpapi20.jar"/>
-            </classpath>
+            </bootclasspath>
         </javac>
     </target>
     

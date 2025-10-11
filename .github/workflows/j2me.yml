@@ -74,16 +74,25 @@ jobs:
         ls -lh ~/wtk/lib/*.jar
         
         echo ""
-        echo "Checking MIDP JAR contents (should contain javax.microedition.lcdui):"
-        jar tf ~/wtk/lib/midpapi20.jar | grep "javax/microedition/lcdui" | head -10
+        echo "=== Checking MIDP JAR contents (should contain javax.microedition.lcdui) ==="
+        jar tf ~/wtk/lib/midpapi20.jar | grep "javax/microedition" | head -20
         
         echo ""
-        echo "Checking CLDC JAR contents (should contain javax.microedition.midlet):"
-        jar tf ~/wtk/lib/cldcapi11.jar | grep "javax/microedition" | head -10
+        echo "=== Checking CLDC JAR contents (should contain javax.microedition.midlet) ==="
+        jar tf ~/wtk/lib/cldcapi11.jar | grep "javax/microedition" | head -20
         
         echo ""
-        echo "Testing if JARs are valid:"
-        java -cp ~/wtk/lib/midpapi20.jar:~/wtk/lib/cldcapi11.jar -version || echo "JARs loaded successfully"
+        echo "=== Looking for specific classes ==="
+        echo "Looking for MIDlet.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "MIDlet.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "MIDlet.class" || echo "NOT FOUND"
+        echo "Looking for Canvas.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "Canvas.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "Canvas.class" || echo "NOT FOUND"
+        echo "Looking for Display.class:"
+        jar tf ~/wtk/lib/midpapi20.jar | grep "Display.class" || jar tf ~/wtk/lib/cldcapi11.jar | grep "Display.class" || echo "NOT FOUND"
+        
+        echo ""
+        echo "=== Full MIDP JAR listing ==="
+        jar tf ~/wtk/lib/midpapi20.jar | head -50
     
     - name: Verify Project Structure
       run: |
