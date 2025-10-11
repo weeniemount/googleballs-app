@@ -63,7 +63,7 @@
     
     <target name="package" depends="preverify">
         <!-- Copy icon to verified build directory -->
-        <copy file="balls.png" todir="${build.dir}/verified" failonerror="false"/>
+        <copy file="balls_48.png" todir="${build.dir}/verified" failonerror="false"/>
         
         <!-- Create JAR with icon -->
         <jar destfile="${dist.dir}/GoogleBalls.jar"
