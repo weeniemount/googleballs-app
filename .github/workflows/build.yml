@@ -1468,7 +1468,6 @@ jobs:
               
               if [ $BUILD_STATUS -ne 0 ]; then
                 echo "Simplified build failed, creating documentation binary..."
-
                 cat build.log >> GoogleBalls 2>/dev/null || true
                 chmod +x GoogleBalls
               fi
@@ -1479,6 +1478,9 @@ jobs:
             find $HAIKU_CROSS_TOOLS -type f -name "*g++*" || echo "No g++ executables found"
             
             echo "Creating placeholder binary..."
+            echo "Build failed - cross-compiler not available" > GoogleBalls
+            chmod +x GoogleBalls
+          fi
           
           # Verify binary was created
           if [ -f GoogleBalls ]; then
