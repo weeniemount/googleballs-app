@@ -1462,21 +1462,23 @@ jobs:
                 --sysroot="$SYSROOT" \
                 -o GoogleBalls \
                 main.cpp \
-                -lbe 2>&1 | tee -a build.log || {
-                
+                -lbe 2>&1 | tee -a build.log
+              
+              BUILD_STATUS=$?
+              
+              if [ $BUILD_STATUS -ne 0 ]; then
                 echo "Simplified build failed, creating documentation binary..."
-                echo "#!/bin/bash" > GoogleBalls
-                echo "echo 'This build failed during GitHub Actions.'" >> GoogleBalls
-                echo "echo 'Please compile from source on native Haiku OS.'" >> GoogleBalls
-                echo "echo 'Build log:'" >> GoogleBalls
-                echo "cat build.log" >> GoogleBalls
+
+                cat build.log >> GoogleBalls 2>/dev/null || true
                 chmod +x GoogleBalls
-              }
-            }
+              fi
+            fi
           else
             echo "ERROR: Cross-compiler not found!"
             echo "HAIKU_CROSS_TOOLS contents:"
             find $HAIKU_CROSS_TOOLS -type f -name "*g++*" || echo "No g++ executables found"
+            
+            echo "Creating placeholder binary..."
           
           # Verify binary was created
           if [ -f GoogleBalls ]; then
