@@ -1375,11 +1375,6 @@ jobs:
           echo "Toolchain installed at ~/cross-tools/x86_64"
           ls -la ~/cross-tools/x86_64/
       
-      - name: Clone Haiku source for headers
-        run: |
-          # We need Haiku headers to compile
-          git clone --depth 1 https://review.haiku-os.org/haiku ~/haiku-source
-          
       - name: Set up build environment
         run: |
           echo "Setting up Haiku build environment..."
@@ -1439,24 +1434,32 @@ jobs:
           if [ -n "$CROSS_COMPILER" ] && [ -f "$CROSS_COMPILER" ]; then
             echo "Building with Haiku cross-compiler: $CROSS_COMPILER"
             
-            # Compile the source
+            # Find the Haiku sysroot headers
+            SYSROOT="$HAIKU_CROSS_TOOLS/x86_64-unknown-haiku"
+            
+            if [ ! -d "$SYSROOT" ]; then
+              SYSROOT=$(find $HAIKU_CROSS_TOOLS -type d -name "*-haiku" | head -1)
+            fi
+            
+            echo "Using sysroot: $SYSROOT"
+            ls -la "$SYSROOT" || echo "Sysroot not found"
+            
+            # Build with proper includes from the cross-compiler's sysroot
             $CROSS_COMPILER -std=c++11 -O3 \
-              -I$HOME/haiku-source/headers \
-              -I$HOME/haiku-source/headers/os \
-              -I$HOME/haiku-source/headers/os/app \
-              -I$HOME/haiku-source/headers/os/interface \
-              -I$HOME/haiku-source/headers/os/storage \
-              -I$HOME/haiku-source/headers/os/support \
-              -I$HOME/haiku-source/headers/posix \
+              --sysroot="$SYSROOT" \
               -o GoogleBalls \
               main.cpp \
-              -lbe -ltracker -ltranslation 2>&1 | tee build.log || {
+              -lbe -ltracker -ltranslation 2>&1 | tee build.log
+            
+            BUILD_STATUS=$?
+            
+            if [ $BUILD_STATUS -ne 0 ]; then
+              echo "Cross-compilation failed with status $BUILD_STATUS"
+              echo "Trying simplified build without extra libraries..."
               
-              echo "Cross-compilation failed, trying simplified build..."
-              
-              # Fallback: simpler compilation without all libraries
+              # Fallback: just try with -lbe
               $CROSS_COMPILER -std=c++11 -O3 \
-                -I$HOME/haiku-source/headers \
+                --sysroot="$SYSROOT" \
                 -o GoogleBalls \
                 main.cpp \
                 -lbe 2>&1 | tee -a build.log || {
@@ -1474,12 +1477,6 @@ jobs:
             echo "ERROR: Cross-compiler not found!"
             echo "HAIKU_CROSS_TOOLS contents:"
             find $HAIKU_CROSS_TOOLS -type f -name "*g++*" || echo "No g++ executables found"
-            
-            echo "Creating placeholder binary..."
-            echo "#!/bin/bash" > GoogleBalls
-            echo "echo 'Cross-compiler was not available during build'" >> GoogleBalls
-            chmod +x GoogleBalls
-          fi
           
           # Verify binary was created
           if [ -f GoogleBalls ]; then
@@ -1487,9 +1484,14 @@ jobs:
             file GoogleBalls 2>/dev/null || echo "file command not available"
             ls -lh GoogleBalls
             
-            # Show first few lines to verify it's not just a script
-            echo "Binary type check:"
-            head -c 20 GoogleBalls | od -An -tx1 || echo "Binary check failed"
+            # Check if it's a real binary or script
+            if file GoogleBalls 2>/dev/null | grep -q "ELF"; then
+              echo "✓ Successfully built ELF binary for Haiku!"
+            else
+              echo "⚠ Build produced a script (compilation may have failed)"
+              echo "First 10 lines:"
+              head -10 GoogleBalls
+            fi
           fi
       
       - name: Add resources (if possible)
