@@ -1,0 +1,18 @@
+resource app_signature "application/x-vnd.GoogleBalls";
+
+resource app_flags B_SINGLE_LAUNCH;
+
+resource app_version {
+	major  = 1,
+	middle = 0,
+	minor  = 0,
+
+	variety = B_APPV_FINAL,
+	internal = 0,
+
+	short_info = "Google Balls",
+	long_info = "Google Balls Haiku OS Real!!!!!!!!!!!!!!!!!!!!!!!!!"
+};
+
+resource(1, "BEOS:L:STD_ICON") #'ICON' import "balls_32.png";
+resource(2, "BEOS:M:STD_ICON") #'MICN' import "balls_16.png";
