@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.GoogleBalls" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.GoogleBalls" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/black</item>
+
+        <!-- Navigation bar color -->
+        <item name="android:navigationBarColor">@color/black</item>
+
+        <!-- Status bar icon color: 
+             false = light icons (for dark backgrounds)
+             true  = dark icons (for light backgrounds)
+        -->
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
 </resources>

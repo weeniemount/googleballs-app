@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use macroquad::prelude::*;
 use std::time::{Duration, Instant};
 
