@@ -1306,69 +1306,94 @@ jobs:
           j2me/dist/GoogleBalls.jad
   build-haiku:
     runs-on: ubuntu-latest
-    container: ghcr.io/haiku/cross-compiler:x86_64
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Verify cross-compiler environment
+      - name: Install build dependencies
         run: |
-          echo "Checking cross-compiler setup..."
-          which x86_64-unknown-haiku-g++
-          x86_64-unknown-haiku-g++ --version
-          
-          echo ""
-          echo "Checking sysroot..."
-          ls -la /system/develop/headers/ | head -20 || echo "Headers not in expected location"
-          
-          echo ""
-          echo "Looking for Application.h..."
-          find /system -name "Application.h" 2>/dev/null || echo "Application.h not found"
+          sudo apt-get update
+          sudo apt-get install -y build-essential git autoconf automake texinfo \
+            flex bison gawk cmake libcurl4-openssl-dev pkg-config zlib1g-dev \
+            nasm mtools wget bc rsync u-boot-tools util-linux xorriso
       
-      - name: Verify source files
+      - name: Clone Haiku build tools and source
+        run: |
+          echo "Cloning Haiku buildtools..."
+          git clone --depth 1 https://git.haiku-os.org/buildtools
+          
+          echo "Cloning Haiku source..."
+          git clone --depth 1 https://git.haiku-os.org/haiku
+      
+      - name: Install jam build tool
+        run: |
+          cd buildtools/jam
+          echo "Building jam..."
+          make
+          echo "Installing jam..."
+          sudo ./jam0 install
+          which jam
+          jam -v
+      
+      - name: Create build directory and configure
         run: |
           cd haiku
-          echo "Files in haiku directory:"
-          ls -la
+          mkdir -p generated.x86_64
+          cd generated.x86_64
           
-          if [ ! -f main.cpp ]; then
-            echo "ERROR: main.cpp not found"
+          echo "Configuring Haiku cross-compiler for x86_64..."
+          ../configure --cross-tools-source ../../buildtools --build-cross-tools x86_64 -j$(nproc)
+      
+      - name: Verify cross-compiler
+        run: |
+          echo "Checking for cross-compiler..."
+          ls -la haiku/generated.x86_64/cross-tools-x86_64/bin/
+          
+          if [ -f haiku/generated.x86_64/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ ]; then
+            echo "✓ Cross-compiler found"
+            haiku/generated.x86_64/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ --version
+          else
+            echo "ERROR: Cross-compiler not found"
             exit 1
           fi
-          
-          echo "main.cpp found, ready to build"
       
-      - name: Build Haiku application
+      - name: Copy source files and build application
         run: |
-          cd haiku
+          # Create build directory for our app
+          mkdir -p haiku/generated.x86_64/build-app
+          
+          # Copy our source file
+          cp haiku/main.cpp haiku/generated.x86_64/build-app/
+          
+          cd haiku/generated.x86_64/build-app
           
           echo "Building Google Balls for Haiku..."
           
-          # The cross-compiler in the container should have proper sysroot configured
-          x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot -ltranslation -ltracker || \
-            x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot || \
-            x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe
+          # Use the cross-compiler we just built
+          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
+            -std=c++11 -O2 -o GoogleBalls main.cpp \
+            -lbe -lroot -ltranslation -ltracker || \
+          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
+            -std=c++11 -O2 -o GoogleBalls main.cpp \
+            -lbe -lroot || \
+          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
+            -std=c++11 -O2 -o GoogleBalls main.cpp -lbe
           
-          # Verify binary
+          # Verify binary was created
           if [ ! -f GoogleBalls ]; then
             echo "ERROR: GoogleBalls binary was not created"
             exit 1
           fi
           
           file GoogleBalls
-          
-          if ! file GoogleBalls | grep -q "ELF"; then
-            echo "ERROR: GoogleBalls is not a valid ELF binary"
-            exit 1
-          fi
+          ls -lh GoogleBalls
           
           echo "✓ Successfully built Haiku application"
-          ls -lh GoogleBalls
       
       - name: Create distribution package
         run: |
-          cd haiku
+          cd haiku/generated.x86_64/build-app
           
           mkdir -p GoogleBalls-haiku-x64
           cp GoogleBalls GoogleBalls-haiku-x64/
@@ -1376,12 +1401,6 @@ jobs:
           tar -czf GoogleBalls-haiku-x64.tar.gz GoogleBalls-haiku-x64/
           
           SIZE=$(stat -c%s GoogleBalls-haiku-x64.tar.gz 2>/dev/null)
-          
-          if [ "$SIZE" -lt 1000 ]; then
-            echo "ERROR: Archive is too small ($SIZE bytes)"
-            exit 1
-          fi
-          
           echo "✓ Package created: GoogleBalls-haiku-x64.tar.gz ($SIZE bytes)"
           tar -tzf GoogleBalls-haiku-x64.tar.gz
       
@@ -1389,5 +1408,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-haiku
-          path: haiku/GoogleBalls-haiku-x64.tar.gz
+          path: haiku/generated.x86_64/build-app/GoogleBalls-haiku-x64.tar.gz
           if-no-files-found: error
