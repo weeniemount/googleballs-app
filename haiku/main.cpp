@@ -212,14 +212,15 @@ public:
 class BallsView : public BView {
 public:
     BallsView(BRect frame) 
-        : BView(frame, "BallsView", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_FRAME_EVENTS) {
+        : BView(frame, "BallsView", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_FRAME_EVENTS | B_PULSE_NEEDED) {
         SetViewColor(255, 255, 255);
         initPoints();
     }
     
     virtual void AttachedToWindow() {
         BView::AttachedToWindow();
-        SetMouseEventMask(B_POINTER_EVENTS);
+        // Make sure we receive all mouse events
+        SetEventMask(B_POINTER_EVENTS, B_NO_POINTER_HISTORY);
     }
     
     virtual void Draw(BRect updateRect) {
@@ -229,7 +230,7 @@ public:
     
     virtual void MouseMoved(BPoint where, uint32 code, const BMessage* dragMessage) {
         pointCollection.mousePos.set(where.x, where.y);
-        Invalidate();
+        // Don't invalidate here - let Pulse handle it for smoother animation
     }
     
     virtual void FrameResized(float width, float height) {
@@ -237,7 +238,7 @@ public:
         recenterPoints(width, height);
     }
     
-    void Pulse() {
+    virtual void Pulse() {
         pointCollection.update();
         Invalidate();
     }
@@ -307,8 +308,8 @@ public:
         fView = new BallsView(bounds);
         AddChild(fView);
         
-        // Start pulse
-        SetPulseRate(30000); // 30ms
+        // Start pulse - 30ms = ~33 fps
+        SetPulseRate(30000);
     }
     
     virtual void MessageReceived(BMessage* message) {
@@ -322,10 +323,6 @@ public:
     virtual bool QuitRequested() {
         be_app->PostMessage(B_QUIT_REQUESTED);
         return true;
-    }
-    
-    virtual void Pulse() {
-        fView->Pulse();
     }
     
 private:
