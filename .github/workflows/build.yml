@@ -1311,243 +1311,128 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install dependencies
+      - name: Download and setup Haiku cross-compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential curl jq nasm autoconf automake texinfo flex bison gawk git unzip
-
-      - name: Download prebuilt Haiku toolchain
-        run: |
-          # Clone the toolchains repo to get the fetch script
-          git clone --depth 1 https://github.com/haiku/haiku-toolchains-ubuntu.git ~/haiku-toolchains
+          set -e  # Exit on any error
           
-          cd ~/haiku-toolchains
-          chmod +x fetch.sh
+          # Create working directory
+          mkdir -p ~/haiku-build
+          cd ~/haiku-build
           
-          # Fetch the latest x86_64 build tools
-          echo "Fetching x86_64 build tools..."
-          BUILDTOOLS_URL=$(./fetch.sh --buildtools --arch=x86_64)
-          echo "Build tools URL: $BUILDTOOLS_URL"
+          # Download prebuilt cross-compiler from Haiku's official builds
+          echo "Downloading Haiku cross-compiler..."
+          TOOLCHAIN_URL="https://eu.hpkg.haiku-os.org/haiku/master/$(uname -m)/current/packages/haiku_cross_devel_sysroot_x86_64-r1~beta5~64~g52ca0d26da-1-x86_64.hpkg"
           
-          # Download the toolchain
-          curl -sLOJ "$BUILDTOOLS_URL"
+          # Try alternative: download from buildtools releases
+          wget -q https://github.com/haiku/buildtools/releases/download/v2023.11.04/x86_64-unknown-haiku-gcc-13.2.0-2023.11.04-linux-x86_64.tar.xz || \
+            (echo "Trying alternative mirror..." && \
+             wget -q https://s3.us-west-1.wasabisys.com/haiku-repositories/master/x86_64/current/packages/haiku_cross_devel_sysroot_x86_64-r1~beta5~78~ge0f01e74c5-1-x86_64.hpkg)
           
-          # Find the downloaded file (could be .zip or .tar.gz)
-          ARCHIVE=$(ls -t x86_64-linux-buildtools-* 2>/dev/null | head -1)
-          
-          if [ -z "$ARCHIVE" ]; then
-            echo "ERROR: No toolchain archive found!"
-            ls -la
-            exit 1
-          fi
-          
-          echo "Extracting $ARCHIVE..."
-          
-          # Extract based on file extension
-          if [[ "$ARCHIVE" == *.zip ]]; then
-            unzip -q "$ARCHIVE"
-          elif [[ "$ARCHIVE" == *.tar.gz ]] || [[ "$ARCHIVE" == *.tgz ]]; then
-            tar -xzf "$ARCHIVE"
+          # Extract toolchain
+          if [ -f *.tar.xz ]; then
+            echo "Extracting toolchain..."
+            tar -xf *.tar.xz
+            
+            # Find the actual toolchain directory
+            TOOLCHAIN_DIR=$(find . -type d -name "x86_64-unknown-haiku" -o -name "*haiku*gcc*" | head -1)
+            
+            if [ -z "$TOOLCHAIN_DIR" ]; then
+              echo "Looking for bin directory with cross-compiler..."
+              TOOLCHAIN_DIR=$(find . -type f -name "*-haiku-g++" -exec dirname {} \; | head -1 | xargs dirname)
+            fi
+            
+            echo "Found toolchain at: $TOOLCHAIN_DIR"
+            echo "HAIKU_TOOLCHAIN=$TOOLCHAIN_DIR" >> $GITHUB_ENV
+            
+            # Find the cross-compiler
+            CROSS_CXX=$(find "$TOOLCHAIN_DIR" -name "*-haiku-g++" -o -name "x86_64-*-g++" | head -1)
+            echo "CROSS_CXX=$CROSS_CXX" >> $GITHUB_ENV
+            echo "Found compiler: $CROSS_CXX"
+            
+            # Test compiler
+            $CROSS_CXX --version || echo "Warning: Compiler test failed"
           else
-            echo "Unknown archive format: $ARCHIVE"
+            echo "ERROR: No toolchain archive found"
             exit 1
           fi
-          
-          # Set up directory structure
-          mkdir -p ~/cross-tools
-          
-          # Find the extracted directory
-          EXTRACTED_DIR=$(ls -td cross-tools-* 2>/dev/null | head -1)
-          
-          if [ -z "$EXTRACTED_DIR" ]; then
-            echo "Looking for alternative directory names..."
-            ls -la
-            # Sometimes it extracts to a different name
-            EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "*buildtools*" -o -name "*cross-tools*" | head -1)
-          fi
-          
-          if [ -n "$EXTRACTED_DIR" ]; then
-            echo "Moving $EXTRACTED_DIR to ~/cross-tools/x86_64"
-            mv "$EXTRACTED_DIR" ~/cross-tools/x86_64
-          else
-            echo "ERROR: Could not find extracted toolchain directory"
-            echo "Directory contents:"
-            ls -la
-            exit 1
-          fi
-          
-          echo "Toolchain installed at ~/cross-tools/x86_64"
-          ls -la ~/cross-tools/x86_64/
       
-      - name: Set up build environment
+      - name: Build Haiku application
         run: |
-          echo "Setting up Haiku build environment..."
-          
-          # Find the actual cross-tools directory
-          if [ -d "$HOME/cross-tools/x86_64/cross-tools-x86_64" ]; then
-            export HAIKU_CROSS_TOOLS="$HOME/cross-tools/x86_64/cross-tools-x86_64"
-          elif [ -d "$HOME/cross-tools/x86_64/cross-tools" ]; then
-            export HAIKU_CROSS_TOOLS="$HOME/cross-tools/x86_64/cross-tools"
-          elif [ -d "$HOME/cross-tools/x86_64" ]; then
-            export HAIKU_CROSS_TOOLS="$HOME/cross-tools/x86_64"
-          else
-            echo "Searching for cross-tools..."
-            find $HOME/cross-tools -type d -name "*cross-tools*" || true
-            export HAIKU_CROSS_TOOLS="$HOME/cross-tools/x86_64"
-          fi
-          
-          echo "Using HAIKU_CROSS_TOOLS: $HAIKU_CROSS_TOOLS"
-          ls -la "$HAIKU_CROSS_TOOLS/" || echo "Directory listing failed"
-          
-          # Find the bin directory
-          if [ -d "$HAIKU_CROSS_TOOLS/bin" ]; then
-            export PATH="$HAIKU_CROSS_TOOLS/bin:$PATH"
-            echo "Added $HAIKU_CROSS_TOOLS/bin to PATH"
-          fi
-          
-          # Verify cross-compiler is available
-          CROSS_GCC=$(find $HAIKU_CROSS_TOOLS -name "*-haiku-g++" -o -name "x86_64-*-g++" | head -1)
-          
-          if [ -n "$CROSS_GCC" ]; then
-            echo "Cross-compiler found at: $CROSS_GCC"
-            $CROSS_GCC --version || echo "Could not run cross-compiler"
-            echo "CROSS_GCC=$CROSS_GCC" >> $GITHUB_ENV
-          else
-            echo "Cross-compiler not found, listing all g++ variants..."
-            find $HAIKU_CROSS_TOOLS -name "*g++*" || echo "No g++ found"
-          fi
-          
-          # Save environment for next steps
-          echo "HAIKU_CROSS_TOOLS=$HAIKU_CROSS_TOOLS" >> $GITHUB_ENV
-          echo "$HAIKU_CROSS_TOOLS/bin" >> $GITHUB_PATH
-      
-      - name: Build Haiku app
-        run: |
+          set -e
           cd haiku
           
-          # Find the cross-compiler (it might have different names)
-          CROSS_COMPILER=""
+          echo "Building with cross-compiler: $CROSS_CXX"
           
-          if [ -n "$CROSS_GCC" ] && [ -f "$CROSS_GCC" ]; then
-            CROSS_COMPILER="$CROSS_GCC"
-          else
-            # Search for it
-            CROSS_COMPILER=$(find $HAIKU_CROSS_TOOLS -name "*-haiku-g++" -o -name "x86_64-*-g++" 2>/dev/null | head -1)
+          # Verify source file exists
+          if [ ! -f main.cpp ]; then
+            echo "ERROR: main.cpp not found in haiku directory"
+            ls -la
+            exit 1
           fi
           
-          if [ -n "$CROSS_COMPILER" ] && [ -f "$CROSS_COMPILER" ]; then
-            echo "Building with Haiku cross-compiler: $CROSS_COMPILER"
+          # Attempt to build
+          if [ -n "$CROSS_CXX" ] && [ -f "$CROSS_CXX" ]; then
+            echo "Compiling with Haiku cross-compiler..."
+            $CROSS_CXX -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot || \
+              (echo "Build with -lbe -lroot failed, trying minimal flags..." && \
+               $CROSS_CXX -std=c++11 -O2 -o GoogleBalls main.cpp -lbe)
             
-            # Find the Haiku sysroot headers
-            SYSROOT="$HAIKU_CROSS_TOOLS/x86_64-unknown-haiku"
-            
-            if [ ! -d "$SYSROOT" ]; then
-              SYSROOT=$(find $HAIKU_CROSS_TOOLS -type d -name "*-haiku" | head -1)
+            # Verify the binary was created and is valid
+            if [ ! -f GoogleBalls ]; then
+              echo "ERROR: GoogleBalls binary was not created"
+              exit 1
             fi
             
-            echo "Using sysroot: $SYSROOT"
-            ls -la "$SYSROOT" || echo "Sysroot not found"
+            # Check if it's actually an ELF binary
+            file GoogleBalls
             
-            # Build with proper includes from the cross-compiler's sysroot
-            $CROSS_COMPILER -std=c++11 -O3 \
-              --sysroot="$SYSROOT" \
-              -o GoogleBalls \
-              main.cpp \
-              -lbe -ltracker -ltranslation 2>&1 | tee build.log
-            
-            BUILD_STATUS=$?
-            
-            if [ $BUILD_STATUS -ne 0 ]; then
-              echo "Cross-compilation failed with status $BUILD_STATUS"
-              echo "Trying simplified build without extra libraries..."
-              
-              # Fallback: just try with -lbe
-              $CROSS_COMPILER -std=c++11 -O3 \
-                --sysroot="$SYSROOT" \
-                -o GoogleBalls \
-                main.cpp \
-                -lbe 2>&1 | tee -a build.log
-              
-              BUILD_STATUS=$?
-              
-              if [ $BUILD_STATUS -ne 0 ]; then
-                echo "Simplified build failed, creating documentation binary..."
-                cat build.log >> GoogleBalls 2>/dev/null || true
-                chmod +x GoogleBalls
-              fi
+            if ! file GoogleBalls | grep -q "ELF"; then
+              echo "ERROR: GoogleBalls is not a valid ELF binary"
+              cat GoogleBalls
+              exit 1
             fi
-          else
-            echo "ERROR: Cross-compiler not found!"
-            echo "HAIKU_CROSS_TOOLS contents:"
-            find $HAIKU_CROSS_TOOLS -type f -name "*g++*" || echo "No g++ executables found"
             
-            echo "Creating placeholder binary..."
-            echo "Build failed - cross-compiler not available" > GoogleBalls
-            chmod +x GoogleBalls
-          fi
-          
-          # Verify binary was created
-          if [ -f GoogleBalls ]; then
-            echo "Build completed!"
-            file GoogleBalls 2>/dev/null || echo "file command not available"
+            echo "✓ Build successful!"
             ls -lh GoogleBalls
-            
-            # Check if it's a real binary or script
-            if file GoogleBalls 2>/dev/null | grep -q "ELF"; then
-              echo "✓ Successfully built ELF binary for Haiku!"
-            else
-              echo "⚠ Build produced a script (compilation may have failed)"
-              echo "First 10 lines:"
-              head -10 GoogleBalls
-            fi
-          fi
-      
-      - name: Add resources (if possible)
-        run: |
-          cd haiku
-          
-          # Find resource compiler
-          RC=$(find $HAIKU_CROSS_TOOLS -name "*-haiku-rc" -o -name "x86_64-*-rc" 2>/dev/null | head -1)
-          
-          if [ -n "$RC" ] && [ -f "$RC" ] && [ -f "GoogleBalls.rdef" ]; then
-            echo "Compiling resources with: $RC"
-            $RC -o GoogleBalls.rsrc GoogleBalls.rdef || echo "Resource compilation failed"
-            
-            # Try to add resources to binary
-            XRES=$(find $HAIKU_CROSS_TOOLS -name "*-haiku-xres" -o -name "x86_64-*-xres" 2>/dev/null | head -1)
-            
-            if [ -n "$XRES" ] && [ -f "$XRES" ] && [ -f GoogleBalls.rsrc ] && [ -f GoogleBalls ]; then
-              echo "Adding resources with: $XRES"
-              $XRES -o GoogleBalls GoogleBalls.rsrc || echo "Resource addition failed"
-            fi
           else
-            echo "Resource compiler not available or rdef file missing, skipping resources"
-            echo "RC: $RC"
-            ls -la GoogleBalls.rdef 2>/dev/null || echo "GoogleBalls.rdef not found"
+            echo "ERROR: Cross-compiler not found at $CROSS_CXX"
+            exit 1
           fi
       
-      - name: Package Haiku app
+      - name: Create package
         run: |
+          set -e
           cd haiku
           
-          # Create app directory structure
-          mkdir -p GoogleBalls-package
-          
-          if [ -f GoogleBalls ]; then
-            cp GoogleBalls GoogleBalls-package/
+          # Verify binary exists before packaging
+          if [ ! -f GoogleBalls ]; then
+            echo "ERROR: GoogleBalls binary not found, cannot create package"
+            exit 1
           fi
           
-          # Create tarball
-          tar -czf GoogleBalls-haiku-x64.tar.gz GoogleBalls-package/
+          # Create package structure
+          mkdir -p GoogleBalls-haiku-x64
+          cp GoogleBalls GoogleBalls-haiku-x64/
           
-          echo "Package created successfully"
+          # Create the tarball
+          tar -czf GoogleBalls-haiku-x64.tar.gz GoogleBalls-haiku-x64/
+          
+          # Verify the tarball is not empty
+          if [ ! -s GoogleBalls-haiku-x64.tar.gz ]; then
+            echo "ERROR: tar.gz file is empty"
+            exit 1
+          fi
+          
+          echo "Package created successfully:"
           ls -lh GoogleBalls-haiku-x64.tar.gz
+          echo ""
+          echo "Archive contents:"
+          tar -tzf GoogleBalls-haiku-x64.tar.gz
       
-      - name: Upload Haiku artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-haiku
-          path: |
-            haiku/GoogleBalls-haiku-x64.tar.gz
+          path: haiku/GoogleBalls-haiku-x64.tar.gz
+          if-no-files-found: error
 
-            haiku/GoogleBalls-package/GoogleBalls
