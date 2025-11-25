@@ -1306,107 +1306,87 @@ jobs:
           j2me/dist/GoogleBalls.jad
   build-haiku:
     runs-on: ubuntu-latest
+    container:
+      image: docker.io/haiku/cross-compiler:x86_64-r1beta4
+      options: --user root
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install build dependencies
+      - name: Verify toolchain
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git autoconf automake texinfo \
-            flex bison gawk cmake libcurl4-openssl-dev pkg-config zlib1g-dev \
-            nasm mtools wget bc rsync u-boot-tools util-linux xorriso
-      
-      - name: Clone Haiku build tools and source
-        run: |
-          echo "Cloning Haiku buildtools..."
-          git clone --depth 1 https://git.haiku-os.org/buildtools
+          echo "=== Checking Haiku cross-compiler ==="
+          which x86_64-unknown-haiku-g++ || echo "Compiler not in PATH"
           
-          echo "Cloning Haiku source..."
-          git clone --depth 1 https://git.haiku-os.org/haiku
-      
-      - name: Install jam build tool
-        run: |
-          cd buildtools/jam
-          echo "Building jam..."
-          make
-          echo "Installing jam..."
-          sudo ./jam0 install
-          which jam
-          jam -v
-      
-      - name: Create build directory and configure
-        run: |
-          cd haiku
-          mkdir -p generated.x86_64
-          cd generated.x86_64
+          # Find the compiler
+          find /tools -name "*-haiku-g++" 2>/dev/null || echo "Searching /tools failed"
           
-          echo "Configuring Haiku cross-compiler for x86_64..."
-          ../configure --cross-tools-source ../../buildtools --build-cross-tools x86_64 -j$(nproc)
-      
-      - name: Verify cross-compiler
-        run: |
-          echo "Checking for cross-compiler..."
-          ls -la haiku/generated.x86_64/cross-tools-x86_64/bin/
-          
-          if [ -f haiku/generated.x86_64/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ ]; then
-            echo "✓ Cross-compiler found"
-            haiku/generated.x86_64/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ --version
+          # Check if compiler exists in expected location
+          if [ -f "/tools/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++" ]; then
+            echo "✓ Found compiler at /tools/cross-tools-x86_64/bin/"
+            /tools/cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ --version
+            export PATH="/tools/cross-tools-x86_64/bin:$PATH"
+            echo "/tools/cross-tools-x86_64/bin" >> $GITHUB_PATH
           else
-            echo "ERROR: Cross-compiler not found"
+            echo "ERROR: Compiler not found"
             exit 1
           fi
       
-      - name: Copy source files and build application
+      - name: Build Haiku application
         run: |
-          # Create build directory for our app
-          mkdir -p haiku/generated.x86_64/build-app
+          cd haiku
           
-          # Copy our source file
-          cp haiku/main.cpp haiku/generated.x86_64/build-app/
+          echo "=== Building Google Balls for Haiku ==="
           
-          cd haiku/generated.x86_64/build-app
+          # Ensure compiler is in PATH
+          export PATH="/tools/cross-tools-x86_64/bin:$PATH"
           
-          echo "Building Google Balls for Haiku..."
+          # Try building with different library combinations
+          if x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot -ltranslation -ltracker; then
+            echo "✓ Built with full libraries"
+          elif x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot; then
+            echo "✓ Built with basic libraries"
+          elif x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe; then
+            echo "✓ Built with minimal libraries"
+          else
+            echo "ERROR: Build failed"
+            exit 1
+          fi
           
-          # Use the cross-compiler we just built
-          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
-            -std=c++11 -O2 -o GoogleBalls main.cpp \
-            -lbe -lroot -ltranslation -ltracker || \
-          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
-            -std=c++11 -O2 -o GoogleBalls main.cpp \
-            -lbe -lroot || \
-          ../cross-tools-x86_64/bin/x86_64-unknown-haiku-g++ \
-            -std=c++11 -O2 -o GoogleBalls main.cpp -lbe
-          
-          # Verify binary was created
+          # Verify the binary
           if [ ! -f GoogleBalls ]; then
-            echo "ERROR: GoogleBalls binary was not created"
+            echo "ERROR: Binary not created"
             exit 1
           fi
           
           file GoogleBalls
           ls -lh GoogleBalls
-          
-          echo "✓ Successfully built Haiku application"
       
       - name: Create distribution package
         run: |
-          cd haiku/generated.x86_64/build-app
+          cd haiku
           
+          # Create distribution directory
           mkdir -p GoogleBalls-haiku-x64
           cp GoogleBalls GoogleBalls-haiku-x64/
           
+          # Create tarball
           tar -czf GoogleBalls-haiku-x64.tar.gz GoogleBalls-haiku-x64/
           
-          SIZE=$(stat -c%s GoogleBalls-haiku-x64.tar.gz 2>/dev/null)
-          echo "✓ Package created: GoogleBalls-haiku-x64.tar.gz ($SIZE bytes)"
-          tar -tzf GoogleBalls-haiku-x64.tar.gz
+          # Verify package
+          if [ -f GoogleBalls-haiku-x64.tar.gz ]; then
+            SIZE=$(stat -c%s GoogleBalls-haiku-x64.tar.gz 2>/dev/null || stat -f%z GoogleBalls-haiku-x64.tar.gz)
+            echo "✓ Package created: GoogleBalls-haiku-x64.tar.gz ($SIZE bytes)"
+            tar -tzf GoogleBalls-haiku-x64.tar.gz
+          else
+            echo "ERROR: Failed to create package"
+            exit 1
+          fi
       
       - name: Upload Haiku artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: googleballs-haiku
-          path: haiku/generated.x86_64/build-app/GoogleBalls-haiku-x64.tar.gz
+          name: googleballs-haiku-x64
+          path: haiku/GoogleBalls-haiku-x64.tar.gz
           if-no-files-found: error
