@@ -3,6 +3,10 @@ name: Build Apps
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -1545,4 +1549,5 @@ jobs:
           name: googleballs-haiku
           path: |
             haiku/GoogleBalls-haiku-x64.tar.gz
+
             haiku/GoogleBalls-package/GoogleBalls
