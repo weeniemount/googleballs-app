@@ -1306,96 +1306,30 @@ jobs:
           j2me/dist/GoogleBalls.jad
   build-haiku:
     runs-on: ubuntu-latest
+    container: ghcr.io/haiku/cross-compiler:x86_64
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install dependencies
+      - name: Verify cross-compiler environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl build-essential wget
+          echo "Checking cross-compiler setup..."
+          which x86_64-unknown-haiku-g++
+          x86_64-unknown-haiku-g++ --version
+          
+          echo ""
+          echo "Checking sysroot..."
+          ls -la /system/develop/headers/ | head -20 || echo "Headers not in expected location"
+          
+          echo ""
+          echo "Looking for Application.h..."
+          find /system -name "Application.h" 2>/dev/null || echo "Application.h not found"
       
-      - name: Download Haiku cross-compiler and sysroot
-        run: |
-          mkdir -p ~/haiku-build
-          cd ~/haiku-build
-          
-          # Download the fetch script
-          wget -q https://raw.githubusercontent.com/haiku/haiku-toolchains-ubuntu/main/fetch.sh
-          chmod +x fetch.sh
-          
-          # Fetch x86_64 build tools
-          echo "Fetching x86_64 cross-compiler..."
-          BUILDTOOLS_URL=$(./fetch.sh --buildtools --arch=x86_64)
-          echo "Build tools URL: $BUILDTOOLS_URL"
-          curl -sLOJ "$BUILDTOOLS_URL"
-          
-          # Extract toolchain
-          ARCHIVE=$(ls x86_64-* 2>/dev/null | head -1)
-          if [[ "$ARCHIVE" == *.tar.xz ]]; then
-            tar -xf "$ARCHIVE"
-          elif [[ "$ARCHIVE" == *.zip ]]; then
-            unzip -q "$ARCHIVE"
-          fi
-          
-          # Find and setup the cross-tools directory
-          EXTRACTED_DIR=$(find . -maxdepth 2 -type d -name "cross-tools*" -o -name "bin" | grep -E "cross-tools|bin" | head -1 | xargs dirname 2>/dev/null || find . -maxdepth 1 -type d ! -name "." | head -1)
-          
-          if [ -d "$EXTRACTED_DIR" ]; then
-            mv "$EXTRACTED_DIR" ~/haiku-cross-tools 2>/dev/null || cp -r "$EXTRACTED_DIR"/* ~/haiku-cross-tools/
-          fi
-          
-          # Download sysroot packages  
-          echo "Downloading Haiku sysroot packages..."
-          
-          # We need haiku.hpkg and haiku_devel.hpkg for the headers and libraries
-          # These are available from Haiku's package repository
-          wget -q -O haiku_devel.hpkg "https://eu.hpkg.haiku-os.org/haiku/master/x86_64/current/packages/haiku_devel-r1~beta5~1-1-x86_64.hpkg" || \
-          wget -q -O haiku_devel.hpkg "https://eu.hpkg.haiku-os.org/haiku/master/x86_64/current/packages/haiku_devel-r1~beta5-1-x86_64.hpkg"
-          
-          # Install package tool to extract .hpkg files
-          wget -q https://github.com/haikuporter/haikuporter/raw/master/buildmaster/bin/package_linux_x86_64
-          chmod +x package_linux_x86_64
-          
-          # Create sysroot directory structure
-          mkdir -p ~/haiku-cross-tools/sysroot
-          
-          # Extract the development package into sysroot
-          echo "Extracting haiku_devel.hpkg..."
-          ./package_linux_x86_64 extract -C ~/haiku-cross-tools/sysroot haiku_devel.hpkg
-          
-          # The headers should now be in the sysroot
-          echo "Sysroot structure:"
-          ls -la ~/haiku-cross-tools/sysroot/ || true
-          
-          # Find the actual headers location
-          find ~/haiku-cross-tools/sysroot -name "Application.h" -o -name "*.h" | head -5 || echo "Headers not found yet"
-          
-          # Set up environment
-          CROSS_CXX=$(find ~/haiku-cross-tools -name "*-g++" -type f 2>/dev/null | head -1)
-          
-          if [ -z "$CROSS_CXX" ]; then
-            echo "ERROR: Cross-compiler not found"
-            exit 1
-          fi
-          
-          echo "Cross-compiler: $CROSS_CXX"
-          $CROSS_CXX --version
-          
-          # Save for next steps
-          echo "HAIKU_CROSS_CXX=$CROSS_CXX" >> $GITHUB_ENV
-          
-          # Find sysroot path
-          SYSROOT_PATH=$(find ~/haiku-cross-tools/sysroot -type d -name "develop" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || echo "~/haiku-cross-tools/sysroot")
-          echo "HAIKU_SYSROOT=$SYSROOT_PATH" >> $GITHUB_ENV
-          
-          echo "Setup complete"
-      
-      - name: Verify source files and sysroot
+      - name: Verify source files
         run: |
           cd haiku
-          echo "=== Source files ==="
+          echo "Files in haiku directory:"
           ls -la
           
           if [ ! -f main.cpp ]; then
@@ -1403,76 +1337,18 @@ jobs:
             exit 1
           fi
           
-          echo ""
-          echo "=== Sysroot contents ==="
-          find ~/haiku-cross-tools/sysroot -type f -name "*.h" | head -10 || echo "No headers found"
-          
-          echo ""
-          echo "=== Looking for Application.h ==="
-          find ~/haiku-cross-tools -name "Application.h" || echo "Application.h not found"
-          
-          echo ""
-          echo "=== Sysroot directory structure ==="
-          ls -la ~/haiku-cross-tools/sysroot/ || true
-          ls -la ~/haiku-cross-tools/sysroot/boot/ 2>/dev/null || echo "No boot directory"
-          ls -la ~/haiku-cross-tools/sysroot/develop/ 2>/dev/null || echo "No develop directory"
+          echo "main.cpp found, ready to build"
       
       - name: Build Haiku application
         run: |
           cd haiku
           
-          echo "Building with cross-compiler: $HAIKU_CROSS_CXX"
-          echo "Using sysroot: $HAIKU_SYSROOT"
+          echo "Building Google Balls for Haiku..."
           
-          # Find the actual include path for Haiku headers
-          HEADERS_PATH=$(find ~/haiku-cross-tools/sysroot -type d -path "*/develop/headers" 2>/dev/null | head -1)
-          
-          if [ -z "$HEADERS_PATH" ]; then
-            echo "WARNING: Standard headers path not found, searching for Application.h..."
-            APP_H=$(find ~/haiku-cross-tools -name "Application.h" 2>/dev/null | head -1)
-            if [ -n "$APP_H" ]; then
-              HEADERS_PATH=$(dirname "$(dirname "$APP_H")")
-              echo "Found headers at: $HEADERS_PATH"
-            fi
-          fi
-          
-          # Find library path
-          LIB_PATH=$(find ~/haiku-cross-tools/sysroot -type d -path "*/develop/lib" 2>/dev/null | head -1)
-          
-          if [ -z "$LIB_PATH" ]; then
-            LIB_PATH=$(find ~/haiku-cross-tools/sysroot -type d -name "lib" 2>/dev/null | head -1)
-          fi
-          
-          # Build with explicit paths
-          BUILD_CMD="$HAIKU_CROSS_CXX -std=c++11 -O2"
-          
-          if [ -n "$HEADERS_PATH" ]; then
-            BUILD_CMD="$BUILD_CMD -I$HEADERS_PATH -I$HEADERS_PATH/os -I$HEADERS_PATH/os/app -I$HEADERS_PATH/os/interface"
-          fi
-          
-          if [ -n "$LIB_PATH" ]; then
-            BUILD_CMD="$BUILD_CMD -L$LIB_PATH"
-          fi
-          
-          BUILD_CMD="$BUILD_CMD -o GoogleBalls main.cpp -lbe -lroot"
-          
-          echo "Build command: $BUILD_CMD"
-          
-          # Try to build
-          if $BUILD_CMD 2>&1; then
-            echo "✓ Build successful"
-          else
-            echo "Build failed, trying alternative approach..."
-            
-            # Try using --sysroot if the directory structure is correct
-            if [ -d "$HAIKU_SYSROOT/boot/system" ]; then
-              echo "Trying with --sysroot flag..."
-              $HAIKU_CROSS_CXX -std=c++11 -O2 --sysroot="$HAIKU_SYSROOT" -o GoogleBalls main.cpp -lbe
-            else
-              echo "ERROR: Build failed and no alternative approach available"
-              exit 1
-            fi
-          fi
+          # The cross-compiler in the container should have proper sysroot configured
+          x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot -ltranslation -ltracker || \
+            x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe -lroot || \
+            x86_64-unknown-haiku-g++ -std=c++11 -O2 -o GoogleBalls main.cpp -lbe
           
           # Verify binary
           if [ ! -f GoogleBalls ]; then
@@ -1499,7 +1375,7 @@ jobs:
           
           tar -czf GoogleBalls-haiku-x64.tar.gz GoogleBalls-haiku-x64/
           
-          SIZE=$(stat -c%s GoogleBalls-haiku-x64.tar.gz 2>/dev/null || stat -f%z GoogleBalls-haiku-x64.tar.gz)
+          SIZE=$(stat -c%s GoogleBalls-haiku-x64.tar.gz 2>/dev/null)
           
           if [ "$SIZE" -lt 1000 ]; then
             echo "ERROR: Archive is too small ($SIZE bytes)"
