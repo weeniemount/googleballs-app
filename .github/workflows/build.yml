@@ -1390,3 +1390,36 @@ jobs:
           name: googleballs-haiku-x64
           path: haiku/GoogleBalls-haiku-x64.tar.gz
           if-no-files-found: error
+  build-wii:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitppc:latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build Wii application
+      run: |
+        cd wii
+        export DEVKITPRO=/opt/devkitpro
+        export DEVKITPPC=${DEVKITPRO}/devkitPPC
+        make
+
+    - name: Package homebrew
+      run: |
+        cd wii
+        mkdir -p package/apps/google-balls-wii
+        cp google-balls-wii.dol package/apps/google-balls-wii/boot.dol
+        cp meta.xml package/apps/google-balls-wii/meta.xml
+        if [ -f icon.png ]; then
+          cp icon.png package/apps/google-balls-wii/icon.png
+        fi
+        cd package
+        zip -r ../google-balls-wii.zip apps/
+
+    - name: Upload ZIP artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: google-balls-wii
+        path: wii/google-balls-wii.zip
