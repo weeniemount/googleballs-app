@@ -331,9 +331,10 @@ int main(int argc, char *argv[]) {
         // Draw
         tiny3d_Clear(0xffffffff, TINY3D_CLEAR_ALL);
         tiny3d_AlphaTest(1, 0x10, TINY3D_ALPHA_FUNC_GEQUAL);
-        tiny3d_BlendFunc(1, TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
-                        TINY3D_BLEND_FUNC_SRC_RGB_ONE_MINUS_SRC_ALPHA, 
-                        TINY3D_BLEND_FUNC_SRC_ALPHA_ONE_MINUS_SRC_ALPHA);
+        tiny3d_BlendFunc(1, 
+                        (blend_src_func)TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
+                        (blend_dst_func)TINY3D_BLEND_FUNC_SRC_RGB_ONE_MINUS_SRC_ALPHA,
+                        (blend_func)TINY3D_BLEND_RGB_FUNC_ADD);
         
         tiny3d_Project2D();
         collection.draw();
