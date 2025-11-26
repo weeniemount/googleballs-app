@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: 
-      image: mlafeldt/ps3dev
+      image: psl1ght/psl1ght
     
     steps:
     - name: Checkout repository
