@@ -13,26 +13,30 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Find PSL1GHT installation in Docker
-      run: |
-        docker run --rm flipacholas/ps3devextra:latest sh -c "
-          echo '=== Checking for PSL1GHT installation ===' &&
-          ls -la /usr/local/ &&
-          echo '=== Checking PS3DEV ===' &&
-          ls -la /usr/local/ps3dev/ || echo 'ps3dev not found' &&
-          echo '=== Finding ppu_rules ===' &&
-          find / -name ppu_rules 2>/dev/null || echo 'ppu_rules not found' &&
-          echo '=== Environment variables ===' &&
-          env | grep -i ps3
-        "
-      
-    - name: Build PS3 homebrew in Docker
+    - name: Build tiny3D and PS3 homebrew in Docker
       run: |
         docker run --rm \
           -v "$PWD:/build" \
-          -w /build/ps3 \
+          -w /build \
           flipacholas/ps3devextra:latest \
-          sh -c "export PATH=\$PATH:/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin && make clean && make && make pkg"
+          sh -c '
+            export PS3DEV=/usr/local/ps3dev
+            export PSL1GHT=$PS3DEV/psl1ght
+            export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
+            
+            echo "=== Installing tiny3D ==="
+            cd /tmp
+            git clone https://github.com/wargio/tiny3D.git
+            cd tiny3D
+            make
+            make install
+            
+            echo "=== Building PS3 homebrew ==="
+            cd /build/ps3
+            make clean
+            make
+            make pkg
+          '
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
