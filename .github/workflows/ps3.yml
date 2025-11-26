@@ -30,7 +30,7 @@ jobs:
           -v "$PWD:/src" \
           -w /src/ps3 \
           flipacholas/ps3devextra:latest \
-          sh -c "make clean && make && make pkg"
+          sh -c "export PATH=/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:\$PATH && make clean && make && make pkg"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
