@@ -31,6 +31,8 @@ jobs:
         docker run --rm \
           -v "$PWD:/src" \
           -w /src/ps3 \
+          -e PS3DEV=/usr/local/ps3dev \
+          -e PPU_PREFIX=powerpc64-ps3-elf \
           -e PATH="/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
           flipacholas/ps3devextra:latest \
           sh -c "make clean && make && make pkg"
