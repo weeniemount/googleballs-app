@@ -12,7 +12,7 @@
 
 #define SCREEN_WIDTH 848
 #define SCREEN_HEIGHT 512
-#define MAX_PADS 7
+// MAX_PADS is already defined in io/pad.h
 
 struct Vector3 {
     double x, y, z;
@@ -54,7 +54,7 @@ public:
     
     Point(double x, double y, double z, double size, const char* colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), size(size), radius(size), friction(0.8), springStrength(0.1) {
+          velocity(0, 0, 0), radius(size), size(size), friction(0.8), springStrength(0.1) {
         color = Color::fromHex(colorHex);
     }
     
@@ -333,7 +333,7 @@ int main(int argc, char *argv[]) {
         tiny3d_AlphaTest(1, 0x10, TINY3D_ALPHA_FUNC_GEQUAL);
         tiny3d_BlendFunc(1, TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
                         TINY3D_BLEND_FUNC_SRC_RGB_ONE_MINUS_SRC_ALPHA, 
-                        TINY3D_BLEND_RGB_FUNC_ADD);
+                        TINY3D_BLEND_FUNC_SRC_ALPHA_ONE_MINUS_SRC_ALPHA);
         
         tiny3d_Project2D();
         collection.draw();
