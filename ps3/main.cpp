@@ -2,27 +2,17 @@
 #include <malloc.h>
 #include <string.h>
 #include <unistd.h>
-#include <sysutil/video.h>
-#include <rsx/reality.h>
-#include <io/pad.h>
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sysutil/video.h>
 #include <sysutil/sysutil.h>
+#include <io/pad.h>
+#include <tiny3d.h>
 
-#define SCREEN_WIDTH 1920
-#define SCREEN_HEIGHT 1080
-#define BUFFER_SIZE (4 * 1024 * 1024)
+#define SCREEN_WIDTH 848
+#define SCREEN_HEIGHT 512
 #define MAX_PADS 7
-
-// RSX Context
-gcmContextData *context = NULL;
-void *host_addr = NULL;
-u32 *depth_buffer;
-u32 *color_buffer[2];
-u32 color_pitch;
-u32 depth_pitch;
-int current_buffer = 0;
 
 struct Vector3 {
     double x, y, z;
@@ -47,6 +37,10 @@ struct Color {
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
         }
         return Color();
+    }
+    
+    u32 toU32() const {
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 };
 
@@ -115,49 +109,34 @@ public:
         if (radius < 1) radius = 1;
     }
     
-    void draw(u32* buffer, int pitch) {
+    void draw() {
+        // Draw filled circle using tiny3d
         int x0 = (int)curPos.x;
         int y0 = (int)curPos.y;
         double r = radius;
+        u32 colorValue = color.toU32();
         
-        // Draw filled circle with anti-aliasing
+        // Draw circle by drawing filled squares in a grid pattern
         for (int x = (int)(-r - 1); x <= (int)(r + 1); x++) {
             for (int y = (int)(-r - 1); y <= (int)(r + 1); y++) {
-                double coverage = 0.0;
-                const int samples = 4;
+                double dist = sqrt((double)(x * x + y * y));
                 
-                for (int sx = 0; sx < samples; sx++) {
-                    for (int sy = 0; sy < samples; sy++) {
-                        double px = x + (sx + 0.5) / samples - 0.5;
-                        double py = y + (sy + 0.5) / samples - 0.5;
-                        double dist = sqrt(px * px + py * py);
-                        
-                        if (dist <= r) {
-                            coverage += 1.0 / (samples * samples);
-                        }
-                    }
-                }
-                
-                if (coverage > 0.0) {
-                    int px = x0 + x;
-                    int py = y0 + y;
+                if (dist <= r) {
+                    float px = (float)(x0 + x);
+                    float py = (float)(y0 + y);
+                    float size = 1.5f;
                     
                     if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT) {
-                        u8 alpha = (u8)(coverage * color.a);
-                        u32 pixel_offset = py * (pitch / 4) + px;
-                        
-                        // Alpha blending
-                        u32 dst = buffer[pixel_offset];
-                        u8 dst_r = (dst >> 16) & 0xFF;
-                        u8 dst_g = (dst >> 8) & 0xFF;
-                        u8 dst_b = dst & 0xFF;
-                        
-                        float a = alpha / 255.0f;
-                        u8 out_r = (u8)(color.r * a + dst_r * (1.0f - a));
-                        u8 out_g = (u8)(color.g * a + dst_g * (1.0f - a));
-                        u8 out_b = (u8)(color.b * a + dst_b * (1.0f - a));
-                        
-                        buffer[pixel_offset] = (out_r << 16) | (out_g << 8) | out_b;
+                        tiny3d_SetPolygon(TINY3D_QUADS);
+                        tiny3d_VertexPos(px, py, 1);
+                        tiny3d_VertexColor(colorValue);
+                        tiny3d_VertexPos(px + size, py, 1);
+                        tiny3d_VertexColor(colorValue);
+                        tiny3d_VertexPos(px + size, py + size, 1);
+                        tiny3d_VertexColor(colorValue);
+                        tiny3d_VertexPos(px, py + size, 1);
+                        tiny3d_VertexColor(colorValue);
+                        tiny3d_End();
                     }
                 }
             }
@@ -239,47 +218,12 @@ public:
         }
     }
     
-    void draw(u32* buffer, int pitch) {
+    void draw() {
         for (int i = 0; i < pointCount; i++) {
-            points[i]->draw(buffer, pitch);
+            points[i]->draw();
         }
     }
 };
-
-void initScreen() {
-    void *host_addr = memalign(1024 * 1024, BUFFER_SIZE);
-    context = initScreen(host_addr, BUFFER_SIZE);
-    
-    videoState state;
-    videoConfiguration vconfig;
-    
-    videoGetState(0, 0, &state);
-    videoGetResolution(state.displayMode.resolution, &vconfig);
-    
-    // Setup buffers
-    color_pitch = 4 * SCREEN_WIDTH;
-    depth_pitch = 4 * SCREEN_WIDTH;
-    
-    color_buffer[0] = (u32*)rsxMemalign(64, color_pitch * SCREEN_HEIGHT);
-    color_buffer[1] = (u32*)rsxMemalign(64, color_pitch * SCREEN_HEIGHT);
-    depth_buffer = (u32*)rsxMemalign(64, depth_pitch * SCREEN_HEIGHT);
-    
-    gcmSetDisplayBuffer(0, rsxMemoryAddress(color_buffer[0]), color_pitch, SCREEN_WIDTH, SCREEN_HEIGHT);
-    gcmSetDisplayBuffer(1, rsxMemoryAddress(color_buffer[1]), color_pitch, SCREEN_WIDTH, SCREEN_HEIGHT);
-}
-
-void flipBuffer() {
-    gcmSetFlip(context, current_buffer);
-    rsxFlushBuffer(context);
-    gcmSetWaitFlip(context);
-    current_buffer = !current_buffer;
-}
-
-void clearBuffer(u32* buffer) {
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-        buffer[i] = 0xFFFFFF; // White background
-    }
-}
 
 static void eventHandler(u64 status, u64 param, void *userdata) {
     (void)param;
@@ -299,8 +243,8 @@ int main(int argc, char *argv[]) {
     // Register exit handler
     sysUtilRegisterCallback(SYSUTIL_EVENT_SLOT0, eventHandler, NULL);
     
-    // Initialize screen
-    initScreen();
+    // Initialize tiny3d
+    tiny3d_Init(1024*1024);
     
     // Point data
     static const PointData pointData[] = {
@@ -351,13 +295,11 @@ int main(int argc, char *argv[]) {
                     s16 rx = paddata.ANA_R_H - 128;
                     s16 ry = paddata.ANA_R_V - 128;
                     
-                    // Use right analog for cursor (more precise)
                     if (abs(rx) > 10 || abs(ry) > 10) {
                         collection.mousePos.x += rx / 20.0;
                         collection.mousePos.y += ry / 20.0;
                     }
                     
-                    // Use left analog as alternative
                     if (abs(lx) > 10 || abs(ly) > 10) {
                         collection.mousePos.x += lx / 20.0;
                         collection.mousePos.y += ly / 20.0;
@@ -369,21 +311,6 @@ int main(int argc, char *argv[]) {
                 if (paddata.BTN_RIGHT) collection.mousePos.x += 5;
                 if (paddata.BTN_UP) collection.mousePos.y -= 5;
                 if (paddata.BTN_DOWN) collection.mousePos.y += 5;
-                
-                // Gyro/Sixaxis control (tilt sensor)
-                if (paddata.len >= 24) {
-                    // Sensor data starts at offset 41 in padData
-                    s16 accelX = ((s16*)&paddata)[20]; // X-axis tilt
-                    s16 accelZ = ((s16*)&paddata)[22]; // Z-axis tilt
-                    
-                    // Use tilt for cursor movement
-                    if (abs(accelX) > 50) {
-                        collection.mousePos.x += accelX / 100.0;
-                    }
-                    if (abs(accelZ) > 50) {
-                        collection.mousePos.y -= accelZ / 100.0;
-                    }
-                }
                 
                 // Clamp cursor position
                 if (collection.mousePos.x < 0) collection.mousePos.x = 0;
@@ -398,18 +325,25 @@ int main(int argc, char *argv[]) {
             }
         }
         
-        // Update and draw
+        // Update
         collection.update();
         
-        u32* buffer = color_buffer[current_buffer];
-        clearBuffer(buffer);
-        collection.draw(buffer, color_pitch);
+        // Draw
+        tiny3d_Clear(0xffffffff, TINY3D_CLEAR_ALL);
+        tiny3d_AlphaTest(1, 0x10, TINY3D_ALPHA_FUNC_GEQUAL);
+        tiny3d_BlendFunc(1, TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
+                        TINY3D_BLEND_FUNC_SRC_RGB_ONE_MINUS_SRC_ALPHA, 
+                        TINY3D_BLEND_RGB_FUNC_ADD);
         
-        flipBuffer();
-        usleep(30000); // 30ms delay (match original)
+        tiny3d_Project2D();
+        collection.draw();
+        
+        tiny3d_Flip();
+        usleep(16666); // ~60fps
     }
     
 cleanup:
+    tiny3d_End();
     ioPadEnd();
     return 0;
 }
