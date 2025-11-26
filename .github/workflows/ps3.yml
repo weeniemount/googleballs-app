@@ -8,29 +8,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: 
-      image: flipacholas/ps3devextra:latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Build PS3 homebrew
-      working-directory: ./ps3
+    - name: Build PS3 homebrew in Docker
       run: |
-        export PSL1GHT=/usr/local/ps3dev/psl1ght
-        export PS3DEV=/usr/local/ps3dev
-        export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
-        make clean
-        make
-        
-    - name: Create PKG
-      working-directory: ./ps3
-      run: |
-        export PSL1GHT=/usr/local/ps3dev/psl1ght
-        export PS3DEV=/usr/local/ps3dev
-        export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
-        make pkg
+        docker run --rm \
+          -v "$PWD:/build" \
+          -w /build/ps3 \
+          flipacholas/ps3devextra:latest \
+          sh -c "make clean && make && make pkg"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
