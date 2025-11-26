@@ -18,8 +18,10 @@ jobs:
         docker run --rm \
           -v "$PWD:/build" \
           -w /build/ps3 \
+          -e PS3DEV=/usr/local/ps3dev \
+          -e PSL1GHT=/usr/local/ps3dev/psl1ght \
           flipacholas/ps3devextra:latest \
-          sh -c "make clean && make && make pkg"
+          sh -c "export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin && make clean && make && make pkg"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
