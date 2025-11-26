@@ -33,6 +33,12 @@ jobs:
           -w /src/ps3 \
           -e PS3DEV=/usr/local/ps3dev \
           -e PPU_PREFIX=powerpc64-ps3-elf \
+          -e CC=powerpc64-ps3-elf-gcc \
+          -e CXX=powerpc64-ps3-elf-g++ \
+          -e LD=powerpc64-ps3-elf-ld \
+          -e AR=powerpc64-ps3-elf-ar \
+          -e OBJCOPY=powerpc64-ps3-elf-objcopy \
+          -e STRIP=powerpc64-ps3-elf-strip \
           -e PATH="/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
           flipacholas/ps3devextra:latest \
           sh -c "make clean && make && make pkg"
