@@ -13,26 +13,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Explore Docker environment
-      run: |
-        docker run --rm flipacholas/ps3devextra:latest sh -c '
-          echo "=== Finding ppu_rules ===" &&
-          find / -name ppu_rules 2>/dev/null &&
-          echo "=== Environment variables ===" &&
-          env | grep -i ps3 | sort &&
-          echo "=== Checking /opt ===" &&
-          ls -la /opt/ 2>/dev/null || echo "No /opt" &&
-          echo "=== Checking /usr/local ===" &&
-          ls -la /usr/local/ 2>/dev/null || echo "No /usr/local"
-        '
-    
     - name: Build PS3 homebrew in Docker
       run: |
         docker run --rm \
           -v "$PWD:/src" \
           -w /src/ps3 \
           flipacholas/ps3devextra:latest \
-          make clean && make && make pkg
+          sh -c "make clean && make && make pkg"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
