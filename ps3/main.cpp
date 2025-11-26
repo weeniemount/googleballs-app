@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sysutil/video.h>
-#include <rsx/gcm.h>
 #include <rsx/reality.h>
 #include <io/pad.h>
 #include <math.h>
