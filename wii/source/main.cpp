@@ -1,6 +1,7 @@
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 #include <fat.h>
+#include <unistd.h>
 #include <vector>
 #include <cmath>
 #include <string>
@@ -49,7 +50,7 @@ public:
     
     Point(double x, double y, double z, double size, const std::string& colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), size(size), radius(size) {
+          velocity(0, 0, 0), radius(size), size(size) {
         color = Color::fromHex(colorHex);
     }
     
