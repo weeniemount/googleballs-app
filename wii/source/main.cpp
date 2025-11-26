@@ -5,6 +5,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <malloc.h>
 #include <cstdio>
 #include <cstdlib>
 
