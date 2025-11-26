@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: 
-      image: psl1ght/psl1ght
+      image: flipacholas/ps3devextra:latest
     
     steps:
     - name: Checkout repository
@@ -40,13 +40,3 @@ jobs:
           ps3/googleballs.self
           ps3/googleballs.pkg
         if-no-files-found: error
-        
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ps3/googleballs.self
-          ps3/googleballs.pkg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
