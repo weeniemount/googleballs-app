@@ -12,17 +12,13 @@ static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
 struct Vector3 {
-    double x, y, z;
+    float x, y, z;  // Changed from double to float for better performance
     
-    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+    Vector3(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
     
-    void set(double newX, double newY, double newZ = 0) {
+    inline void set(float newX, float newY, float newZ = 0) {
         x = newX; y = newY; z = newZ;
     }
-    
-    void addX(double dx) { x += dx; }
-    void addY(double dy) { y += dy; }
-    void addZ(double dz) { z += dz; }
 };
 
 struct Color {
@@ -31,9 +27,9 @@ struct Color {
     Color(u8 r = 255, u8 g = 255, u8 b = 255, u8 a = 255) 
         : r(r), g(g), b(b), a(a) {}
     
-    static Color fromHex(const std::string& hex) {
+    static Color fromHex(const char* hex) {  // Changed from std::string& to const char*
         if (hex[0] == '#') {
-            unsigned int value = strtoul(hex.c_str() + 1, NULL, 16);
+            unsigned int value = strtoul(hex + 1, NULL, 16);
             return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
         }
         return Color();
@@ -44,24 +40,25 @@ class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    double radius, size;
-    double friction = 0.8;
-    double springStrength = 0.1;
+    float radius, size;
+    float friction;
+    float springStrength;
     
-    Point(double x, double y, double z, double size, const std::string& colorHex)
+    Point(float x, float y, float z, float size, const char* colorHex)
         : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
-          velocity(0, 0, 0), radius(size), size(size) {
+          velocity(0, 0, 0), radius(size), size(size), 
+          friction(0.8f), springStrength(0.1f) {
         color = Color::fromHex(colorHex);
     }
     
     void update() {
         // X axis spring physics
-        double dx = targetPos.x - curPos.x;
-        double ax = dx * springStrength;
+        float dx = targetPos.x - curPos.x;
+        float ax = dx * springStrength;
         velocity.x += ax;
         velocity.x *= friction;
         
-        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+        if (fabsf(dx) < 0.1f && fabsf(velocity.x) < 0.01f) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
@@ -69,12 +66,12 @@ public:
         }
         
         // Y axis spring physics
-        double dy = targetPos.y - curPos.y;
-        double ay = dy * springStrength;
+        float dy = targetPos.y - curPos.y;
+        float ay = dy * springStrength;
         velocity.y += ay;
         velocity.y *= friction;
         
-        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+        if (fabsf(dy) < 0.1f && fabsf(velocity.y) < 0.01f) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
@@ -82,18 +79,18 @@ public:
         }
         
         // Z axis (depth) based on distance from original position
-        double dox = originalPos.x - curPos.x;
-        double doy = originalPos.y - curPos.y;
-        double dd = (dox * dox) + (doy * doy);
-        double d = std::sqrt(dd);
+        float dox = originalPos.x - curPos.x;
+        float doy = originalPos.y - curPos.y;
+        float dd = (dox * dox) + (doy * doy);
+        float d = sqrtf(dd);
         
-        targetPos.z = d / 100.0 + 1.0;
-        double dz = targetPos.z - curPos.z;
-        double az = dz * springStrength;
+        targetPos.z = d * 0.01f + 1.0f;  // Optimized division
+        float dz = targetPos.z - curPos.z;
+        float az = dz * springStrength;
         velocity.z += az;
         velocity.z *= friction;
         
-        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+        if (fabsf(dz) < 0.01f && fabsf(velocity.z) < 0.001f) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -105,53 +102,56 @@ public:
         if (radius < 1) radius = 1;
     }
     
+    inline void drawPixel(u32* framebuffer, int px, int py, int fbWidth, int fbHeight, u8 alpha) {
+        if (px >= 0 && px < fbWidth && py >= 0 && py < fbHeight) {
+            int idx = py * fbWidth + px;
+            
+            if (alpha == 255) {
+                framebuffer[idx] = (color.r << 24) | (color.g << 16) | (color.b << 8) | 0xFF;
+            } else if (alpha > 0) {
+                u32 bg = framebuffer[idx];
+                u8 bgR = (bg >> 24) & 0xFF;
+                u8 bgG = (bg >> 16) & 0xFF;
+                u8 bgB = (bg >> 8) & 0xFF;
+                
+                // Fast integer alpha blending
+                u32 invAlpha = 255 - alpha;
+                u8 outR = (color.r * alpha + bgR * invAlpha) >> 8;
+                u8 outG = (color.g * alpha + bgG * invAlpha) >> 8;
+                u8 outB = (color.b * alpha + bgB * invAlpha) >> 8;
+                
+                framebuffer[idx] = (outR << 24) | (outG << 16) | (outB << 8) | 0xFF;
+            }
+        }
+    }
+    
     void draw(u32* framebuffer, int fbWidth, int fbHeight) {
-        int x0 = static_cast<int>(curPos.x);
-        int y0 = static_cast<int>(curPos.y);
-        double r = radius;
+        int x0 = (int)curPos.x;
+        int y0 = (int)curPos.y;
+        int r = (int)(radius + 0.5f);
+        int rSq = r * r;
         
-        // Simple circle drawing with anti-aliasing
-        for (int x = static_cast<int>(-r - 1); x <= static_cast<int>(r + 1); x++) {
-            for (int y = static_cast<int>(-r - 1); y <= static_cast<int>(r + 1); y++) {
-                double coverage = 0.0;
-                const int samples = 2; // Reduce samples for performance
+        // Optimized circle drawing with minimal anti-aliasing
+        int minY = -r - 1;
+        int maxY = r + 1;
+        int minX = -r - 1;
+        int maxX = r + 1;
+        
+        for (int y = minY; y <= maxY; y++) {
+            int ySq = y * y;
+            for (int x = minX; x <= maxX; x++) {
+                int distSq = x * x + ySq;
                 
-                for (int sx = 0; sx < samples; sx++) {
-                    for (int sy = 0; sy < samples; sy++) {
-                        double px = x + (sx + 0.5) / samples - 0.5;
-                        double py = y + (sy + 0.5) / samples - 0.5;
-                        double dist = std::sqrt(px * px + py * py);
-                        
-                        if (dist <= r) {
-                            coverage += 1.0 / (samples * samples);
-                        }
-                    }
-                }
-                
-                if (coverage > 0.0) {
-                    int px = x0 + x;
-                    int py = y0 + y;
-                    
-                    if (px >= 0 && px < fbWidth && py >= 0 && py < fbHeight) {
-                        u8 alpha = static_cast<u8>(coverage * color.a);
-                        u32 pixel = (color.r << 24) | (color.g << 16) | (color.b << 8) | alpha;
-                        
-                        // Simple alpha blending
-                        if (alpha == 255) {
-                            framebuffer[py * fbWidth + px] = pixel;
-                        } else if (alpha > 0) {
-                            u32 bg = framebuffer[py * fbWidth + px];
-                            u8 bgR = (bg >> 24) & 0xFF;
-                            u8 bgG = (bg >> 16) & 0xFF;
-                            u8 bgB = (bg >> 8) & 0xFF;
-                            
-                            float a = alpha / 255.0f;
-                            u8 outR = color.r * a + bgR * (1 - a);
-                            u8 outG = color.g * a + bgG * (1 - a);
-                            u8 outB = color.b * a + bgB * (1 - a);
-                            
-                            framebuffer[py * fbWidth + px] = (outR << 24) | (outG << 16) | (outB << 8) | 0xFF;
-                        }
+                if (distSq <= rSq) {
+                    // Fully inside
+                    drawPixel(framebuffer, x0 + x, y0 + y, fbWidth, fbHeight, 255);
+                } else if (distSq <= (r + 1) * (r + 1)) {
+                    // Edge pixels - simple anti-aliasing
+                    float dist = sqrtf((float)distSq);
+                    float coverage = r + 1.0f - dist;
+                    if (coverage > 0) {
+                        u8 alpha = (u8)(coverage * 255);
+                        drawPixel(framebuffer, x0 + x, y0 + y, fbWidth, fbHeight, alpha);
                     }
                 }
             }
@@ -162,43 +162,45 @@ public:
 struct PointData {
     int x, y;
     int size;
-    std::string color;
+    const char* color;
 };
 
-static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
+static void computeBounds(const PointData* data, int count, float& w, float& h) {
     int minX = 99999, maxX = -99999;
     int minY = 99999, maxY = -99999;
     
-    for (const auto& p : data) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+    for (int i = 0; i < count; i++) {
+        if (data[i].x < minX) minX = data[i].x;
+        if (data[i].x > maxX) maxX = data[i].x;
+        if (data[i].y < minY) minY = data[i].y;
+        if (data[i].y > maxY) maxY = data[i].y;
     }
     
-    w = maxX - minX;
-    h = maxY - minY;
+    w = (float)(maxX - minX);
+    h = (float)(maxY - minY);
 }
 
 class PointCollection {
 public:
     Vector3 mousePos;
     std::vector<Point> points;
+    float interactionRadiusSq;  // Pre-squared for faster comparison
     
-    PointCollection() : mousePos(320, 240, 0) {}
+    PointCollection() : mousePos(320, 240, 0), interactionRadiusSq(150.0f * 150.0f) {
+        points.reserve(70);  // Pre-allocate space
+    }
     
-    void addPoint(double x, double y, double z, double size, const std::string& color) {
+    void addPoint(float x, float y, float z, float size, const char* color) {
         points.emplace_back(x, y, z, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            double dx = mousePos.x - point.curPos.x;
-            double dy = mousePos.y - point.curPos.y;
-            double dd = (dx * dx) + (dy * dy);
-            double d = std::sqrt(dd);
+            float dx = mousePos.x - point.curPos.x;
+            float dy = mousePos.y - point.curPos.y;
+            float distSq = dx * dx + dy * dy;
             
-            if (d < 150) {
+            if (distSq < interactionRadiusSq) {
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -217,8 +219,49 @@ public:
     }
 };
 
+// Cursor drawing function
+void drawCursor(u32* framebuffer, int fbWidth, int fbHeight, int cursorX, int cursorY) {
+    // Draw a crosshair cursor
+    const int size = 10;
+    const int thickness = 2;
+    const u32 cursorColor = 0xFF0000FF;  // Red color (RGBA)
+    
+    // Horizontal line
+    for (int x = cursorX - size; x <= cursorX + size; x++) {
+        for (int t = 0; t < thickness; t++) {
+            int y = cursorY + t - thickness/2;
+            if (x >= 0 && x < fbWidth && y >= 0 && y < fbHeight) {
+                framebuffer[y * fbWidth + x] = cursorColor;
+            }
+        }
+    }
+    
+    // Vertical line
+    for (int y = cursorY - size; y <= cursorY + size; y++) {
+        for (int t = 0; t < thickness; t++) {
+            int x = cursorX + t - thickness/2;
+            if (x >= 0 && x < fbWidth && y >= 0 && y < fbHeight) {
+                framebuffer[y * fbWidth + x] = cursorColor;
+            }
+        }
+    }
+    
+    const int centerSize = 3;
+    for (int y = -centerSize; y <= centerSize; y++) {
+        for (int x = -centerSize; x <= centerSize; x++) {
+            if (x*x + y*y <= centerSize*centerSize) {
+                int px = cursorX + x;
+                int py = cursorY + y;
+                if (px >= 0 && px < fbWidth && py >= 0 && py < fbHeight) {
+                    framebuffer[py * fbWidth + px] = cursorColor;
+                }
+            }
+        }
+    }
+}
+
 void initPoints(PointCollection& pointCollection, int windowWidth, int windowHeight) {
-    std::vector<PointData> pointData = {
+    static const PointData pointData[] = {
         {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
         {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
         {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"},
@@ -243,16 +286,18 @@ void initPoints(PointCollection& pointCollection, int windowWidth, int windowHei
         {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
     };
     
-    double logoW, logoH;
-    computeBounds(pointData, logoW, logoH);
+    const int pointCount = sizeof(pointData) / sizeof(pointData[0]);
+    
+    float logoW, logoH;
+    computeBounds(pointData, pointCount, logoW, logoH);
 
-    double offsetX = (windowWidth / 2.0) - (logoW / 2.0);
-    double offsetY = (windowHeight / 2.0) - (logoH / 2.0);
+    float offsetX = (windowWidth / 2.0f) - (logoW / 2.0f);
+    float offsetY = (windowHeight / 2.0f) - (logoH / 2.0f);
 
-    for (const auto& data : pointData) {
-        double x = offsetX + data.x;
-        double y = offsetY + data.y;
-        pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
+    for (int i = 0; i < pointCount; i++) {
+        float x = offsetX + pointData[i].x;
+        float y = offsetY + pointData[i].y;
+        pointCollection.addPoint(x, y, 0.0f, (float)pointData[i].size, pointData[i].color);
     }
 }
 
@@ -276,7 +321,10 @@ extern "C" int main(int argc, char **argv) {
     int fbHeight = rmode->xfbHeight;
     
     // Allocate framebuffer for drawing
-    u32* framebuffer = (u32*)malloc(fbWidth * fbHeight * sizeof(u32));
+    u32* framebuffer = (u32*)memalign(32, fbWidth * fbHeight * sizeof(u32));
+    if (!framebuffer) {
+        return -1;
+    }
     
     // Initialize points
     PointCollection pointCollection;
@@ -287,6 +335,9 @@ extern "C" int main(int argc, char **argv) {
     WPAD_SetDataFormat(WPAD_CHAN_0, WPAD_FMT_BTNS_ACC_IR);
     
     bool running = true;
+    int cursorX = fbWidth / 2;
+    int cursorY = fbHeight / 2;
+    bool cursorVisible = false;
     
     while(running) {
         WPAD_ScanPads();
@@ -301,25 +352,40 @@ extern "C" int main(int argc, char **argv) {
         WPAD_IR(WPAD_CHAN_0, &ir);
         
         if(ir.valid) {
-            pointCollection.mousePos.set(ir.x, ir.y);
+            cursorX = ir.x;
+            cursorY = ir.y;
+            cursorVisible = true;
+            pointCollection.mousePos.set((float)ir.x, (float)ir.y);
+        } else {
+            cursorVisible = false;
         }
         
-        // Clear framebuffer (white background)
-        for(int i = 0; i < fbWidth * fbHeight; i++) {
-            framebuffer[i] = 0xFFFFFFFF;
+        // Clear framebuffer (white background) - optimized with memset equivalent
+        u32 whiteColor = 0xFFFFFFFF;
+        u32* fb = framebuffer;
+        int totalPixels = fbWidth * fbHeight;
+        for(int i = 0; i < totalPixels; i++) {
+            fb[i] = whiteColor;
         }
         
         // Update and draw
         pointCollection.update();
         pointCollection.draw(framebuffer, fbWidth, fbHeight);
         
+        // Draw cursor if visible
+        if (cursorVisible) {
+            drawCursor(framebuffer, fbWidth, fbHeight, cursorX, cursorY);
+        }
+        
         // Convert and copy to xfb (YUV422 format)
-        // Simple RGB to YUV conversion
         u32* dst = (u32*)xfb;
         for(int y = 0; y < fbHeight; y++) {
+            u32* srcRow = &framebuffer[y * fbWidth];
+            u32* dstRow = &dst[y * fbWidth / 2];
+            
             for(int x = 0; x < fbWidth / 2; x++) {
-                u32 p1 = framebuffer[y * fbWidth + x * 2];
-                u32 p2 = framebuffer[y * fbWidth + x * 2 + 1];
+                u32 p1 = srcRow[x * 2];
+                u32 p2 = srcRow[x * 2 + 1];
                 
                 u8 r1 = (p1 >> 24) & 0xFF;
                 u8 g1 = (p1 >> 16) & 0xFF;
@@ -329,13 +395,17 @@ extern "C" int main(int argc, char **argv) {
                 u8 g2 = (p2 >> 16) & 0xFF;
                 u8 b2 = (p2 >> 8) & 0xFF;
                 
-                // RGB to YUV
-                u8 y1 = (u8)(0.299 * r1 + 0.587 * g1 + 0.114 * b1);
-                u8 y2 = (u8)(0.299 * r2 + 0.587 * g2 + 0.114 * b2);
-                u8 u = (u8)(128 - 0.168736 * ((r1+r2)/2) - 0.331264 * ((g1+g2)/2) + 0.5 * ((b1+b2)/2));
-                u8 v = (u8)(128 + 0.5 * ((r1+r2)/2) - 0.418688 * ((g1+g2)/2) - 0.081312 * ((b1+b2)/2));
+                // RGB to YUV (using integer math for speed)
+                int rAvg = (r1 + r2) >> 1;
+                int gAvg = (g1 + g2) >> 1;
+                int bAvg = (b1 + b2) >> 1;
                 
-                dst[y * fbWidth / 2 + x] = (y1 << 24) | (u << 16) | (y2 << 8) | v;
+                u8 y1 = (u8)((77 * r1 + 150 * g1 + 29 * b1) >> 8);
+                u8 y2 = (u8)((77 * r2 + 150 * g2 + 29 * b2) >> 8);
+                u8 u = (u8)(128 + ((-43 * rAvg - 85 * gAvg + 128 * bAvg) >> 8));
+                u8 v = (u8)(128 + ((128 * rAvg - 107 * gAvg - 21 * bAvg) >> 8));
+                
+                dstRow[x] = (y1 << 24) | (u << 16) | (y2 << 8) | v;
             }
         }
         
@@ -343,7 +413,7 @@ extern "C" int main(int argc, char **argv) {
         VIDEO_Flush();
         VIDEO_WaitVSync();
         
-        // Match original frame timing (30ms)
+        // Match original frame timing (30ms = ~33 FPS)
         usleep(30000);
     }
     
