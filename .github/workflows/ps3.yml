@@ -13,15 +13,26 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
+    - name: Find PSL1GHT installation in Docker
+      run: |
+        docker run --rm flipacholas/ps3devextra:latest sh -c "
+          echo '=== Checking for PSL1GHT installation ===' &&
+          ls -la /usr/local/ &&
+          echo '=== Checking PS3DEV ===' &&
+          ls -la /usr/local/ps3dev/ || echo 'ps3dev not found' &&
+          echo '=== Finding ppu_rules ===' &&
+          find / -name ppu_rules 2>/dev/null || echo 'ppu_rules not found' &&
+          echo '=== Environment variables ===' &&
+          env | grep -i ps3
+        "
+      
     - name: Build PS3 homebrew in Docker
       run: |
         docker run --rm \
           -v "$PWD:/build" \
           -w /build/ps3 \
-          -e PS3DEV=/usr/local/ps3dev \
-          -e PSL1GHT=/usr/local/ps3dev/psl1ght \
           flipacholas/ps3devextra:latest \
-          sh -c "export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin && make clean && make && make pkg"
+          sh -c "export PATH=\$PATH:/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin && make clean && make && make pkg"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
