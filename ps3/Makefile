@@ -50,10 +50,12 @@ export BINFILES	:=	$(BINFILES)
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 					$(LIBPSL1GHT_INC) \
+					-I$(PS3DEV)/portlibs/ppu/include \
 					-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
-					$(LIBPSL1GHT_LIB)
+					$(LIBPSL1GHT_LIB) \
+					-L$(PS3DEV)/portlibs/ppu/lib
 
 .PHONY: $(BUILD) clean
 
