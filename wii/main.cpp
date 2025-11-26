@@ -6,7 +6,6 @@
 #include <string>
 #include <cstdio>
 #include <cstdlib>
-#include "icon/balls.h"
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
@@ -256,7 +255,7 @@ void initPoints(PointCollection& pointCollection, int windowWidth, int windowHei
     }
 }
 
-int main(int argc, char **argv) {
+extern "C" int main(int argc, char **argv) {
     // Initialize video
     VIDEO_Init();
     WPAD_Init();
