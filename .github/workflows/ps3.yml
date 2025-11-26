@@ -13,6 +13,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
+    - name: Explore tiny3D location
+      run: |
+        docker run --rm flipacholas/ps3devextra:latest sh -c "
+          echo '=== Finding tiny3d files ===' &&
+          find / -name '*tiny3d*' 2>/dev/null | head -20 &&
+          echo '=== PSL1GHT include path ===' &&
+          ls -la /usr/local/ps3dev/portlibs/ppu/include/ 2>/dev/null | grep -i tiny || echo 'No tiny3d in portlibs' &&
+          echo '=== Environment ===' &&
+          env | grep PS3
+        "
+    
     - name: Build PS3 homebrew in Docker
       run: |
         docker run --rm \
