@@ -1,0 +1,52 @@
+name: Build PS3
+
+on:
+  push:
+    branches: [ ps3 ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: 
+      image: ps3dev/psl1ght:latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Build PS3 homebrew
+      working-directory: ./ps3
+      run: |
+        export PSL1GHT=/usr/local/ps3dev/psl1ght
+        export PS3DEV=/usr/local/ps3dev
+        export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
+        make clean
+        make
+        
+    - name: Create PKG
+      working-directory: ./ps3
+      run: |
+        export PSL1GHT=/usr/local/ps3dev/psl1ght
+        export PS3DEV=/usr/local/ps3dev
+        export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
+        make pkg
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-ps3
+        path: |
+          ps3/googleballs.self
+          ps3/googleballs.pkg
+        if-no-files-found: error
+        
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ps3/googleballs.self
+          ps3/googleballs.pkg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
