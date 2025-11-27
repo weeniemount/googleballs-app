@@ -89,7 +89,10 @@ $(OUTPUT).elf: $(OFILES)
 	@echo linking ... $(notdir $@)
 	@$(CXX) $(CXXFLAGS) $(OFILES) $(LDFLAGS) $(LIBPATHS) $(LIBS) -o $@
 
+# Add explicit rule to create .self from .elf
 $(OUTPUT).self: $(OUTPUT).elf
+	@echo creating SELF ... $(notdir $@)
+	@$(FSELF) $< $@
 
 -include $(DEPENDS)
 
