@@ -38,9 +38,9 @@ struct Color {
         return Color();
     }
     
-    // Fixed for PS3 big-endian: ARGB format
+    // PS3 uses ARGB format in word order (big-endian)
     u32 toU32() const {
-        return (a << 24) | (b << 16) | (g << 8) | r;
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 };
 
@@ -135,21 +135,21 @@ public:
                 if (dist <= r) {
                     float px = (float)(x0 + x);
                     float py = (float)(y0 + y);
-                    float size = 1.5f;
+                    float size = 2.0f;
                     
                     if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT) {
                         tiny3d_SetPolygon(TINY3D_QUADS);
                         
-                        tiny3d_VertexPos(px, py, 65535);
+                        tiny3d_VertexPos(px, py, 1);
                         tiny3d_VertexColor(colorValue);
                         
-                        tiny3d_VertexPos(px + size, py, 65535);
+                        tiny3d_VertexPos(px + size, py, 1);
                         tiny3d_VertexColor(colorValue);
                         
-                        tiny3d_VertexPos(px + size, py + size, 65535);
+                        tiny3d_VertexPos(px + size, py + size, 1);
                         tiny3d_VertexColor(colorValue);
                         
-                        tiny3d_VertexPos(px, py + size, 65535);
+                        tiny3d_VertexPos(px, py + size, 1);
                         tiny3d_VertexColor(colorValue);
                         
                         tiny3d_End();
@@ -354,7 +354,7 @@ int main(int argc, char *argv[]) {
         collection.update();
         
         // Draw
-        tiny3d_Clear(0xff000000, TINY3D_CLEAR_ALL);  // Clear to black
+        tiny3d_Clear(0xffffffff, TINY3D_CLEAR_ALL);  // Clear to white
         tiny3d_AlphaTest(1, 0x10, TINY3D_ALPHA_FUNC_GEQUAL);
         tiny3d_BlendFunc(1, 
                         (blend_src_func)TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
