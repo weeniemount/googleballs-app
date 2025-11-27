@@ -40,7 +40,7 @@ struct Color {
     
     // PS3 big-endian: try ABGR format (0xAABBGGRR)
     u32 toU32() const {
-        return (a << 24) | (b << 16) | (g << 8) | r;
+        return (r << 24) | (g << 16) | (b << 8) | a;
     }
 };
 
