@@ -6,9 +6,6 @@ endif
 
 include $(PSL1GHT)/ppu_rules
 
-# Force the use of powerpc64-ps3-elf-ld instead of system ld
-LD := $(PPU_PREFIX)-ld
-
 TARGET		:=	googleballs
 BUILD		:=	build
 SOURCES		:=	.
@@ -23,7 +20,8 @@ CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 CFLAGS		+= -O2 -Wall -mcpu=cell -mhard-float $(INCLUDE)
 CXXFLAGS	+= $(CFLAGS)
 
-LDFLAGS		=	-mcpu=cell -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
+# Use ppu-g++ for linking, not ld directly
+LDFLAGS		=	-Wl,-Map,$(notdir $@).map -Wl,--gc-sections
 
 # Add tiny3d library
 LIBS		:=	-ltiny3d -lsysutil -lio -lrt -llv2
@@ -60,9 +58,6 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
 					$(LIBPSL1GHT_LIB) \
 					-L$(PS3DEV)/portlibs/ppu/lib
 
-# Export LD to ensure it's passed to the sub-make
-export LD
-
 .PHONY: $(BUILD) clean
 
 $(BUILD):
@@ -89,8 +84,12 @@ else
 
 DEPENDS	:=	$(OFILES:.o=.d)
 
+# Override the linking rule to use ppu-g++ instead of ld
+%.elf:
+	@echo linking ... $(notdir $@)
+	@$(CXX) $(CXXFLAGS) $(OFILES) $(LDFLAGS) $(LIBPATHS) $(LIBS) -o $@
+
 $(OUTPUT).self: $(OUTPUT).elf
-$(OUTPUT).elf: $(OFILES)
 
 -include $(DEPENDS)
 
