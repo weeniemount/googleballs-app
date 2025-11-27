@@ -85,14 +85,13 @@ public:
         int y0 = static_cast<int>(curPos.y);
         int r = static_cast<int>(radius);
         
-        // Optimized circle drawing with 2x2 supersampling
+        // Optimized circle drawing
         int rSq = r * r;
         for (int y = -r; y <= r; y++) {
             int ySq = y * y;
             for (int x = -r; x <= r; x++) {
                 int distSq = x * x + ySq;
                 if (distSq <= rSq) {
-                    // Simple distance-based alpha for anti-aliasing
                     float dist = std::sqrt(static_cast<float>(distSq));
                     float alpha = 1.0f;
                     if (dist > r - 1) {
@@ -159,6 +158,7 @@ class App {
 private:
     SDL_Window* window;
     SDL_Renderer* renderer;
+    SDL_Joystick* joystick;
     SDL_GameController* gamepad;
     PointCollection pointCollection;
     bool running;
@@ -173,7 +173,7 @@ private:
     Uint32 lastDpadTime;
     
 public:
-    App() : window(nullptr), renderer(nullptr), gamepad(nullptr),
+    App() : window(nullptr), renderer(nullptr), joystick(nullptr), gamepad(nullptr),
             running(false), windowWidth(1280), windowHeight(720), showCursor(true),
             lastDpadTime(0) {}
     
@@ -181,7 +181,8 @@ public:
         WHBProcInit();
         WHBMountSdCard();
         
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
+        // CRITICAL: Initialize JOYSTICK subsystem for Wii U
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0) {
             SDL_Log("SDL init failed: %s\n", SDL_GetError());
             return false;
         }
@@ -203,10 +204,26 @@ public:
         
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         
-        if (SDL_NumJoysticks() > 0) {
-            gamepad = SDL_GameControllerOpen(0);
-            if (gamepad) {
-                SDL_Log("Gamepad connected\n");
+        // Open joystick - REQUIRED for Wii U input
+        int numJoysticks = SDL_NumJoysticks();
+        SDL_Log("Found %d joysticks\n", numJoysticks);
+        
+        if (numJoysticks > 0) {
+            // Try opening as game controller first
+            if (SDL_IsGameController(0)) {
+                gamepad = SDL_GameControllerOpen(0);
+                if (gamepad) {
+                    SDL_Log("Opened as GameController\n");
+                    joystick = SDL_GameControllerGetJoystick(gamepad);
+                }
+            }
+            
+            // If that didn't work, try as joystick
+            if (!joystick) {
+                joystick = SDL_JoystickOpen(0);
+                if (joystick) {
+                    SDL_Log("Opened as Joystick: %s\n", SDL_JoystickName(joystick));
+                }
             }
         }
         
@@ -296,18 +313,30 @@ public:
                     break;
                     
                 case SDL_FINGERDOWN:
-                case SDL_FINGERMOTION:
-                    // Wii U GamePad touch (normalized 0-1)
-                    pointCollection.mousePos.x = e.tfinger.x * windowWidth;
-                    pointCollection.mousePos.y = e.tfinger.y * windowHeight;
+                case SDL_FINGERMOTION: {
+                    // Wii U GamePad touch - coordinates are normalized 0.0-1.0
+                    float touchX = e.tfinger.x * windowWidth;
+                    float touchY = e.tfinger.y * windowHeight;
+                    pointCollection.mousePos.x = touchX;
+                    pointCollection.mousePos.y = touchY;
                     showCursor = true;
-                    SDL_Log("Touch: %.2f, %.2f\n", pointCollection.mousePos.x, pointCollection.mousePos.y);
+                    SDL_Log("Touch: %.2f, %.2f (raw: %.3f, %.3f)\n", 
+                            touchX, touchY, e.tfinger.x, e.tfinger.y);
                     break;
+                }
                     
                 case SDL_MOUSEMOTION:
                     pointCollection.mousePos.x = static_cast<float>(e.motion.x);
                     pointCollection.mousePos.y = static_cast<float>(e.motion.y);
                     showCursor = true;
+                    break;
+                    
+                case SDL_JOYBUTTONDOWN:
+                    SDL_Log("Joystick button %d pressed\n", e.jbutton.button);
+                    // Button 6 is typically START on Wii U GamePad
+                    if (e.jbutton.button == 6 || e.jbutton.button == 1) {
+                        running = false;
+                    }
                     break;
                     
                 case SDL_CONTROLLERBUTTONDOWN:
@@ -316,13 +345,87 @@ public:
                         running = false;
                     }
                     break;
+                    
+                case SDL_JOYAXISMOTION:
+                    // Log axis motion for debugging
+                    if (std::abs(e.jaxis.value) > DEADZONE) {
+                        SDL_Log("Axis %d: %d\n", e.jaxis.axis, e.jaxis.value);
+                    }
+                    break;
+                    
+                case SDL_JOYHATMOTION:
+                    SDL_Log("Hat %d: %d\n", e.jhat.hat, e.jhat.value);
+                    break;
             }
         }
         
-        // Handle D-pad (continuous movement while held)
+        // Handle joystick/gamepad input
+        if (joystick) {
+            // Handle D-pad via HAT
+            Uint8 hat = SDL_JoystickGetHat(joystick, 0);
+            Uint32 currentTime = SDL_GetTicks();
+            
+            if (currentTime - lastDpadTime > 16) {
+                bool moved = false;
+                
+                if (hat & SDL_HAT_UP) {
+                    pointCollection.mousePos.y -= DPAD_SPEED;
+                    moved = true;
+                }
+                if (hat & SDL_HAT_DOWN) {
+                    pointCollection.mousePos.y += DPAD_SPEED;
+                    moved = true;
+                }
+                if (hat & SDL_HAT_LEFT) {
+                    pointCollection.mousePos.x -= DPAD_SPEED;
+                    moved = true;
+                }
+                if (hat & SDL_HAT_RIGHT) {
+                    pointCollection.mousePos.x += DPAD_SPEED;
+                    moved = true;
+                }
+                
+                if (moved) {
+                    lastDpadTime = currentTime;
+                    showCursor = true;
+                }
+            }
+            
+            // Handle analog sticks (usually axes 0-3)
+            Sint16 lx = SDL_JoystickGetAxis(joystick, 0); // Left X
+            Sint16 ly = SDL_JoystickGetAxis(joystick, 1); // Left Y
+            Sint16 rx = SDL_JoystickGetAxis(joystick, 2); // Right X
+            Sint16 ry = SDL_JoystickGetAxis(joystick, 3); // Right Y
+            
+            bool analogMoved = false;
+            
+            // Left stick
+            if (std::abs(lx) > DEADZONE || std::abs(ly) > DEADZONE) {
+                pointCollection.mousePos.x += (lx / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += (ly / 32768.0f) * ANALOG_SPEED;
+                analogMoved = true;
+            }
+            
+            // Right stick
+            if (std::abs(rx) > DEADZONE || std::abs(ry) > DEADZONE) {
+                pointCollection.mousePos.x += (rx / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += (ry / 32768.0f) * ANALOG_SPEED;
+                analogMoved = true;
+            }
+            
+            if (analogMoved) {
+                // Clamp to screen bounds
+                pointCollection.mousePos.x = std::max(0.0f, std::min(static_cast<float>(windowWidth), pointCollection.mousePos.x));
+                pointCollection.mousePos.y = std::max(0.0f, std::min(static_cast<float>(windowHeight), pointCollection.mousePos.y));
+                showCursor = true;
+            }
+        }
+        
+        // Also try game controller if available
         if (gamepad) {
             Uint32 currentTime = SDL_GetTicks();
-            if (currentTime - lastDpadTime > 16) { // ~60fps update
+            
+            if (currentTime - lastDpadTime > 16) {
                 bool moved = false;
                 
                 if (SDL_GameControllerGetButton(gamepad, SDL_CONTROLLER_BUTTON_DPAD_UP)) {
@@ -345,33 +448,22 @@ public:
                 if (moved) {
                     lastDpadTime = currentTime;
                     showCursor = true;
+                    // Clamp
+                    pointCollection.mousePos.x = std::max(0.0f, std::min(static_cast<float>(windowWidth), pointCollection.mousePos.x));
+                    pointCollection.mousePos.y = std::max(0.0f, std::min(static_cast<float>(windowHeight), pointCollection.mousePos.y));
                 }
             }
             
-            // Handle analog sticks (both left and right)
+            // Handle analog via game controller API
             Sint16 lx = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX);
             Sint16 ly = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY);
             Sint16 rx = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_RIGHTX);
             Sint16 ry = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_RIGHTY);
             
-            bool analogMoved = false;
-            
-            // Left stick
-            if (std::abs(lx) > DEADZONE || std::abs(ly) > DEADZONE) {
-                pointCollection.mousePos.x += (lx / 32768.0f) * ANALOG_SPEED;
-                pointCollection.mousePos.y += (ly / 32768.0f) * ANALOG_SPEED;
-                analogMoved = true;
-            }
-            
-            // Right stick
-            if (std::abs(rx) > DEADZONE || std::abs(ry) > DEADZONE) {
-                pointCollection.mousePos.x += (rx / 32768.0f) * ANALOG_SPEED;
-                pointCollection.mousePos.y += (ry / 32768.0f) * ANALOG_SPEED;
-                analogMoved = true;
-            }
-            
-            if (analogMoved) {
-                // Clamp to screen bounds
+            if (std::abs(lx) > DEADZONE || std::abs(ly) > DEADZONE ||
+                std::abs(rx) > DEADZONE || std::abs(ry) > DEADZONE) {
+                pointCollection.mousePos.x += ((lx + rx) / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += ((ly + ry) / 32768.0f) * ANALOG_SPEED;
                 pointCollection.mousePos.x = std::max(0.0f, std::min(static_cast<float>(windowWidth), pointCollection.mousePos.x));
                 pointCollection.mousePos.y = std::max(0.0f, std::min(static_cast<float>(windowHeight), pointCollection.mousePos.y));
                 showCursor = true;
@@ -413,6 +505,9 @@ public:
     void cleanup() {
         if (gamepad) {
             SDL_GameControllerClose(gamepad);
+        }
+        if (joystick && !gamepad) {
+            SDL_JoystickClose(joystick);
         }
         if (renderer) {
             SDL_DestroyRenderer(renderer);
