@@ -1,5 +1,15 @@
 .SUFFIXES:
 
+# Compiler flags
+MACHDEP_COMPILE := -mcpu=cell -mhard-float -ffunction-sections -fdata-sections
+# Linker flags (no -mhard-float!)
+MACHDEP_LINK    := -mcpu=cell
+
+CFLAGS		+= -O2 -Wall $(MACHDEP_COMPILE) $(INCLUDE)
+CXXFLAGS	+= $(CFLAGS)
+
+LDFLAGS		=	$(MACHDEP_LINK) -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
+
 ifeq ($(strip $(PSL1GHT)),)
 $(error "Please set PSL1GHT in your environment. export PSL1GHT=<path>")
 endif
