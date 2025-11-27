@@ -1,20 +1,13 @@
 .SUFFIXES:
 
-# Compiler flags
-MACHDEP_COMPILE := -mcpu=cell -mhard-float -ffunction-sections -fdata-sections
-# Linker flags (no -mhard-float!)
-MACHDEP_LINK    := -mcpu=cell
-
-CFLAGS		+= -O2 -Wall $(MACHDEP_COMPILE) $(INCLUDE)
-CXXFLAGS	+= $(CFLAGS)
-
-LDFLAGS		=	$(MACHDEP_LINK) -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
-
 ifeq ($(strip $(PSL1GHT)),)
 $(error "Please set PSL1GHT in your environment. export PSL1GHT=<path>")
 endif
 
 include $(PSL1GHT)/ppu_rules
+
+# Force the use of powerpc64-ps3-elf-ld instead of system ld
+LD := $(PPU_PREFIX)-ld
 
 TARGET		:=	googleballs
 BUILD		:=	build
@@ -27,10 +20,10 @@ TITLE		:=	Google Balls
 APPID		:=	GBAL00001
 CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 
-CFLAGS		+= -O2 -Wall -mcpu=cell $(MACHDEP) $(INCLUDE)
+CFLAGS		+= -O2 -Wall -mcpu=cell -mhard-float $(INCLUDE)
 CXXFLAGS	+= $(CFLAGS)
 
-LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
+LDFLAGS		=	-mcpu=cell -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
 
 # Add tiny3d library
 LIBS		:=	-ltiny3d -lsysutil -lio -lrt -llv2
@@ -66,6 +59,9 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
 					$(LIBPSL1GHT_LIB) \
 					-L$(PS3DEV)/portlibs/ppu/lib
+
+# Export LD to ensure it's passed to the sub-make
+export LD
 
 .PHONY: $(BUILD) clean
 
