@@ -229,6 +229,51 @@ public:
     }
 };
 
+// Draw cursor
+void drawCursor(float x, float y) {
+    const float cursorSize = 8.0f;
+    u32 cursorColor = 0x000000ff; // Black cursor
+    
+    // Draw crosshair cursor
+    tiny3d_SetPolygon(TINY3D_LINES);
+    
+    // Horizontal line
+    tiny3d_VertexPos(x - cursorSize, y, 0);
+    tiny3d_VertexColor(cursorColor);
+    tiny3d_VertexPos(x + cursorSize, y, 0);
+    tiny3d_VertexColor(cursorColor);
+    
+    // Vertical line
+    tiny3d_VertexPos(x, y - cursorSize, 0);
+    tiny3d_VertexColor(cursorColor);
+    tiny3d_VertexPos(x, y + cursorSize, 0);
+    tiny3d_VertexColor(cursorColor);
+    
+    tiny3d_End();
+    
+    // Draw center dot
+    tiny3d_SetPolygon(TINY3D_TRIANGLES);
+    const int segments = 8;
+    const float dotRadius = 2.0f;
+    const float angleStep = (2.0f * 3.14159265f) / segments;
+    
+    for (int i = 0; i < segments; i++) {
+        float angle1 = i * angleStep;
+        float angle2 = (i + 1) * angleStep;
+        
+        tiny3d_VertexPos(x, y, 0);
+        tiny3d_VertexColor(cursorColor);
+        
+        tiny3d_VertexPos(x + dotRadius * cosf(angle1), y + dotRadius * sinf(angle1), 0);
+        tiny3d_VertexColor(cursorColor);
+        
+        tiny3d_VertexPos(x + dotRadius * cosf(angle2), y + dotRadius * sinf(angle2), 0);
+        tiny3d_VertexColor(cursorColor);
+    }
+    
+    tiny3d_End();
+}
+
 static void eventHandler(u64 status, u64 param, void *userdata) {
     (void)param;
     (void)userdata;
@@ -292,17 +337,17 @@ int main(int argc, char *argv[]) {
             if (padinfo.status[i]) {
                 ioPadGetData(i, &paddata);
                 
-                // Analog stick control
+                // Analog stick control (faster movement)
                 if (paddata.len > 0) {
                     // Right analog stick
                     int rx = (int)paddata.ANA_R_H - 128;
                     int ry = (int)paddata.ANA_R_V - 128;
                     
                     if (abs(rx) > 15) {
-                        collection.mousePos.x += rx / 15.0;
+                        collection.mousePos.x += rx / 8.0;  // Changed from /15.0 to /8.0 for faster movement
                     }
                     if (abs(ry) > 15) {
-                        collection.mousePos.y += ry / 15.0;
+                        collection.mousePos.y += ry / 8.0;  // Changed from /15.0 to /8.0 for faster movement
                     }
                     
                     // Left analog stick
@@ -310,18 +355,18 @@ int main(int argc, char *argv[]) {
                     int ly = (int)paddata.ANA_L_V - 128;
                     
                     if (abs(lx) > 15) {
-                        collection.mousePos.x += lx / 15.0;
+                        collection.mousePos.x += lx / 8.0;  // Changed from /15.0 to /8.0 for faster movement
                     }
                     if (abs(ly) > 15) {
-                        collection.mousePos.y += ly / 15.0;
+                        collection.mousePos.y += ly / 8.0;  // Changed from /15.0 to /8.0 for faster movement
                     }
                 }
                 
-                // D-pad control
-                if (paddata.BTN_LEFT) collection.mousePos.x -= 5;
-                if (paddata.BTN_RIGHT) collection.mousePos.x += 5;
-                if (paddata.BTN_UP) collection.mousePos.y -= 5;
-                if (paddata.BTN_DOWN) collection.mousePos.y += 5;
+                // D-pad control (faster movement)
+                if (paddata.BTN_LEFT) collection.mousePos.x -= 8;   // Changed from 5 to 8
+                if (paddata.BTN_RIGHT) collection.mousePos.x += 8;  // Changed from 5 to 8
+                if (paddata.BTN_UP) collection.mousePos.y -= 8;     // Changed from 5 to 8
+                if (paddata.BTN_DOWN) collection.mousePos.y += 8;   // Changed from 5 to 8
                 
                 // Clamp cursor position
                 if (collection.mousePos.x < 0) collection.mousePos.x = 0;
@@ -349,9 +394,10 @@ int main(int argc, char *argv[]) {
         
         tiny3d_Project2D();
         collection.draw();
+        drawCursor((float)collection.mousePos.x, (float)collection.mousePos.y);
         
         tiny3d_Flip();
-        usleep(33333); // ~60fps
+        usleep(30303); // 33 fps (1000000 / 33 = 30303)
     }
     
 cleanup:

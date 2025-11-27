@@ -67,6 +67,7 @@ $(BUILD):
 clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).pkg
+	@rm -f $(PKGFILES)/PARAM.SFO $(PKGFILES)/USRDIR/EBOOT.BIN
 
 run: $(BUILD) $(OUTPUT).self
 	ps3load $(OUTPUT).self
@@ -75,8 +76,15 @@ pkg: $(BUILD) $(OUTPUT).self
 	@echo Creating PKG...
 	@mkdir -p $(PKGFILES)/USRDIR
 	@cp $(OUTPUT).self $(PKGFILES)/USRDIR/EBOOT.BIN
+	@echo "Checking for PS3 tools..."
+	@which fself.py > /dev/null 2>&1 || (echo "ERROR: fself.py not found. Install ps3py tools."; exit 1)
+	@which sfo.py > /dev/null 2>&1 || (echo "ERROR: sfo.py not found. Install ps3py tools."; exit 1)
+	@which pkg.py > /dev/null 2>&1 || (echo "ERROR: pkg.py not found. Install ps3py tools."; exit 1)
+	@echo "Running fself.py..."
 	@fself.py -n $(PKGFILES)/USRDIR/EBOOT.BIN
+	@echo "Creating PARAM.SFO..."
 	@sfo.py --title "$(TITLE)" --appid "$(APPID)" -f $(PKGFILES)/PARAM.SFO
+	@echo "Creating PKG..."
 	@pkg.py --contentid $(CONTENTID) $(PKGFILES)/ $(OUTPUT).pkg
 	@echo "Package $(OUTPUT).pkg created."
 
