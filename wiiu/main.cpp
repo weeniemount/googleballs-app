@@ -1,37 +1,22 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
 #include <whb/proc.h>
 #include <whb/sdcard.h>
 #include <vector>
 #include <cmath>
-#include <string>
+#include <algorithm>
 
 struct Vector3 {
-    double x, y, z;
-    
-    Vector3(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
-    
-    void set(double newX, double newY, double newZ = 0) {
-        x = newX; y = newY; z = newZ;
-    }
-    
-    void addX(double dx) { x += dx; }
-    void addY(double dy) { y += dy; }
-    void addZ(double dz) { z += dz; }
+    float x, y, z;
+    Vector3(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
 };
 
 struct Color {
-    Uint8 r, g, b, a;
+    Uint8 r, g, b;
     
-    Color(Uint8 r = 255, Uint8 g = 255, Uint8 b = 255, Uint8 a = 255) 
-        : r(r), g(g), b(b), a(a) {}
-    
-    static Color fromHex(const std::string& hex) {
-        if (hex[0] == '#') {
-            unsigned int value = std::stoul(hex.substr(1), nullptr, 16);
-            return Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
-        }
-        return Color();
+    static Color fromHex(unsigned int hex) {
+        return {static_cast<Uint8>((hex >> 16) & 0xFF),
+                static_cast<Uint8>((hex >> 8) & 0xFF),
+                static_cast<Uint8>(hex & 0xFF)};
     }
 };
 
@@ -39,56 +24,52 @@ class Point {
 public:
     Vector3 curPos, originalPos, targetPos, velocity;
     Color color;
-    double radius, size;
-    double friction = 0.8;
-    double springStrength = 0.1;
+    float size, radius;
     
-    Point(double x, double y, double z, double size, const std::string& colorHex)
-        : curPos(x, y, z), originalPos(x, y, z), targetPos(x, y, z),
+    static constexpr float FRICTION = 0.8f;
+    static constexpr float SPRING = 0.1f;
+    static constexpr float THRESHOLD_POS = 0.1f;
+    static constexpr float THRESHOLD_VEL = 0.01f;
+    
+    Point(float x, float y, float size, unsigned int colorHex)
+        : curPos(x, y, 0), originalPos(x, y, 0), targetPos(x, y, 0),
           velocity(0, 0, 0), size(size), radius(size) {
         color = Color::fromHex(colorHex);
     }
     
-    void update() {
-        // X axis spring physics
-        double dx = targetPos.x - curPos.x;
-        double ax = dx * springStrength;
-        velocity.x += ax;
-        velocity.x *= friction;
+    inline void update() {
+        // X axis
+        float dx = targetPos.x - curPos.x;
+        velocity.x = (velocity.x + dx * SPRING) * FRICTION;
         
-        if (std::abs(dx) < 0.1 && std::abs(velocity.x) < 0.01) {
+        if (std::abs(dx) < THRESHOLD_POS && std::abs(velocity.x) < THRESHOLD_VEL) {
             curPos.x = targetPos.x;
             velocity.x = 0;
         } else {
             curPos.x += velocity.x;
         }
         
-        // Y axis spring physics
-        double dy = targetPos.y - curPos.y;
-        double ay = dy * springStrength;
-        velocity.y += ay;
-        velocity.y *= friction;
+        // Y axis
+        float dy = targetPos.y - curPos.y;
+        velocity.y = (velocity.y + dy * SPRING) * FRICTION;
         
-        if (std::abs(dy) < 0.1 && std::abs(velocity.y) < 0.01) {
+        if (std::abs(dy) < THRESHOLD_POS && std::abs(velocity.y) < THRESHOLD_VEL) {
             curPos.y = targetPos.y;
             velocity.y = 0;
         } else {
             curPos.y += velocity.y;
         }
         
-        // Z axis (depth)
-        double dox = originalPos.x - curPos.x;
-        double doy = originalPos.y - curPos.y;
-        double dd = (dox * dox) + (doy * doy);
-        double d = std::sqrt(dd);
+        // Z axis (depth based on distance from origin)
+        float dox = originalPos.x - curPos.x;
+        float doy = originalPos.y - curPos.y;
+        float distSq = dox * dox + doy * doy;
         
-        targetPos.z = d / 100.0 + 1.0;
-        double dz = targetPos.z - curPos.z;
-        double az = dz * springStrength;
-        velocity.z += az;
-        velocity.z *= friction;
+        targetPos.z = std::sqrt(distSq) * 0.01f + 1.0f;
+        float dz = targetPos.z - curPos.z;
+        velocity.z = (velocity.z + dz * SPRING) * FRICTION;
         
-        if (std::abs(dz) < 0.01 && std::abs(velocity.z) < 0.001) {
+        if (std::abs(dz) < 0.01f && std::abs(velocity.z) < 0.001f) {
             curPos.z = targetPos.z;
             velocity.z = 0;
         } else {
@@ -96,37 +77,30 @@ public:
         }
         
         radius = size * curPos.z;
-        if (radius < 1) radius = 1;
+        if (radius < 1.0f) radius = 1.0f;
     }
     
     void draw(SDL_Renderer* renderer) {
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-        
         int x0 = static_cast<int>(curPos.x);
         int y0 = static_cast<int>(curPos.y);
-        double r = radius;
+        int r = static_cast<int>(radius);
         
-        // Anti-aliased circle
-        for (int x = static_cast<int>(-r - 1); x <= static_cast<int>(r + 1); x++) {
-            for (int y = static_cast<int>(-r - 1); y <= static_cast<int>(r + 1); y++) {
-                double coverage = 0.0;
-                const int samples = 4;
-                
-                for (int sx = 0; sx < samples; sx++) {
-                    for (int sy = 0; sy < samples; sy++) {
-                        double px = x + (sx + 0.5) / samples - 0.5;
-                        double py = y + (sy + 0.5) / samples - 0.5;
-                        double dist = std::sqrt(px * px + py * py);
-                        
-                        if (dist <= r) {
-                            coverage += 1.0 / (samples * samples);
-                        }
+        // Optimized circle drawing with 2x2 supersampling
+        int rSq = r * r;
+        for (int y = -r; y <= r; y++) {
+            int ySq = y * y;
+            for (int x = -r; x <= r; x++) {
+                int distSq = x * x + ySq;
+                if (distSq <= rSq) {
+                    // Simple distance-based alpha for anti-aliasing
+                    float dist = std::sqrt(static_cast<float>(distSq));
+                    float alpha = 1.0f;
+                    if (dist > r - 1) {
+                        alpha = r - dist;
                     }
-                }
-                
-                if (coverage > 0.0) {
-                    Uint8 alpha = static_cast<Uint8>(coverage * color.a);
-                    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
+                    
+                    Uint8 a = static_cast<Uint8>(std::max(0.0f, std::min(255.0f, alpha * 255.0f)));
+                    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, a);
                     SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
                 }
             }
@@ -135,45 +109,34 @@ public:
 };
 
 struct PointData {
-    int x, y;
-    int size;
-    std::string color;
+    short x, y;
+    Uint8 size;
+    unsigned int color;
 };
-
-static void computeBounds(const std::vector<PointData>& data, double& w, double& h) {
-    int minX = 99999, maxX = -99999;
-    int minY = 99999, maxY = -99999;
-    
-    for (const auto& p : data) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
-    }
-    
-    w = maxX - minX;
-    h = maxY - minY;
-}
 
 class PointCollection {
 public:
     Vector3 mousePos;
     std::vector<Point> points;
     
-    PointCollection() : mousePos(0, 0, 0) {}
+    static constexpr float REPEL_DIST = 150.0f;
+    static constexpr float REPEL_DIST_SQ = REPEL_DIST * REPEL_DIST;
     
-    void addPoint(double x, double y, double z, double size, const std::string& color) {
-        points.emplace_back(x, y, z, size, color);
+    PointCollection() : mousePos(0, 0, 0) {
+        points.reserve(64);
+    }
+    
+    void addPoint(float x, float y, float size, unsigned int color) {
+        points.emplace_back(x, y, size, color);
     }
     
     void update() {
         for (auto& point : points) {
-            double dx = mousePos.x - point.curPos.x;
-            double dy = mousePos.y - point.curPos.y;
-            double dd = (dx * dx) + (dy * dy);
-            double d = std::sqrt(dd);
+            float dx = mousePos.x - point.curPos.x;
+            float dy = mousePos.y - point.curPos.y;
+            float distSq = dx * dx + dy * dy;
             
-            if (d < 150) {
+            if (distSq < REPEL_DIST_SQ) {
                 point.targetPos.x = point.curPos.x - dx;
                 point.targetPos.y = point.curPos.y - dy;
             } else {
@@ -200,93 +163,124 @@ private:
     PointCollection pointCollection;
     bool running;
     int windowWidth, windowHeight;
+    bool showCursor;
     
-    // Wii U specific
-    bool useDRC;  // Use gamepad screen
+    static constexpr int CURSOR_SIZE = 12;
+    static constexpr int DEADZONE = 8000;
+    static constexpr float ANALOG_SPEED = 10.0f;
     
 public:
     App() : window(nullptr), renderer(nullptr), gamepad(nullptr),
-            running(false), windowWidth(1280), windowHeight(720), useDRC(false) {}
+            running(false), windowWidth(1280), windowHeight(720), showCursor(true) {}
     
     bool init() {
-        // Initialize WHB for Wii U
         WHBProcInit();
         WHBMountSdCard();
         
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
-            SDL_Log("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+            SDL_Log("SDL init failed: %s\n", SDL_GetError());
             return false;
         }
         
-        // Create window for TV (1280x720) by default
         window = SDL_CreateWindow("Google Balls (Wii U)",
                                 SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                windowWidth, windowHeight,
-                                SDL_WINDOW_SHOWN);
+                                windowWidth, windowHeight, SDL_WINDOW_SHOWN);
         
         if (!window) {
-            SDL_Log("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+            SDL_Log("Window creation failed: %s\n", SDL_GetError());
             return false;
         }
         
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if (!renderer) {
-            SDL_Log("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
+            SDL_Log("Renderer creation failed: %s\n", SDL_GetError());
             return false;
         }
         
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         
-        // Open gamepad
         if (SDL_NumJoysticks() > 0) {
             gamepad = SDL_GameControllerOpen(0);
             if (gamepad) {
-                SDL_Log("Gamepad connected!");
+                SDL_Log("Gamepad connected\n");
             }
         }
         
         initPoints();
+        
+        // Center cursor
+        pointCollection.mousePos.x = windowWidth / 2.0f;
+        pointCollection.mousePos.y = windowHeight / 2.0f;
+        
         running = true;
         return true;
     }
     
     void initPoints() {
-        std::vector<PointData> pointData = {
-            {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
-            {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"},
-            {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"},
-            {73, 83, 9, "#3355d8"}, {294, 6, 9, "#36b641"}, {235, 62, 9, "#2e5def"},
-            {353, 42, 8, "#d53747"}, {336, 52, 8, "#eb676f"}, {208, 41, 8, "#f9b125"},
-            {321, 70, 8, "#de3646"}, {8, 60, 8, "#2a59f0"}, {180, 81, 8, "#eb9c31"},
-            {146, 65, 8, "#c41731"}, {145, 49, 8, "#d82038"}, {246, 34, 8, "#5f8af8"},
-            {169, 69, 8, "#efa11e"}, {273, 99, 8, "#2e55e2"}, {248, 120, 8, "#4167e4"},
-            {294, 41, 8, "#0b991a"}, {267, 114, 8, "#4869e3"}, {78, 67, 8, "#3059e3"},
-            {294, 23, 8, "#10a11d"}, {117, 83, 8, "#cf4055"}, {137, 80, 8, "#cd4359"},
-            {14, 71, 8, "#2855ea"}, {331, 80, 8, "#ca273c"}, {25, 82, 8, "#2650e1"},
-            {233, 46, 8, "#4a7bf9"}, {73, 13, 8, "#3d65e7"}, {327, 35, 6, "#f47875"},
-            {319, 46, 6, "#f36764"}, {256, 81, 6, "#1d4eeb"}, {244, 88, 6, "#698bf1"},
-            {194, 32, 6, "#fac652"}, {97, 56, 6, "#ee5257"}, {105, 75, 6, "#cf2a3f"},
-            {42, 4, 6, "#5681f5"}, {10, 27, 6, "#4577f6"}, {166, 55, 6, "#f7b326"},
-            {266, 88, 6, "#2b58e8"}, {178, 34, 6, "#facb5e"}, {100, 65, 6, "#e02e3d"},
-            {343, 32, 6, "#f16d6f"}, {59, 5, 6, "#507bf2"}, {27, 9, 6, "#5683f7"},
-            {233, 116, 6, "#3158e2"}, {123, 32, 6, "#f0696c"}, {6, 38, 6, "#3769f6"},
-            {63, 62, 6, "#6084ef"}, {6, 49, 6, "#2a5cf4"}, {108, 36, 6, "#f4716e"},
-            {169, 43, 6, "#f8c247"}, {137, 37, 6, "#e74653"}, {318, 58, 6, "#ec4147"},
-            {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"},
-            {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
+        static const PointData pointData[] = {
+            {202, 78, 9, 0xed9d33}, {348, 83, 9, 0xd44d61}, {256, 69, 9, 0x4f7af2},
+            {214, 59, 9, 0xef9a1e}, {265, 36, 9, 0x4976f3}, {300, 78, 9, 0x269230},
+            {294, 59, 9, 0x1f9e2c}, {45, 88, 9, 0x1c48dd}, {268, 52, 9, 0x2a56ea},
+            {73, 83, 9, 0x3355d8}, {294, 6, 9, 0x36b641}, {235, 62, 9, 0x2e5def},
+            {353, 42, 8, 0xd53747}, {336, 52, 8, 0xeb676f}, {208, 41, 8, 0xf9b125},
+            {321, 70, 8, 0xde3646}, {8, 60, 8, 0x2a59f0}, {180, 81, 8, 0xeb9c31},
+            {146, 65, 8, 0xc41731}, {145, 49, 8, 0xd82038}, {246, 34, 8, 0x5f8af8},
+            {169, 69, 8, 0xefa11e}, {273, 99, 8, 0x2e55e2}, {248, 120, 8, 0x4167e4},
+            {294, 41, 8, 0x0b991a}, {267, 114, 8, 0x4869e3}, {78, 67, 8, 0x3059e3},
+            {294, 23, 8, 0x10a11d}, {117, 83, 8, 0xcf4055}, {137, 80, 8, 0xcd4359},
+            {14, 71, 8, 0x2855ea}, {331, 80, 8, 0xca273c}, {25, 82, 8, 0x2650e1},
+            {233, 46, 8, 0x4a7bf9}, {73, 13, 8, 0x3d65e7}, {327, 35, 6, 0xf47875},
+            {319, 46, 6, 0xf36764}, {256, 81, 6, 0x1d4eeb}, {244, 88, 6, 0x698bf1},
+            {194, 32, 6, 0xfac652}, {97, 56, 6, 0xee5257}, {105, 75, 6, 0xcf2a3f},
+            {42, 4, 6, 0x5681f5}, {10, 27, 6, 0x4577f6}, {166, 55, 6, 0xf7b326},
+            {266, 88, 6, 0x2b58e8}, {178, 34, 6, 0xfacb5e}, {100, 65, 6, 0xe02e3d},
+            {343, 32, 6, 0xf16d6f}, {59, 5, 6, 0x507bf2}, {27, 9, 6, 0x5683f7},
+            {233, 116, 6, 0x3158e2}, {123, 32, 6, 0xf0696c}, {6, 38, 6, 0x3769f6},
+            {63, 62, 6, 0x6084ef}, {6, 49, 6, 0x2a5cf4}, {108, 36, 6, 0xf4716e},
+            {169, 43, 6, 0xf8c247}, {137, 37, 6, 0xe74653}, {318, 58, 6, 0xec4147},
+            {226, 100, 5, 0x4876f1}, {101, 46, 5, 0xef5c5c}, {226, 108, 5, 0x2552ea},
+            {17, 17, 5, 0x4779f7}, {232, 93, 5, 0x4b78f1}
         };
         
-        double logoW, logoH;
-        computeBounds(pointData, logoW, logoH);
-    
-        double offsetX = (windowWidth / 2.0) - (logoW / 2.0);
-        double offsetY = (windowHeight / 2.0) - (logoH / 2.0);
+        // Compute bounds
+        short minX = 32767, maxX = -32768, minY = 32767, maxY = -32768;
+        for (const auto& p : pointData) {
+            minX = std::min(minX, p.x);
+            maxX = std::max(maxX, p.x);
+            minY = std::min(minY, p.y);
+            maxY = std::max(maxY, p.y);
+        }
+        
+        float offsetX = (windowWidth - (maxX - minX)) * 0.5f;
+        float offsetY = (windowHeight - (maxY - minY)) * 0.5f;
 
         for (const auto& data : pointData) {
-            double x = offsetX + data.x;
-            double y = offsetY + data.y;
-            pointCollection.addPoint(x, y, 0.0, static_cast<double>(data.size), data.color);
+            pointCollection.addPoint(
+                offsetX + data.x,
+                offsetY + data.y,
+                static_cast<float>(data.size),
+                data.color
+            );
         }
+    }
+    
+    void drawCursor(SDL_Renderer* renderer, int x, int y) {
+        // Draw crosshair cursor
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
+        
+        // Horizontal line
+        SDL_RenderDrawLine(renderer, x - CURSOR_SIZE, y, x - 3, y);
+        SDL_RenderDrawLine(renderer, x + 3, y, x + CURSOR_SIZE, y);
+        
+        // Vertical line
+        SDL_RenderDrawLine(renderer, x, y - CURSOR_SIZE, x, y - 3);
+        SDL_RenderDrawLine(renderer, x, y + 3, x, y + CURSOR_SIZE);
+        
+        // Center dot
+        SDL_RenderDrawPoint(renderer, x, y);
+        SDL_RenderDrawPoint(renderer, x + 1, y);
+        SDL_RenderDrawPoint(renderer, x, y + 1);
+        SDL_RenderDrawPoint(renderer, x + 1, y + 1);
     }
     
     void handleEvents() {
@@ -299,15 +293,15 @@ public:
                     
                 case SDL_FINGERDOWN:
                 case SDL_FINGERMOTION:
-                    // Touch input on gamepad
-                    pointCollection.mousePos.set(
-                        e.tfinger.x * windowWidth,
-                        e.tfinger.y * windowHeight
-                    );
+                    pointCollection.mousePos.x = e.tfinger.x * windowWidth;
+                    pointCollection.mousePos.y = e.tfinger.y * windowHeight;
+                    showCursor = true;
                     break;
                     
                 case SDL_MOUSEMOTION:
-                    pointCollection.mousePos.set(e.motion.x, e.motion.y);
+                    pointCollection.mousePos.x = static_cast<float>(e.motion.x);
+                    pointCollection.mousePos.y = static_cast<float>(e.motion.y);
+                    showCursor = true;
                     break;
                     
                 case SDL_CONTROLLERBUTTONDOWN:
@@ -315,48 +309,27 @@ public:
                         e.cbutton.button == SDL_CONTROLLER_BUTTON_B) {
                         running = false;
                     }
-                    // Toggle DRC/TV with MINUS button
-                    if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
-                        useDRC = !useDRC;
-                        SDL_Log("Switched to %s", useDRC ? "DRC" : "TV");
-                    }
-                    break;
-                    
-                case SDL_CONTROLLERAXISMOTION:
-                    // Left analog stick movement
-                    if (gamepad) {
-                        Sint16 x = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX);
-                        Sint16 y = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY);
-                        
-                        // Apply deadzone
-                        const int deadzone = 8000;
-                        if (std::abs(x) > deadzone || std::abs(y) > deadzone) {
-                            double normalizedX = x / 32768.0;
-                            double normalizedY = y / 32768.0;
-                            
-                            // Move cursor with analog stick
-                            pointCollection.mousePos.x += normalizedX * 10.0;
-                            pointCollection.mousePos.y += normalizedY * 10.0;
-                            
-                            // Clamp to screen bounds
-                            if (pointCollection.mousePos.x < 0) pointCollection.mousePos.x = 0;
-                            if (pointCollection.mousePos.x > windowWidth) pointCollection.mousePos.x = windowWidth;
-                            if (pointCollection.mousePos.y < 0) pointCollection.mousePos.y = 0;
-                            if (pointCollection.mousePos.y > windowHeight) pointCollection.mousePos.y = windowHeight;
-                        }
-                    }
-                    break;
-                    
-                case SDL_WINDOWEVENT:
-                    if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
-                        windowWidth = e.window.data1;
-                        windowHeight = e.window.data2;
-                    }
                     break;
             }
         }
         
-        // Check HOME button via WHB
+        // Handle analog stick
+        if (gamepad) {
+            Sint16 x = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX);
+            Sint16 y = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY);
+            
+            if (std::abs(x) > DEADZONE || std::abs(y) > DEADZONE) {
+                pointCollection.mousePos.x += (x / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += (y / 32768.0f) * ANALOG_SPEED;
+                
+                // Clamp
+                pointCollection.mousePos.x = std::max(0.0f, std::min(static_cast<float>(windowWidth), pointCollection.mousePos.x));
+                pointCollection.mousePos.y = std::max(0.0f, std::min(static_cast<float>(windowHeight), pointCollection.mousePos.y));
+                
+                showCursor = true;
+            }
+        }
+        
         if (!WHBProcIsRunning()) {
             running = false;
         }
@@ -372,45 +345,33 @@ public:
         
         pointCollection.draw(renderer);
         
+        if (showCursor) {
+            drawCursor(renderer, 
+                      static_cast<int>(pointCollection.mousePos.x),
+                      static_cast<int>(pointCollection.mousePos.y));
+        }
+        
         SDL_RenderPresent(renderer);
     }
     
     void run() {
-        const int frameDelay = 30;
-        Uint32 frameStart;
-        int frameTime;
-        
         while (running) {
-            frameStart = SDL_GetTicks();
-            
             handleEvents();
             update();
             render();
-            
-            frameTime = SDL_GetTicks() - frameStart;
-            
-            if (frameDelay > frameTime) {
-                SDL_Delay(frameDelay - frameTime);
-            }
         }
     }
     
     void cleanup() {
         if (gamepad) {
             SDL_GameControllerClose(gamepad);
-            gamepad = nullptr;
         }
-        
         if (renderer) {
             SDL_DestroyRenderer(renderer);
-            renderer = nullptr;
         }
-        
         if (window) {
             SDL_DestroyWindow(window);
-            window = nullptr;
         }
-        
         SDL_Quit();
         WHBUnmountSdCard();
         WHBProcShutdown();
@@ -421,7 +382,7 @@ int main(int argc, char* args[]) {
     App app;
     
     if (!app.init()) {
-        SDL_Log("Failed to initialize!");
+        SDL_Log("Failed to initialize!\n");
         return -1;
     }
     
