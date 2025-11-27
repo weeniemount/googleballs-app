@@ -83,15 +83,13 @@ pkg: $(BUILD) $(OUTPUT).self
 	@echo "Running fself.py..."
 	@fself.py -n $(PKGFILES)/USRDIR/EBOOT.BIN
 	@echo "Creating PARAM.SFO..."
-	@sfo.py --title "$(TITLE)" --appid "$(APPID)" $(PKGFILES)/PARAM.SFO
-	@echo "Verifying PARAM.SFO was created..."
-	@test -f $(PKGFILES)/PARAM.SFO || (echo "ERROR: PARAM.SFO was not created!"; exit 1)
-	@ls -la $(PKGFILES)/PARAM.SFO
+	@sfo.py --title "$(TITLE)" --appid "$(APPID)" -f $(PKGFILES)/PARAM.SFO
 	@echo "Verifying ICON0.PNG exists..."
 	@test -f $(PKGFILES)/ICON0.PNG || echo "WARNING: ICON0.PNG not found! Game will not appear in RPCS3."
 	@echo "Creating PKG..."
 	@pkg.py --contentid $(CONTENTID) $(PKGFILES)/ $(OUTPUT).pkg
 	@echo "Package $(OUTPUT).pkg created."
+	@echo "PKG contains: PARAM.SFO, USRDIR/EBOOT.BIN, and ICON0.PNG (if present)"
 
 else
 
