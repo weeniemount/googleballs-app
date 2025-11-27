@@ -13,7 +13,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Build PS3 homebrew in Docker
+    - name: Build PS3 homebrew in Docker with full logging
       run: |
         docker run --rm \
           -v "$PWD:/src" \
@@ -22,7 +22,33 @@ jobs:
           -e PSL1GHT=/usr/local/ps3dev \
           -e PATH="/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
           flipacholas/ps3devextra:latest \
-          sh -c "make clean && make && make pkg"
+          sh -c "
+            echo '=== Environment Variables ===' &&
+            env | sort &&
+            echo '' &&
+            echo '=== PATH ===' &&
+            echo \$PATH &&
+            echo '' &&
+            echo '=== Which commands ===' &&
+            which gcc || echo 'gcc not found' &&
+            which g++ || echo 'g++ not found' &&
+            which ld || echo 'ld not found' &&
+            which powerpc64-ps3-elf-gcc || echo 'ppu-gcc not found' &&
+            which powerpc64-ps3-elf-g++ || echo 'ppu-g++ not found' &&
+            which powerpc64-ps3-elf-ld || echo 'ppu-ld not found' &&
+            echo '' &&
+            echo '=== PSL1GHT files ===' &&
+            ls -la /usr/local/ps3dev/*.rules 2>/dev/null || echo 'No rules files found' &&
+            echo '' &&
+            echo '=== Starting build ===' &&
+            make clean &&
+            echo '' &&
+            echo '=== Build with verbose output ===' &&
+            make VERBOSE=1 V=1 &&
+            echo '' &&
+            echo '=== Creating package ===' &&
+            make pkg
+          "
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
