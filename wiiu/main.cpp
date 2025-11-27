@@ -167,11 +167,15 @@ private:
     
     static constexpr int CURSOR_SIZE = 12;
     static constexpr int DEADZONE = 8000;
-    static constexpr float ANALOG_SPEED = 10.0f;
+    static constexpr float ANALOG_SPEED = 12.0f;
+    static constexpr float DPAD_SPEED = 15.0f;
+    
+    Uint32 lastDpadTime;
     
 public:
     App() : window(nullptr), renderer(nullptr), gamepad(nullptr),
-            running(false), windowWidth(1280), windowHeight(720), showCursor(true) {}
+            running(false), windowWidth(1280), windowHeight(720), showCursor(true),
+            lastDpadTime(0) {}
     
     bool init() {
         WHBProcInit();
@@ -293,9 +297,11 @@ public:
                     
                 case SDL_FINGERDOWN:
                 case SDL_FINGERMOTION:
+                    // Wii U GamePad touch (normalized 0-1)
                     pointCollection.mousePos.x = e.tfinger.x * windowWidth;
                     pointCollection.mousePos.y = e.tfinger.y * windowHeight;
                     showCursor = true;
+                    SDL_Log("Touch: %.2f, %.2f\n", pointCollection.mousePos.x, pointCollection.mousePos.y);
                     break;
                     
                 case SDL_MOUSEMOTION:
@@ -313,19 +319,61 @@ public:
             }
         }
         
-        // Handle analog stick
+        // Handle D-pad (continuous movement while held)
         if (gamepad) {
-            Sint16 x = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX);
-            Sint16 y = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY);
-            
-            if (std::abs(x) > DEADZONE || std::abs(y) > DEADZONE) {
-                pointCollection.mousePos.x += (x / 32768.0f) * ANALOG_SPEED;
-                pointCollection.mousePos.y += (y / 32768.0f) * ANALOG_SPEED;
+            Uint32 currentTime = SDL_GetTicks();
+            if (currentTime - lastDpadTime > 16) { // ~60fps update
+                bool moved = false;
                 
-                // Clamp
+                if (SDL_GameControllerGetButton(gamepad, SDL_CONTROLLER_BUTTON_DPAD_UP)) {
+                    pointCollection.mousePos.y -= DPAD_SPEED;
+                    moved = true;
+                }
+                if (SDL_GameControllerGetButton(gamepad, SDL_CONTROLLER_BUTTON_DPAD_DOWN)) {
+                    pointCollection.mousePos.y += DPAD_SPEED;
+                    moved = true;
+                }
+                if (SDL_GameControllerGetButton(gamepad, SDL_CONTROLLER_BUTTON_DPAD_LEFT)) {
+                    pointCollection.mousePos.x -= DPAD_SPEED;
+                    moved = true;
+                }
+                if (SDL_GameControllerGetButton(gamepad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
+                    pointCollection.mousePos.x += DPAD_SPEED;
+                    moved = true;
+                }
+                
+                if (moved) {
+                    lastDpadTime = currentTime;
+                    showCursor = true;
+                }
+            }
+            
+            // Handle analog sticks (both left and right)
+            Sint16 lx = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTX);
+            Sint16 ly = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_LEFTY);
+            Sint16 rx = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_RIGHTX);
+            Sint16 ry = SDL_GameControllerGetAxis(gamepad, SDL_CONTROLLER_AXIS_RIGHTY);
+            
+            bool analogMoved = false;
+            
+            // Left stick
+            if (std::abs(lx) > DEADZONE || std::abs(ly) > DEADZONE) {
+                pointCollection.mousePos.x += (lx / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += (ly / 32768.0f) * ANALOG_SPEED;
+                analogMoved = true;
+            }
+            
+            // Right stick
+            if (std::abs(rx) > DEADZONE || std::abs(ry) > DEADZONE) {
+                pointCollection.mousePos.x += (rx / 32768.0f) * ANALOG_SPEED;
+                pointCollection.mousePos.y += (ry / 32768.0f) * ANALOG_SPEED;
+                analogMoved = true;
+            }
+            
+            if (analogMoved) {
+                // Clamp to screen bounds
                 pointCollection.mousePos.x = std::max(0.0f, std::min(static_cast<float>(windowWidth), pointCollection.mousePos.x));
                 pointCollection.mousePos.y = std::max(0.0f, std::min(static_cast<float>(windowHeight), pointCollection.mousePos.y));
-                
                 showCursor = true;
             }
         }
