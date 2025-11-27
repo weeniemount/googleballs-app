@@ -1,0 +1,12 @@
+<sfo>
+	<value name="APP_VER" type="string">01.00</value>
+	<value name="ATTRIBUTE" type="integer">0</value>
+	<value name="BOOTABLE" type="integer">1</value>
+	<value name="CATEGORY" type="string">HG</value>
+	<value name="LICENSE" type="string">Licensed for play on the PLAYSTATION(R)3 Computer Entertainment System</value>
+	<value name="PARENTAL_LEVEL" type="integer">1</value>
+	<value name="PS3_SYSTEM_VER" type="string">01.0000</value>
+	<value name="TITLE" type="string">Google Balls</value>
+	<value name="TITLE_ID" type="string">GBAL00001</value>
+	<value name="VERSION" type="string">01.00</value>
+</sfo>

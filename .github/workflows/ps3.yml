@@ -1,0 +1,76 @@
+name: Build PS3
+
+on:
+  push:
+    branches: [ ps3 ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Build PS3 homebrew in Docker with full logging
+      run: |
+        docker run --rm \
+          -v "$PWD:/src" \
+          -w /src/ps3 \
+          -e PS3DEV=/usr/local/ps3dev \
+          -e PSL1GHT=/usr/local/ps3dev \
+          -e PATH="/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+          flipacholas/ps3devextra:latest \
+          sh -c "
+            echo '=== Environment Variables ===' &&
+            env | sort &&
+            echo '' &&
+            echo '=== PATH ===' &&
+            echo \$PATH &&
+            echo '' &&
+            echo '=== Which commands ===' &&
+            which gcc || echo 'gcc not found' &&
+            which g++ || echo 'g++ not found' &&
+            which ld || echo 'ld not found' &&
+            which powerpc64-ps3-elf-gcc || echo 'ppu-gcc not found' &&
+            which powerpc64-ps3-elf-g++ || echo 'ppu-g++ not found' &&
+            which powerpc64-ps3-elf-ld || echo 'ppu-ld not found' &&
+            echo '' &&
+            echo '=== SELF creation tools ===' &&
+            which fself || echo 'fself not found' &&
+            which make_fself || echo 'make_fself not found' &&
+            which make_self || echo 'make_self not found' &&
+            which sprxlinker || echo 'sprxlinker not found' &&
+            ls -la /usr/local/ps3dev/bin/ | grep -i self || echo 'no self tools found' &&
+            echo '' &&
+            echo '=== PSL1GHT files ===' &&
+            ls -la /usr/local/ps3dev/*.rules 2>/dev/null || echo 'No rules files found' &&
+            echo '' &&
+            echo '=== Starting build ===' &&
+            make clean &&
+            echo '' &&
+            echo '=== Build with verbose output ===' &&
+            make VERBOSE=1 V=1 &&
+            echo '' &&
+            echo '=== Files created ===' &&
+            ls -la /src/ps3/*.elf /src/ps3/*.self 2>/dev/null || echo 'No elf/self files' &&
+            echo '' &&
+            echo '=== Manually create SELF ===' &&
+            (fself /src/ps3/googleballs.elf /src/ps3/googleballs.self || make_fself /src/ps3/googleballs.elf /src/ps3/googleballs.self || echo 'Could not create SELF') &&
+            echo '' &&
+            echo '=== Files after manual SELF ===' &&
+            ls -la /src/ps3/*.elf /src/ps3/*.self 2>/dev/null || echo 'No elf/self files' &&
+            echo '' &&
+            echo '=== Creating package ===' &&
+            make pkg
+          "
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-ps3
+        path: |
+          ps3/googleballs.self
+          ps3/googleballs.pkg
+        if-no-files-found: error
