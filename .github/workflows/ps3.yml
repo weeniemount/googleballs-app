@@ -13,32 +13,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Debug environment
-      run: |
-        docker run --rm flipacholas/ps3devextra:latest sh -c "
-          echo '=== PATH ===' &&
-          echo \$PATH &&
-          echo '=== Which ld ===' &&
-          which ld &&
-          echo '=== ppu-ld ===' &&
-          which powerpc64-ps3-elf-ld || echo 'Not found' &&
-          echo '=== ppu dir ===' &&
-          ls -la /usr/local/ps3dev/ppu/bin/ | head -10
-        "
-    
     - name: Build PS3 homebrew in Docker
       run: |
         docker run --rm \
           -v "$PWD:/src" \
           -w /src/ps3 \
           -e PS3DEV=/usr/local/ps3dev \
-          -e PPU_PREFIX=powerpc64-ps3-elf \
-          -e CC=powerpc64-ps3-elf-gcc \
-          -e CXX=powerpc64-ps3-elf-g++ \
-          -e LD=powerpc64-ps3-elf-ld \
-          -e AR=powerpc64-ps3-elf-ar \
-          -e OBJCOPY=powerpc64-ps3-elf-objcopy \
-          -e STRIP=powerpc64-ps3-elf-strip \
+          -e PSL1GHT=/usr/local/ps3dev \
           -e PATH="/usr/local/ps3dev/bin:/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/spu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
           flipacholas/ps3devextra:latest \
           sh -c "make clean && make && make pkg"
