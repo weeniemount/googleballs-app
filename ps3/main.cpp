@@ -351,7 +351,7 @@ int main(int argc, char *argv[]) {
         collection.draw();
         
         tiny3d_Flip();
-        usleep(16666); // ~60fps
+        usleep(33333); // ~60fps
     }
     
 cleanup:
