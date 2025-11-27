@@ -23,7 +23,7 @@ CXXFLAGS	+= $(CFLAGS)
 # Use ppu-g++ for linking, not ld directly
 LDFLAGS		=	-Wl,-Map,$(notdir $@).map -Wl,--gc-sections
 
-# Add tiny3d library and RSX
+# Add tiny3d library and RSX/GCM libraries
 LIBS		:=	-ltiny3d -lrsx -lgcm_sys -lsysutil -lio -lrt -llv2
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
@@ -68,14 +68,14 @@ clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).pkg
 
-run: $(BUILD)
+run: $(BUILD) $(OUTPUT).self
 	ps3load $(OUTPUT).self
 
-pkg: $(BUILD)
+pkg: $(BUILD) $(OUTPUT).self
 	@echo Creating PKG...
 	@mkdir -p $(PKGFILES)/USRDIR
 	@cp $(OUTPUT).self $(PKGFILES)/USRDIR/EBOOT.BIN
-	@$(FSELF) -n $(PKGFILES)/USRDIR/EBOOT.BIN
+	@fself.py -n $(PKGFILES)/USRDIR/EBOOT.BIN
 	@sfo.py --title "$(TITLE)" --appid "$(APPID)" -f $(PKGFILES)/PARAM.SFO
 	@pkg.py --contentid $(CONTENTID) $(PKGFILES)/ $(OUTPUT).pkg
 	@echo "Package $(OUTPUT).pkg created."
@@ -89,10 +89,10 @@ $(OUTPUT).elf: $(OFILES)
 	@echo linking ... $(notdir $@)
 	@$(CXX) $(CXXFLAGS) $(OFILES) $(LDFLAGS) $(LIBPATHS) $(LIBS) -o $@
 
-# Add explicit rule to create .self from .elf
+# Add explicit rule to create .self from .elf using make_self
 $(OUTPUT).self: $(OUTPUT).elf
 	@echo creating SELF ... $(notdir $@)
-	@$(FSELF) $< $@
+	@make_self $(OUTPUT).elf $(OUTPUT).self
 
 -include $(DEPENDS)
 
