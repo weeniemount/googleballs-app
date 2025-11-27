@@ -23,8 +23,8 @@ CXXFLAGS	+= $(CFLAGS)
 # Use ppu-g++ for linking, not ld directly
 LDFLAGS		=	-Wl,-Map,$(notdir $@).map -Wl,--gc-sections
 
-# Add tiny3d library
-LIBS		:=	-ltiny3d -lsysutil -lio -lrt -llv2
+# Add tiny3d library and RSX
+LIBS		:=	-ltiny3d -lrsx -lgcm_sys -lsysutil -lio -lrt -llv2
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
