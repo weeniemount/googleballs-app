@@ -37,6 +37,13 @@ jobs:
             which powerpc64-ps3-elf-g++ || echo 'ppu-g++ not found' &&
             which powerpc64-ps3-elf-ld || echo 'ppu-ld not found' &&
             echo '' &&
+            echo '=== SELF creation tools ===' &&
+            which fself || echo 'fself not found' &&
+            which make_fself || echo 'make_fself not found' &&
+            which make_self || echo 'make_self not found' &&
+            which sprxlinker || echo 'sprxlinker not found' &&
+            ls -la /usr/local/ps3dev/bin/ | grep -i self || echo 'no self tools found' &&
+            echo '' &&
             echo '=== PSL1GHT files ===' &&
             ls -la /usr/local/ps3dev/*.rules 2>/dev/null || echo 'No rules files found' &&
             echo '' &&
@@ -45,6 +52,15 @@ jobs:
             echo '' &&
             echo '=== Build with verbose output ===' &&
             make VERBOSE=1 V=1 &&
+            echo '' &&
+            echo '=== Files created ===' &&
+            ls -la /src/ps3/*.elf /src/ps3/*.self 2>/dev/null || echo 'No elf/self files' &&
+            echo '' &&
+            echo '=== Manually create SELF ===' &&
+            (fself /src/ps3/googleballs.elf /src/ps3/googleballs.self || make_fself /src/ps3/googleballs.elf /src/ps3/googleballs.self || echo 'Could not create SELF') &&
+            echo '' &&
+            echo '=== Files after manual SELF ===' &&
+            ls -la /src/ps3/*.elf /src/ps3/*.self 2>/dev/null || echo 'No elf/self files' &&
             echo '' &&
             echo '=== Creating package ===' &&
             make pkg
