@@ -67,7 +67,7 @@ $(BUILD):
 clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).pkg
-	@rm -f $(PKGFILES)/PARAM.SFO $(PKGFILES)/USRDIR/EBOOT.BIN
+	@rm -f $(PKGFILES)/USRDIR/EBOOT.BIN
 
 run: $(BUILD) $(OUTPUT).self
 	ps3load $(OUTPUT).self
@@ -78,12 +78,11 @@ pkg: $(BUILD) $(OUTPUT).self
 	@cp $(OUTPUT).self $(PKGFILES)/USRDIR/EBOOT.BIN
 	@echo "Checking for PS3 tools..."
 	@which fself.py > /dev/null 2>&1 || (echo "ERROR: fself.py not found. Install ps3py tools."; exit 1)
-	@which sfo.py > /dev/null 2>&1 || (echo "ERROR: sfo.py not found. Install ps3py tools."; exit 1)
 	@which pkg.py > /dev/null 2>&1 || (echo "ERROR: pkg.py not found. Install ps3py tools."; exit 1)
 	@echo "Running fself.py..."
 	@fself.py -n $(PKGFILES)/USRDIR/EBOOT.BIN
-	@echo "Creating PARAM.SFO..."
-	@sfo.py --title "$(TITLE)" --appid "$(APPID)" -f $(PKGFILES)/PARAM.SFO
+	@echo "Verifying PARAM.SFO exists..."
+	@test -f $(PKGFILES)/PARAM.SFO || (echo "ERROR: PARAM.SFO not found in pkg folder!"; exit 1)
 	@echo "Verifying ICON0.PNG exists..."
 	@test -f $(PKGFILES)/ICON0.PNG || echo "WARNING: ICON0.PNG not found! Game will not appear in RPCS3."
 	@echo "Creating PKG..."
