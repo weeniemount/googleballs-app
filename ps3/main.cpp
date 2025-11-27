@@ -38,7 +38,7 @@ struct Color {
         return Color();
     }
     
-    // PS3 uses ARGB format in word order (big-endian)
+    // PS3 uses 0xAARRGGBB format
     u32 toU32() const {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
@@ -85,7 +85,7 @@ public:
             curPos.y += velocity.y;
         }
         
-        // Z axis (depth) - keep it simple and constant
+        // Z axis (depth)
         double dox = originalPos.x - curPos.x;
         double doy = originalPos.y - curPos.y;
         double dd = (dox * dox) + (doy * doy);
@@ -110,53 +110,41 @@ public:
     }
     
     void draw() {
-        // Draw filled circle using tiny3d
-        int x0 = (int)curPos.x;
-        int y0 = (int)curPos.y;
-        double r = radius;
+        float x0 = (float)curPos.x;
+        float y0 = (float)curPos.y;
+        float r = (float)radius;
         u32 colorValue = color.toU32();
         
-        // Clamp to ensure we don't go off screen
-        if (x0 < -100 || x0 > SCREEN_WIDTH + 100 || 
-            y0 < -100 || y0 > SCREEN_HEIGHT + 100) {
-            return; // Skip drawing if too far off screen
+        // Skip if off screen
+        if (x0 < -r*2 || x0 > SCREEN_WIDTH + r*2 || 
+            y0 < -r*2 || y0 > SCREEN_HEIGHT + r*2) {
+            return;
         }
         
-        // Draw circle by drawing filled squares in a grid pattern
-        int minX = (int)(-r - 1);
-        int maxX = (int)(r + 1);
-        int minY = (int)(-r - 1);
-        int maxY = (int)(r + 1);
+        // Draw circle using triangle fan approximation
+        const int segments = 20;
+        const float angleStep = (2.0f * 3.14159265f) / segments;
         
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                double dist = sqrt((double)(x * x + y * y));
-                
-                if (dist <= r) {
-                    float px = (float)(x0 + x);
-                    float py = (float)(y0 + y);
-                    float size = 2.0f;
-                    
-                    if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT) {
-                        tiny3d_SetPolygon(TINY3D_QUADS);
-                        
-                        tiny3d_VertexPos(px, py, 1);
-                        tiny3d_VertexColor(colorValue);
-                        
-                        tiny3d_VertexPos(px + size, py, 1);
-                        tiny3d_VertexColor(colorValue);
-                        
-                        tiny3d_VertexPos(px + size, py + size, 1);
-                        tiny3d_VertexColor(colorValue);
-                        
-                        tiny3d_VertexPos(px, py + size, 1);
-                        tiny3d_VertexColor(colorValue);
-                        
-                        tiny3d_End();
-                    }
-                }
-            }
+        tiny3d_SetPolygon(TINY3D_TRIANGLES);
+        
+        for (int i = 0; i < segments; i++) {
+            float angle1 = i * angleStep;
+            float angle2 = (i + 1) * angleStep;
+            
+            // Center point
+            tiny3d_VertexPos(x0, y0, 1);
+            tiny3d_VertexColor(colorValue);
+            
+            // First edge point
+            tiny3d_VertexPos(x0 + r * cosf(angle1), y0 + r * sinf(angle1), 1);
+            tiny3d_VertexColor(colorValue);
+            
+            // Second edge point
+            tiny3d_VertexPos(x0 + r * cosf(angle2), y0 + r * sinf(angle2), 1);
+            tiny3d_VertexColor(colorValue);
         }
+        
+        tiny3d_End();
     }
 };
 
@@ -304,13 +292,12 @@ int main(int argc, char *argv[]) {
             if (padinfo.status[i]) {
                 ioPadGetData(i, &paddata);
                 
-                // Analog stick control - Fixed deadzone and sensitivity
+                // Analog stick control
                 if (paddata.len > 0) {
-                    // Right analog stick (primary control)
+                    // Right analog stick
                     int rx = (int)paddata.ANA_R_H - 128;
                     int ry = (int)paddata.ANA_R_V - 128;
                     
-                    // Apply deadzone
                     if (abs(rx) > 15) {
                         collection.mousePos.x += rx / 15.0;
                     }
@@ -318,11 +305,10 @@ int main(int argc, char *argv[]) {
                         collection.mousePos.y += ry / 15.0;
                     }
                     
-                    // Left analog stick (secondary control)
+                    // Left analog stick
                     int lx = (int)paddata.ANA_L_H - 128;
                     int ly = (int)paddata.ANA_L_V - 128;
                     
-                    // Apply deadzone
                     if (abs(lx) > 15) {
                         collection.mousePos.x += lx / 15.0;
                     }
@@ -354,7 +340,7 @@ int main(int argc, char *argv[]) {
         collection.update();
         
         // Draw
-        tiny3d_Clear(0xffffffff, TINY3D_CLEAR_ALL);  // Clear to white
+        tiny3d_Clear(0xffffffff, TINY3D_CLEAR_ALL);
         tiny3d_AlphaTest(1, 0x10, TINY3D_ALPHA_FUNC_GEQUAL);
         tiny3d_BlendFunc(1, 
                         (blend_src_func)TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA, 
