@@ -85,7 +85,7 @@ else
 DEPENDS	:=	$(OFILES:.o=.d)
 
 # Override the linking rule to use ppu-g++ instead of ld
-%.elf:
+$(OUTPUT).elf: $(OFILES)
 	@echo linking ... $(notdir $@)
 	@$(CXX) $(CXXFLAGS) $(OFILES) $(LDFLAGS) $(LIBPATHS) $(LIBS) -o $@
 
