@@ -20,7 +20,7 @@ CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 CFLAGS		+= -O2 -Wall -mcpu=cell $(MACHDEP) $(INCLUDE)
 CXXFLAGS	+= $(CFLAGS)
 
-LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map
+LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map -Wl,--gc-sections
 
 # Add tiny3d library
 LIBS		:=	-ltiny3d -lsysutil -lio -lrt -llv2
