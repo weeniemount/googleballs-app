@@ -187,6 +187,11 @@ public:
             return false;
         }
         
+        // CRITICAL FIX: Enable joystick event processing
+        // This is REQUIRED on Wii/Wii U for joystick events to work!
+        SDL_JoystickEventState(SDL_ENABLE);
+        SDL_GameControllerEventState(SDL_ENABLE);
+        
         window = SDL_CreateWindow("Google Balls (Wii U)",
                                 SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                 windowWidth, windowHeight, SDL_WINDOW_SHOWN);
@@ -213,7 +218,7 @@ public:
             if (SDL_IsGameController(0)) {
                 gamepad = SDL_GameControllerOpen(0);
                 if (gamepad) {
-                    SDL_Log("Opened as GameController\n");
+                    SDL_Log("Opened as GameController: %s\n", SDL_GameControllerName(gamepad));
                     joystick = SDL_GameControllerGetJoystick(gamepad);
                 }
             }
@@ -223,8 +228,15 @@ public:
                 joystick = SDL_JoystickOpen(0);
                 if (joystick) {
                     SDL_Log("Opened as Joystick: %s\n", SDL_JoystickName(joystick));
+                    SDL_Log("  Axes: %d\n", SDL_JoystickNumAxes(joystick));
+                    SDL_Log("  Buttons: %d\n", SDL_JoystickNumButtons(joystick));
+                    SDL_Log("  Hats: %d\n", SDL_JoystickNumHats(joystick));
                 }
             }
+        }
+        
+        if (!joystick && !gamepad) {
+            SDL_Log("WARNING: No joystick/gamepad opened!\n");
         }
         
         initPoints();
@@ -329,6 +341,7 @@ public:
                     pointCollection.mousePos.x = static_cast<float>(e.motion.x);
                     pointCollection.mousePos.y = static_cast<float>(e.motion.y);
                     showCursor = true;
+                    SDL_Log("Mouse motion: %d, %d\n", e.motion.x, e.motion.y);
                     break;
                     
                 case SDL_JOYBUTTONDOWN:
@@ -340,6 +353,7 @@ public:
                     break;
                     
                 case SDL_CONTROLLERBUTTONDOWN:
+                    SDL_Log("Controller button %d pressed\n", e.cbutton.button);
                     if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START ||
                         e.cbutton.button == SDL_CONTROLLER_BUTTON_B) {
                         running = false;
