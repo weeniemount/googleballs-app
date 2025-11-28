@@ -89,38 +89,16 @@ public:
         
         if (r <= 0) return;
         
-        // Draw filled circle with smooth edges
-        int rSq = r * r;
-        
-        // Main filled circle
+        // Draw clean filled circle
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+        
+        int rSq = r * r;
         for (int y = -r; y <= r; y++) {
             int ySq = y * y;
             int width = static_cast<int>(std::sqrt(rSq - ySq));
             
             if (width > 0) {
                 SDL_RenderDrawLine(renderer, x0 - width, y0 + y, x0 + width, y0 + y);
-            }
-        }
-        
-        // Add anti-aliased edge for smoothness
-        if (r > 2) {
-            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 128);
-            
-            // Draw outer edge pixels with half transparency
-            int outerR = r + 1;
-            int outerRSq = outerR * outerR;
-            
-            for (int y = -outerR; y <= outerR; y++) {
-                int ySq = y * y;
-                for (int x = -outerR; x <= outerR; x++) {
-                    int distSq = x * x + ySq;
-                    
-                    // Only draw pixels in the anti-alias ring
-                    if (distSq > rSq && distSq <= outerRSq) {
-                        SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
-                    }
-                }
             }
         }
     }
