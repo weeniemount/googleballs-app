@@ -1,5 +1,5 @@
 # google balls app!!!
-[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![PSP](images/badges/psp.svg) ![webOS](images/badges/webos.svg)
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![PSP](images/badges/psp.svg) ![webOS](images/badges/webos.svg) ![Wii](images/badges/wii.svg) ![Wii U](images/badges/wiiu.svg) ![PS3](images/badges/ps3.svg) ![Haiku](images/badges/haiku.svg) ![J2ME](images/badges/j2me.svg)
 
 <img src="images/balls.png" alt="google balls" width="200"/>
 
@@ -17,7 +17,7 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *16* flavors!
+# Available in *23* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
@@ -36,6 +36,12 @@ We have:
 - PSP (ps vita and psp got google balls now) - PSP
 - webOS (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
 - web (just open it in your browser https://googleballs.com. also can be installed as a PWA which works offline) - Chrome/ChromeOS
+- J2ME (google balls on your java phone) - J2ME phones
+- PS3 (goog the balls on your play station 3, so epic) - PS3
+- Wii (you can now use your wiimote to play google balls!) - Wii
+- Wii U (like the wii but you can use touschreen and analog) - Wii U
+- Haiku (yes, haiku os can also google balls now!) - Haiku
+- Terminal (just run it in your terminal) - Windows, macOS, Linux
 
 # How 2 download:
 See [the docs](docs/installing.md)

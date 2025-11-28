@@ -9,6 +9,7 @@
 | x86_64 | Tauri (exe setup) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop_1.0.0_x64-setup-tauri.exe) |
 | x86_64 | Electron (exe setup) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.exe)
 | x86_64 | Rust (Macroquad Native) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-rust.exe)
+| x86_64 | Terminal | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-terminal-windows.exe)
 
 install instructions coming soon :bangbang:
 
@@ -24,12 +25,16 @@ install instructions coming soon :bangbang:
 | x86_64 | Electron (deb) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.deb)
 | x86_64 | Electron (AppImage) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.AppImage)
 | x86_64 | Rust (Macroquad Native) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-rust)
+| x86_64 | Terminal | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-terminal-linux)
 
 install instructions coming soon :bangbang:
 
 ### macOS
-[Download .dmg](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.dmg)
-NOTE: The macOS version is electron.
+| Arch | Version | Link |
+| :--- | :--- | :--- |
+| mac os architecture idfk | Electron | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.dmg) |
+| mac os architecture idfk | Terminal | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-terminal-macos) |
+
 
 install instructions coming soon :bangbang:
 
@@ -48,8 +53,8 @@ install instructions coming soon :bangbang:
 install instructions coming soon :bangbang:
 
 ## PSVita
-[Download .self](https://github.com/weeniemount/googleballs-app/releases/latest/download/google_balls.self)
-[Download .vpk](https://github.com/weeniemount/googleballs-app/releases/latest/download/google_balls.vpk)
+[Download .self](https://github.com/weeniemount/googleballs-app/releases/latest/download/google_balls-psvita.self)
+[Download .vpk](https://github.com/weeniemount/googleballs-app/releases/latest/download/google_balls-psvita.vpk)
 
 idk your on your own gang
 
@@ -161,6 +166,27 @@ $ ares-install -d "My TV" com.weenie.googleballs_1.0.0_all.ipk
 ```
 
 If this fails, you either typed your IP wrong, your passphrase was wrong, you forgot your key, or you didn't enable Dev Mode
+
+## Wii U/Wii
+[Download Wii U](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-wiiu.zip) [Download Wii](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-wii.zip)
+
+idk man install the homebrew launcher app the homebrew channel and put the google balls on your sdcard
+
+## Haiku
+[Download Haiku](https://github.com/weeniemount/googleballs-app/releases/latest/download/GoogleBalls-haiku)
+
+just run the executable in a terminal or whatever
+
+## J2ME
+[Download .jar](https://github.com/weeniemount/googleballs-app/releases/latest/download/GoogleBalls-j2me.jar)
+
+i have no clue
+
+## PS3
+[Download .self](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ps3.self)
+[Download .pkg](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ps3.pkg)
+
+i have no clue
 
 # Nightly (actions)
 Click that actions tab above, pick the latest build and download the artifacts you need
