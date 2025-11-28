@@ -1423,6 +1423,51 @@ jobs:
       with:
         name: google-balls-wii
         path: wii/google-balls-wii.zip
+  build-wiiu:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
+    defaults:
+      run:
+        working-directory: ./wiiu
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Wii U packages
+      run: |
+        dkp-pacman -Syu --noconfirm
+        dkp-pacman -S --needed --noconfirm wiiu-dev wiiu-sdl2 wiiu-sdl2_image wut-tools
+    
+    - name: Create build directory
+      run: mkdir -p build
+    
+    - name: Configure with CMake
+      run: |
+        cd build
+        /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake \
+          -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/wut/share/wut.toolchain.cmake \
+          ..
+    
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+    
+    - name: Prepare release structure
+      run: |
+        mkdir -p release/wiiu/apps/google_balls
+        cp build/google_balls_wiiu.rpx release/wiiu/apps/google_balls/
+        cp meta.xml release/wiiu/apps/google_balls/
+        cp icon.png release/wiiu/apps/google_balls/ || echo "No icon.png found"
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: google-balls-wiiu
+        path: wiiu/release/
   build-ps3:
     runs-on: ubuntu-latest
     
