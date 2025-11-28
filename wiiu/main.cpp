@@ -38,42 +38,44 @@ public:
     }
     
     inline void update() {
-        // X axis
+        // X axis - simplified spring physics
         float dx = targetPos.x - curPos.x;
-        velocity.x = (velocity.x + dx * SPRING) * FRICTION;
-        
-        if (std::abs(dx) < THRESHOLD_POS && std::abs(velocity.x) < THRESHOLD_VEL) {
+        if (std::abs(dx) > THRESHOLD_POS) {
+            velocity.x = (velocity.x + dx * SPRING) * FRICTION;
+            curPos.x += velocity.x;
+        } else {
             curPos.x = targetPos.x;
             velocity.x = 0;
-        } else {
-            curPos.x += velocity.x;
         }
         
         // Y axis
         float dy = targetPos.y - curPos.y;
-        velocity.y = (velocity.y + dy * SPRING) * FRICTION;
-        
-        if (std::abs(dy) < THRESHOLD_POS && std::abs(velocity.y) < THRESHOLD_VEL) {
+        if (std::abs(dy) > THRESHOLD_POS) {
+            velocity.y = (velocity.y + dy * SPRING) * FRICTION;
+            curPos.y += velocity.y;
+        } else {
             curPos.y = targetPos.y;
             velocity.y = 0;
-        } else {
-            curPos.y += velocity.y;
         }
         
-        // Z axis (depth based on distance from origin)
+        // Z axis (depth) - simplified calculation
         float dox = originalPos.x - curPos.x;
         float doy = originalPos.y - curPos.y;
         float distSq = dox * dox + doy * doy;
         
-        targetPos.z = std::sqrt(distSq) * 0.01f + 1.0f;
-        float dz = targetPos.z - curPos.z;
-        velocity.z = (velocity.z + dz * SPRING) * FRICTION;
+        if (distSq > 1.0f) {
+            targetPos.z = std::sqrt(distSq) * 0.01f + 1.0f;
+        } else {
+            targetPos.z = 1.0f;
+        }
         
-        if (std::abs(dz) < 0.01f && std::abs(velocity.z) < 0.001f) {
+        float dz = targetPos.z - curPos.z;
+        if (std::abs(dz) > 0.01f) {
+            velocity.z = (velocity.z + dz * SPRING) * FRICTION;
+            curPos.z += velocity.z;
+        } else {
             curPos.z = targetPos.z;
             velocity.z = 0;
-        } else {
-            curPos.z += velocity.z;
         }
         
         radius = size * curPos.z;
@@ -85,23 +87,18 @@ public:
         int y0 = static_cast<int>(curPos.y);
         int r = static_cast<int>(radius);
         
-        // Optimized circle drawing
+        if (r <= 0) return;
+        
+        // Fast filled circle using horizontal spans
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+        
         int rSq = r * r;
         for (int y = -r; y <= r; y++) {
             int ySq = y * y;
-            for (int x = -r; x <= r; x++) {
-                int distSq = x * x + ySq;
-                if (distSq <= rSq) {
-                    float dist = std::sqrt(static_cast<float>(distSq));
-                    float alpha = 1.0f;
-                    if (dist > r - 1) {
-                        alpha = r - dist;
-                    }
-                    
-                    Uint8 a = static_cast<Uint8>(std::max(0.0f, std::min(255.0f, alpha * 255.0f)));
-                    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, a);
-                    SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
-                }
+            int width = static_cast<int>(std::sqrt(rSq - ySq));
+            
+            if (width > 0) {
+                SDL_RenderDrawLine(renderer, x0 - width, y0 + y, x0 + width, y0 + y);
             }
         }
     }
@@ -130,9 +127,13 @@ public:
     }
     
     void update() {
+        // Fast distance check using squared distance
+        const float mouseX = mousePos.x;
+        const float mouseY = mousePos.y;
+        
         for (auto& point : points) {
-            float dx = mousePos.x - point.curPos.x;
-            float dy = mousePos.y - point.curPos.y;
+            float dx = mouseX - point.curPos.x;
+            float dy = mouseY - point.curPos.y;
             float distSq = dx * dx + dy * dy;
             
             if (distSq < REPEL_DIST_SQ) {
