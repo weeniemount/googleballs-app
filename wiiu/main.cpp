@@ -89,16 +89,38 @@ public:
         
         if (r <= 0) return;
         
-        // Fast filled circle using horizontal spans
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
-        
+        // Draw filled circle with smooth edges
         int rSq = r * r;
+        
+        // Main filled circle
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
         for (int y = -r; y <= r; y++) {
             int ySq = y * y;
             int width = static_cast<int>(std::sqrt(rSq - ySq));
             
             if (width > 0) {
                 SDL_RenderDrawLine(renderer, x0 - width, y0 + y, x0 + width, y0 + y);
+            }
+        }
+        
+        // Add anti-aliased edge for smoothness
+        if (r > 2) {
+            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 128);
+            
+            // Draw outer edge pixels with half transparency
+            int outerR = r + 1;
+            int outerRSq = outerR * outerR;
+            
+            for (int y = -outerR; y <= outerR; y++) {
+                int ySq = y * y;
+                for (int x = -outerR; x <= outerR; x++) {
+                    int distSq = x * x + ySq;
+                    
+                    // Only draw pixels in the anti-alias ring
+                    if (distSq > rSq && distSq <= outerRSq) {
+                        SDL_RenderDrawPoint(renderer, x0 + x, y0 + y);
+                    }
+                }
             }
         }
     }
@@ -170,13 +192,16 @@ private:
     static constexpr int DEADZONE = 8000;
     static constexpr float ANALOG_SPEED = 12.0f;
     static constexpr float DPAD_SPEED = 15.0f;
+    static constexpr int TARGET_FPS = 33;
+    static constexpr Uint32 FRAME_TIME_MS = 1000 / TARGET_FPS;  // ~30ms per frame
     
     Uint32 lastDpadTime;
+    Uint32 lastFrameTime;
     
 public:
     App() : window(nullptr), renderer(nullptr), joystick(nullptr), gamepad(nullptr),
             running(false), windowWidth(1280), windowHeight(720), showCursor(true),
-            lastDpadTime(0) {}
+            lastDpadTime(0), lastFrameTime(0) {}
     
     bool init() {
         WHBProcInit();
@@ -202,7 +227,8 @@ public:
             return false;
         }
         
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        // Remove VSYNC to manually control frame rate at 33 FPS
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
         if (!renderer) {
             SDL_Log("Renderer creation failed: %s\n", SDL_GetError());
             return false;
@@ -246,6 +272,7 @@ public:
         pointCollection.mousePos.x = windowWidth / 2.0f;
         pointCollection.mousePos.y = windowHeight / 2.0f;
         
+        lastFrameTime = SDL_GetTicks();
         running = true;
         return true;
     }
@@ -328,13 +355,9 @@ public:
                 case SDL_FINGERDOWN:
                 case SDL_FINGERMOTION: {
                     // Wii U GamePad touch - coordinates are normalized 0.0-1.0
-                    float touchX = e.tfinger.x * windowWidth;
-                    float touchY = e.tfinger.y * windowHeight;
-                    pointCollection.mousePos.x = touchX;
-                    pointCollection.mousePos.y = touchY;
+                    pointCollection.mousePos.x = e.tfinger.x * windowWidth;
+                    pointCollection.mousePos.y = e.tfinger.y * windowHeight;
                     showCursor = true;
-                    SDL_Log("Touch: %.2f, %.2f (raw: %.3f, %.3f)\n", 
-                            touchX, touchY, e.tfinger.x, e.tfinger.y);
                     break;
                 }
                     
@@ -342,11 +365,9 @@ public:
                     pointCollection.mousePos.x = static_cast<float>(e.motion.x);
                     pointCollection.mousePos.y = static_cast<float>(e.motion.y);
                     showCursor = true;
-                    SDL_Log("Mouse motion: %d, %d\n", e.motion.x, e.motion.y);
                     break;
                     
                 case SDL_JOYBUTTONDOWN:
-                    SDL_Log("Joystick button %d pressed\n", e.jbutton.button);
                     // Button 6 is typically START on Wii U GamePad
                     if (e.jbutton.button == 6 || e.jbutton.button == 1) {
                         running = false;
@@ -354,7 +375,6 @@ public:
                     break;
                     
                 case SDL_CONTROLLERBUTTONDOWN:
-                    SDL_Log("Controller button %d pressed\n", e.cbutton.button);
                     if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START ||
                         e.cbutton.button == SDL_CONTROLLER_BUTTON_B) {
                         running = false;
@@ -362,14 +382,8 @@ public:
                     break;
                     
                 case SDL_JOYAXISMOTION:
-                    // Log axis motion for debugging
-                    if (std::abs(e.jaxis.value) > DEADZONE) {
-                        SDL_Log("Axis %d: %d\n", e.jaxis.axis, e.jaxis.value);
-                    }
-                    break;
-                    
                 case SDL_JOYHATMOTION:
-                    SDL_Log("Hat %d: %d\n", e.jhat.hat, e.jhat.value);
+                    // Axis and hat events handled via polling for better performance
                     break;
             }
         }
@@ -511,9 +525,17 @@ public:
     
     void run() {
         while (running) {
+            Uint32 frameStart = SDL_GetTicks();
+            
             handleEvents();
             update();
             render();
+            
+            // Frame rate limiting to 33 FPS
+            Uint32 frameTime = SDL_GetTicks() - frameStart;
+            if (frameTime < FRAME_TIME_MS) {
+                SDL_Delay(FRAME_TIME_MS - frameTime);
+            }
         }
     }
     
