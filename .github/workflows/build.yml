@@ -77,16 +77,15 @@ jobs:
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          cd native
-          chmod +x compile.sh
-          ./compile.sh
+          cd native-sdl2
+          make linux
 
       - name: Build Native App (Windows)
         if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
-          cd native
-          ./compile.bat
+          cd native-sdl2
+          make windows
 
       - name: Rename Native Files
         run: |
