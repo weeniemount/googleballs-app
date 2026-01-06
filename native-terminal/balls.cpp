@@ -7,6 +7,8 @@
 #include <sstream>
 #include <cstring>
 #include <map>
+#include <memory>
+#include <csignal>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -16,6 +18,15 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#endif
+
+// Global flag for window resize
+volatile sig_atomic_t g_windowResized = 0;
+
+#ifndef _WIN32
+void handleResize(int sig) {
+    g_windowResized = 1;
+}
 #endif
 
 struct Vector3 {
@@ -116,24 +127,33 @@ private:
     int width, height;
     std::vector<std::string> buffer;
     std::vector<Color> colorBuffer;
+    std::vector<std::pair<int, int>> dirtyPixels;
     
 public:
     TerminalCanvas(int w, int h) : width(w), height(h) {
         buffer.resize(height, std::string(width, ' '));
         colorBuffer.resize(height * width, Color(255, 255, 255));
+        dirtyPixels.reserve(1000);
     }
     
     void clear() {
-        for (auto& line : buffer) {
-            std::fill(line.begin(), line.end(), ' ');
+        // Only clear pixels that were actually drawn
+        for (const auto& pixel : dirtyPixels) {
+            int x = pixel.first;
+            int y = pixel.second;
+            if (y >= 0 && y < height && x >= 0 && x < width) {
+                buffer[y][x] = ' ';
+                colorBuffer[y * width + x] = Color(255, 255, 255);
+            }
         }
-        std::fill(colorBuffer.begin(), colorBuffer.end(), Color(255, 255, 255));
+        dirtyPixels.clear();
     }
     
     void setPixel(int x, int y, const std::string& c, const Color& color) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
             buffer[y][x] = c[0];
             colorBuffer[y * width + x] = color;
+            dirtyPixels.push_back({x, y});
         }
     }
     
@@ -157,6 +177,12 @@ public:
     std::string render() {
         std::ostringstream oss;
         oss << "\033[H"; // Move cursor to home
+        
+        // Safety check - don't render if size is unreasonable
+        if (width * height > 20000) {
+            oss << "Terminal too large to render\n";
+            return oss.str();
+        }
         
         Color lastColor(0, 0, 0);
         for (int y = 0; y < height; y++) {
@@ -206,9 +232,14 @@ public:
     
     static void getSize(int& w, int& h) {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
-        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-        w = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-        h = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+            w = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+            h = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        } else {
+            // Fallback to default size if call fails
+            w = 80;
+            h = 24;
+        }
     }
 #else
     static struct termios orig_termios;
@@ -228,6 +259,9 @@ public:
         // Set non-blocking input
         int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
         fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+        
+        // Setup resize signal handler
+        signal(SIGWINCH, handleResize);
     }
     
     static void restoreLinux() {
@@ -237,9 +271,14 @@ public:
     
     static void getSize(int& w, int& h) {
         struct winsize ws;
-        ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-        w = ws.ws_col;
-        h = ws.ws_row;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0 || ws.ws_row == 0) {
+            // Fallback to default size if ioctl fails
+            w = 80;
+            h = 24;
+        } else {
+            w = ws.ws_col;
+            h = ws.ws_row;
+        }
     }
 #endif
     
@@ -407,13 +446,20 @@ private:
     int termWidth, termHeight;
     bool running;
     InputManager input;
+    bool sizeChanged;
     
 public:
-    App() : mousePos(0, 0, 0), termWidth(80), termHeight(24), running(true) {}
+    App() : mousePos(0, 0, 0), termWidth(80), termHeight(24), running(true), sizeChanged(false) {}
     
     void init() {
         Terminal::setup();
         Terminal::getSize(termWidth, termHeight);
+        
+        // Cap terminal size to prevent performance issues
+        const int MAX_WIDTH = 200;
+        const int MAX_HEIGHT = 60;
+        termWidth = std::min(termWidth, MAX_WIDTH);
+        termHeight = std::min(termHeight, MAX_HEIGHT);
         
         std::vector<PointData> pointData = {
             {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"},
@@ -482,6 +528,21 @@ public:
     void render(TerminalCanvas& canvas) {
         canvas.clear();
         
+        // Debug: print some info at top
+        static int frameCount = 0;
+        if (frameCount++ % 30 == 0) {  // Every 30 frames
+            FILE* f = fopen("/tmp/balls_debug.txt", "a");
+            if (f) {
+                fprintf(f, "Mouse: %.1f,%.1f Term: %dx%d Points: %zu\n",
+                       mousePos.x, mousePos.y, termWidth, termHeight, points.size());
+                if (!points.empty()) {
+                    fprintf(f, "First point at: %.1f,%.1f\n", 
+                           points[0].curPos.x, points[0].curPos.y);
+                }
+                fclose(f);
+            }
+        }
+        
         for (auto& point : points) {
             // Adjust for terminal character aspect ratio (chars are ~2x taller than wide)
             canvas.drawCircle(
@@ -499,7 +560,13 @@ public:
     }
     
     void run() {
-        TerminalCanvas canvas(termWidth, termHeight);
+        FILE* f = fopen("/tmp/balls_debug.txt", "w");
+        if (f) {
+            fprintf(f, "Starting run() with termWidth=%d, termHeight=%d\n", termWidth, termHeight);
+            fclose(f);
+        }
+        
+        std::unique_ptr<TerminalCanvas> canvas(new TerminalCanvas(termWidth, termHeight));
         
         std::cout << "\033[2J\033[H"; // Clear and home
         std::cout << "Google Balls Terminal Edition - Arrow keys/WASD to move | Hold Shift for speed boost | Q to quit\n" << std::flush;
@@ -508,6 +575,27 @@ public:
         auto lastFrame = std::chrono::steady_clock::now();
         
         while (running) {
+            // Cap terminal size to prevent performance issues
+            const int MAX_WIDTH = 200;
+            const int MAX_HEIGHT = 60;
+            
+            // Check for terminal resize
+            int newWidth, newHeight;
+            Terminal::getSize(newWidth, newHeight);
+            
+            // Cap the size
+            newWidth = std::min(newWidth, MAX_WIDTH);
+            newHeight = std::min(newHeight, MAX_HEIGHT);
+            
+            // Check if window was resized or size changed
+            if (g_windowResized || newWidth != termWidth || newHeight != termHeight) {
+                g_windowResized = 0;
+                termWidth = newWidth;
+                termHeight = newHeight;
+                canvas.reset(new TerminalCanvas(termWidth, termHeight));
+                std::cout << "\033[2J\033[H" << std::flush; // Clear on resize
+            }
+            
             // Handle input
             input.update();
             
@@ -523,9 +611,9 @@ public:
             mousePos.y = std::max(0.0, std::min(static_cast<double>(termHeight * 2 - 1), mousePos.y));
             
             update();
-            render(canvas);
+            render(*canvas);
             
-            std::cout << canvas.render() << std::flush;
+            std::cout << canvas->render() << std::flush;
             
             // Frame timing (30ms like original)
             auto now = std::chrono::steady_clock::now();
