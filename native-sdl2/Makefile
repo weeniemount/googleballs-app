@@ -101,9 +101,15 @@ icon/resource.o: icon/resource.rc
 windows: icon/resource.o
 	g++ -O2 $(SOURCES) $(ICON_C) icon/resource.o -o googleballs-desktop.exe \
 		-Lsdl2/ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image \
+		-ljxl -ljxl_threads -lhwy -lbrotlienc -lbrotlidec -lbrotlicommon \
+		-lavif -laom -ldav1d -lrav1e -lSvtAv1Enc -lyuv \
+		-ltiff -ljpeg -lsharpyuv -lwebp -lwebpdemux -lpng -ljbig -llzma -lzstd -ldeflate -lz \
+		-lsetupapi -limm32 -lole32 -loleaut32 -lwinmm -lversion -lcfgmgr32 \
+		-lgdi32 -luser32 -lshell32 -ladvapi32 -lws2_32 \
 		-mwindows \
 		-static -static-libgcc -static-libstdc++
 
+		
 # Auto-detect build
 .PHONY: build
 build:
