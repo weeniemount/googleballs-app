@@ -101,7 +101,8 @@ icon/resource.o: icon/resource.rc
 windows: icon/resource.o
 	g++ -O2 $(SOURCES) $(ICON_C) icon/resource.o -o googleballs-desktop.exe \
 		-Lsdl2/ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image \
-		-lpng -ljpeg -ltiff -lwebp -lwebpdemux -lz \
+		-lavif -ljxl -ljxl_threads -lpng -ljpeg -ltiff -lwebp -lwebpdemux -lsharpyuv \
+		-ljbig -llzma -lzstd -ldeflate -lz \
 		-mwindows \
 		-limm32 -lole32 -loleaut32 -luuid -lsetupapi -lwinmm -lversion \
 		-static -static-libgcc -static-libstdc++
