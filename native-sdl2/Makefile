@@ -94,8 +94,11 @@ macos-bundle: macos-binary
 	@echo "Build complete! Created $(APP_NAME).app"
 
 # Windows build
+icon/resource.o: icon/resource.rc
+	windres icon/resource.rc -o icon/resource.o
+
 .PHONY: windows
-windows:
+windows: icon/resource.o
 	g++ -O2 $(SOURCES) $(ICON_C) icon/resource.o -o googleballs-desktop.exe \
 		-Lsdl2/ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -mwindows \
 		-limm32 -lole32 -loleaut32 -luuid -lsetupapi -lwinmm -lversion \

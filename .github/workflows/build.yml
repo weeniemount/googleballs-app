@@ -89,7 +89,7 @@ jobs:
 
       - name: Rename Native Files
         run: |
-          cd native
+          cd native-sdl2
           # Rename executables to include 'native' suffix
           if [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
             for file in googleballs-desktop*; do
