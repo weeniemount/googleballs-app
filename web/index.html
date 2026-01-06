@@ -33,9 +33,9 @@
 			text-decoration: none;
 		}
 
-			p, a:hover {
-				border-bottom: 1px solid #56bff6;
-			}
+		p, a:hover {
+			border-bottom: 1px solid #56bff6;
+		}
 
 		a {
 			position: absolute;
@@ -75,11 +75,38 @@
 			background: #1a1a1a;
 		}
 
+		body.original-mode {
+			overflow: hidden;
+		}
+
+		body.original-mode #c {
+			display: none;
+		}
+
 		canvas, section {
 			display: block;
 		}
 
 		#c {
+			position: absolute;
+		}
+
+		#original-container {
+			display: none;
+			position: absolute;
+			width: 366px;
+			height: 140px;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+		}
+
+		body.original-mode #original-container {
+			display: block;
+		}
+
+		.original-circle {
+			border-radius: 50%;
 			position: absolute;
 		}
 
@@ -97,22 +124,29 @@
 	var lastFrameTime = 0;
 	var fps30Mode = false;
 	var animationId = null;
+	var originalMode = false;
 
 	var pointCollection;
+
+	// original variables
+	var u = 200, v = -200, w = -200, x, y, z, A = 0, C = 0, E = 0, F = 35, G, H = [], I, J;
 
 	function loadSettings() {
 		try {
 			const darkBg = localStorage.getItem('googleballs_darkBg') === 'true';
 			const fps30 = localStorage.getItem('googleballs_fps30') === 'true';
+			const useOriginal = localStorage.getItem('googleballs_original') === 'true';
 			
 			document.getElementById('darkBg').checked = darkBg;
 			document.getElementById('fps30').checked = fps30;
+			document.getElementById('originalMode').checked = useOriginal;
 			
 			if (darkBg) {
 				document.body.classList.add('dark-bg');
 			}
 			
 			fps30Mode = fps30;
+			originalMode = useOriginal;
 		} catch (e) {
 			console.log('Could not load settings from localStorage');
 		}
@@ -122,6 +156,7 @@
 		try {
 			localStorage.setItem('googleballs_darkBg', document.getElementById('darkBg').checked);
 			localStorage.setItem('googleballs_fps30', document.getElementById('fps30').checked);
+			localStorage.setItem('googleballs_original', document.getElementById('originalMode').checked);
 		} catch (e) {
 			console.log('Could not save settings to localStorage');
 		}
@@ -145,8 +180,15 @@
 		pointCollection = new PointCollection();
 		pointCollection.points = g;
 
+		initOriginalMode();
 		initEventListeners();
-		startAnimation();
+		
+		if (originalMode) {
+			document.body.classList.add('original-mode');
+			startOriginalAnimation();
+		} else {
+			startAnimation();
+		}
 	};
 
 	function initEventListeners() {
@@ -177,11 +219,170 @@
 				cancelAnimationFrame(animationId);
 				animationId = null;
 			}
+			if (G) {
+				clearTimeout(G);
+				G = null;
+			}
 			lastFrameTime = 0;
-			startAnimation();
+			originalLastFrame = 0;
+			if (originalMode) {
+				startOriginalAnimation();
+			} else {
+				startAnimation();
+			}
+			saveSettings();
+		});
+
+		document.getElementById('originalMode').addEventListener('change', function(e) {
+			originalMode = e.target.checked;
+			
+			// de ball
+			if (animationId) {
+				cancelAnimationFrame(animationId);
+				animationId = null;
+			}
+			if (G) {
+				clearTimeout(G);
+				G = null;
+			}
+			
+			lastFrameTime = 0;
+			originalLastFrame = 0;
+			
+			if (originalMode) {
+				document.body.classList.add('original-mode');
+				startOriginalAnimation();
+			} else {
+				document.body.classList.remove('original-mode');
+				startAnimation();
+			}
 			saveSettings();
 		});
 	};
+
+	// the original ball
+	function initOriginalMode() {
+		I = document.getElementById('original-container');
+		J = false; // circle
+		
+		var K = function() {
+			return [window.screenLeft || window.screenX || 0, window.screenTop || window.screenY || 0, document.body.clientWidth || 0];
+		};
+		
+		var L = function(a, d, b, j) {
+			this.x = this.F = a;
+			this.y = this.G = d;
+			this.r = this.m = b;
+			this.d = 100 * (Math.random() - 0.5);
+			this.g = 100 * (Math.random() - 0.5);
+			this.o = 3 + Math.random() * 98;
+			this.H = 0.1 + Math.random() * 0.4;
+			this.h = 0;
+			this.i = 1;
+			this.n = false;
+			this.a = document.createElement("div");
+			a = this.a.style;
+			a.position = "absolute";
+			a.zIndex = "-1";
+			j = "#" + j;
+			this.a.className = "original-circle";
+			a.backgroundColor = j;
+			I.appendChild(this.a);
+		};
+		
+		L.prototype = {
+			remove: function() {
+				this.a && I.removeChild(this.a);
+				this.a = null;
+			},
+			update: function() {
+				this.x += this.d;
+				this.y += this.g;
+				this.d = Math.min(50, Math.max(-50, (this.d + (A + E) / this.m) * 0.92));
+				this.g = Math.min(50, Math.max(-50, (this.g + C / this.m) * 0.92));
+				var a = v - this.x, d = w - this.y, b = Math.sqrt(a * a + d * d);
+				a /= b;
+				d /= b;
+				b < u ? (this.d -= a * this.o, this.g -= d * this.o, this.h += (0.005 - this.h) * 0.4, this.i = Math.max(0, this.i * 0.9 - 0.01), this.d *= 1 - this.i, this.g *= 1 - this.i) : (this.h += (this.H - this.h) * 0.005, this.i = Math.min(1, this.i + 0.03));
+				a = this.F - this.x;
+				d = this.G - this.y;
+				b = Math.sqrt(a * a + d * d);
+				this.d += a * this.h;
+				this.g += d * this.h;
+				this.r = this.m + b / 8;
+				this.n = b < 0.3 && this.d < 0.3 && this.g < 0.3;
+				if (!this.n) {
+					a = this.a.style;
+					a.width = a.height = this.r * 2 + "px";
+					a.left = this.x + "px";
+					a.top = this.y + "px";
+				}
+			}
+		};
+		
+		var M = function(a, d, b, j) {
+			return new L(a, d, b, j);
+		};
+		
+		window.initOriginalParticles = function() {
+			H = [M(202, 78, 9, "ed9d33"), M(348, 83, 9, "d44d61"), M(256, 69, 9, "4f7af2"), M(214, 59, 9, "ef9a1e"), M(265, 36, 9, "4976f3"), M(300, 78, 9, "269230"), M(294, 59, 9, "1f9e2c"), M(45, 88, 9, "1c48dd"), M(268, 52, 9, "2a56ea"), M(73, 83, 9, "3355d8"), M(294, 6, 9, "36b641"), M(235, 62, 9, "2e5def"), M(353, 42, 8, "d53747"), M(336, 52, 8, "eb676f"), M(208, 41, 8, "f9b125"), M(321, 70, 8, "de3646"), M(8, 60, 8, "2a59f0"), M(180, 81, 8, "eb9c31"), M(146, 65, 8, "c41731"), M(145, 49, 8, "d82038"), M(246, 34, 8, "5f8af8"), M(169, 69, 8, "efa11e"), M(273, 99, 8, "2e55e2"), M(248, 120, 8, "4167e4"), M(294, 41, 8, "0b991a"), M(267, 114, 8, "4869e3"), M(78, 67, 8, "3059e3"), M(294, 23, 8, "10a11d"), M(117, 83, 8, "cf4055"), M(137, 80, 8, "cd4359"), M(14, 71, 8, "2855ea"), M(331, 80, 8, "ca273c"), M(25, 82, 8, "2650e1"), M(233, 46, 8, "4a7bf9"), M(73, 13, 8, "3d65e7"), M(327, 35, 6, "f47875"), M(319, 46, 6, "f36764"), M(256, 81, 6, "1d4eeb"), M(244, 88, 6, "698bf1"), M(194, 32, 6, "fac652"), M(97, 56, 6, "ee5257"), M(105, 75, 6, "cf2a3f"), M(42, 4, 6, "5681f5"), M(10, 27, 6, "4577f6"), M(166, 55, 6, "f7b326"), M(266, 88, 6, "2b58e8"), M(178, 34, 6, "facb5e"), M(100, 65, 6, "e02e3d"), M(343, 32, 6, "f16d6f"), M(59, 5, 6, "507bf2"), M(27, 9, 6, "5683f7"), M(233, 116, 6, "3158e2"), M(123, 32, 6, "f0696c"), M(6, 38, 6, "3769f6"), M(63, 62, 6, "6084ef"), M(6, 49, 6, "2a5cf4"), M(108, 36, 6, "f4716e"), M(169, 43, 6, "f8c247"), M(137, 37, 6, "e74653"), M(318, 58, 6, "ec4147"), M(226, 100, 5, "4876f1"), M(101, 46, 5, "ef5c5c"), M(226, 108, 5, "2552ea"), M(17, 17, 5, "4779f7"), M(232, 93, 5, "4b78f1")];
+			
+			var a = K();
+			x = a[0];
+			y = a[1];
+			z = a[2];
+		};
+		
+		window.updateOriginal = function() {
+			var a = K(), d = a[0], b = a[1], a = a[2];
+			A = d - x;
+			C = b - y;
+			E = a - z;
+			x = d;
+			y = b;
+			z = a;
+			u = Math.max(0, u - 2);
+			d = true;
+			for (b = 0; a = H[b++];)
+				a.update(), d &= a.n;
+			F = d ? 250 : 35;
+		};
+		
+		window.onOriginalMove = function(e) {
+			u = 200;
+			var rect = I.getBoundingClientRect();
+			v = e.clientX - rect.left;
+			w = e.clientY - rect.top;
+		};
+		
+		document.addEventListener('mousemove', window.onOriginalMove);
+	}
+
+	function startOriginalAnimation() {
+		// de ball
+		while (I.firstChild) {
+			I.removeChild(I.firstChild);
+		}
+		H = [];
+		
+		window.initOriginalParticles();
+		originalLastFrame = performance.now();
+		if (fps30Mode) {
+			animateOriginal30fps();
+		} else {
+			animateOriginalRAF();
+		}
+	}
+
+	function animateOriginal30fps() {
+		window.updateOriginal();
+		G = setTimeout(animateOriginal30fps, 1000 / 30);
+	}
+
+	function animateOriginalRAF() {
+		window.updateOriginal();
+		animationId = requestAnimationFrame(animateOriginalRAF);
+	}
 
 	function startAnimation() {
 		if (fps30Mode) {
@@ -419,11 +620,13 @@
 	
 	<body>
 		<canvas id="c" width="400" height="400"></canvas>
+		<div id="original-container"></div>
 		<a href="https://kernel.googleballs.com">kernel</a>
 		<a href="https://github.com/weeniemount/googleballs-app/">github</a>
 		<div class="controls">
 			<label><input type="checkbox" id="darkBg"> dark background</label>
 			<label><input type="checkbox" id="fps30"> lock to 30 FPS</label>
+			<label><input type="checkbox" id="originalMode"> the original</label>
 		</div>
 	</body>
 </html>
