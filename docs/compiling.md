@@ -66,6 +66,11 @@ your on your own gang
 # 3DS
 your on your own gang
 
+# DS / DS<sup>i</sup>
+
+install [BlocksDS](https://blocksds.skylyrac.net/docs/setup/)
+and then run `make` in the `ds` directory
+
 # Tizen
 i have no clue
 
