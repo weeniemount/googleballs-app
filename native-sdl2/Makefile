@@ -103,11 +103,11 @@ windows: icon/resource.o
 		-Lsdl2/ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image \
 		-lavif -laom -ldav1d -lrav1e -lSvtAv1Enc \
 		-ljxl -ljxl_threads -lhwy -lbrotlienc -lbrotlidec -lbrotlicommon \
-		-lpng -ljpeg -ltiff -lwebp -lwebpdemux -lsharpyuv \
+		-lpng -ljpeg -ljpeg12 -ltiff -lwebp -lwebpdemux -lsharpyuv \
 		-ljbig -llerc -llzma -lzstd -ldeflate -lz \
 		-lyuv \
 		-mwindows \
-		-limm32 -lole32 -loleaut32 -luuid -lsetupapi -lwinmm -lversion \
+		-limm32 -lole32 -loleaut32 -luuid -lsetupapi -lwinmm -lversion -lntdll \
 		-static -static-libgcc -static-libstdc++
 
 # Auto-detect build
