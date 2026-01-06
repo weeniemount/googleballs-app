@@ -100,10 +100,24 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 	};
 
 	function updateCanvasDimensions() {
-	    canvas.attr({ height: $(window).height(), width: $(window).width() });
-	    canvasWidth = canvas.width();
-	    canvasHeight = canvas.height();
-		
+	    var dpr = window.devicePixelRatio || 1;
+	    var logicalWidth = $(window).width();
+	    var logicalHeight = $(window).height();
+
+	    var tmpCanvas = canvas.get(0);
+	    tmpCanvas.width = logicalWidth * dpr;
+	    tmpCanvas.height = logicalHeight * dpr;
+	    tmpCanvas.style.width = logicalWidth + 'px';
+	    tmpCanvas.style.height = logicalHeight + 'px';
+
+	    canvasWidth = logicalWidth;
+	    canvasHeight = logicalHeight;
+
+	    if (tmpCanvas.getContext) {
+	        ctx = tmpCanvas.getContext('2d');
+	        ctx.scale(dpr, dpr);
+	    }
+
 	    recenterPoints();
 	    draw();
 	};
@@ -144,15 +158,12 @@ if(k&&j[k]&&(e||j[k].data)||void 0!==d||"string"!=typeof b)return k||(k=i?a[h]=c
 	};
 	
 	function draw() {
-		var tmpCanvas = canvas.get(0);
-
-		if (tmpCanvas.getContext == null) {
-			return; 
+		if (!ctx) {
+			return;
 		};
-		
-		ctx = tmpCanvas.getContext('2d');
+
 		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-		
+
 		if (pointCollection) pointCollection.draw();
 	};
 	
