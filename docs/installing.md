@@ -63,6 +63,11 @@ idk your on your own gang
 
 idk your on your own gang
 
+## DS / DS<sup>i</sup>
+[Download .nds](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ds.nds)
+
+idk put it on your flashcard or something
+
 ## Tizen TV:
 [Download .wgt](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-app-unsigned.wgt)
 Install Tizen Studio (And packages 8.0 Tizen (9.0 too if you want) and extension Samsung Certificate Extension & TV Extensions-9.0  

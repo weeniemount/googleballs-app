@@ -2,7 +2,7 @@
 	"name": "Google Balls",
 	"short_name": "Google Balls",
 	"description": "Google Balls PWA real!!!!!!!",
-	"start_url": "/index.html",
+	"start_url": "/",
 	"display": "standalone",
 	"background_color": "#FFFFFF",
 	"theme_color": "#FFFFFF",

@@ -58,13 +58,22 @@ Ensure you are in the `rust` directory and have Rust installed. Run `cargo build
 your on your own gang
 
 # Android
-your on your own gang
+install [android command line tools](https://developer.android.com/studio#command-line-tools-only) and run this in your terminal
+
+```bash
+./gradlew assembleDebug
+```
 
 # PSVita
 your on your own gang
 
 # 3DS
 your on your own gang
+
+# DS / DS<sup>i</sup>
+
+install [BlocksDS](https://blocksds.skylyrac.net/docs/setup/)
+and then run `make` in the `ds` directory
 
 # Tizen
 i have no clue
