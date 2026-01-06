@@ -28,14 +28,52 @@
 			line-height: 1.5em;
 			list-style: none;
 		}
-		p a, p a:visited {
+		a, a:visited {
 			color: #56bff6;
 			text-decoration: none;
 		}
 
-			p a:hover {
+			p, a:hover {
 				border-bottom: 1px solid #56bff6;
 			}
+
+		a {
+			position: absolute;
+			top: 4px;
+			left: 4px;
+			font-size: 12px;
+			color: #ccc;
+			text-decoration: none;
+		}
+
+		a + a {
+			left: auto;
+			right: 4px;
+		}
+
+		.controls {
+			position: absolute;
+			top: 4px;
+			left: 50%;
+			transform: translateX(-50%);
+			font-size: 12px;
+			color: #ccc;
+			display: flex;
+			gap: 15px;
+		}
+
+		.controls label {
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.controls input[type="checkbox"] {
+			cursor: pointer;
+		}
+
+		body.dark-bg {
+			background: #1a1a1a;
+		}
 
 		canvas, section {
 			display: block;
@@ -57,6 +95,8 @@
 	var canvasWidth;
 	var ctx;
 	var lastFrameTime = 0;
+	var fps30Mode = false;
+	var animationId = null;
 
 	var pointCollection;
 
@@ -78,7 +118,7 @@
 		pointCollection.points = g;
 
 		initEventListeners();
-		requestAnimationFrame(animate);
+		startAnimation();
 	};
 
 	function initEventListeners() {
@@ -93,7 +133,60 @@
 		canvas.ontouchstart = function(e) {
 			e.preventDefault();
 		};
+
+		document.getElementById('darkBg').addEventListener('change', function(e) {
+			if (e.target.checked) {
+				document.body.classList.add('dark-bg');
+			} else {
+				document.body.classList.remove('dark-bg');
+			}
+		});
+
+		document.getElementById('fps30').addEventListener('change', function(e) {
+			fps30Mode = e.target.checked;
+			if (animationId) {
+				cancelAnimationFrame(animationId);
+				animationId = null;
+			}
+			lastFrameTime = 0;
+			startAnimation();
+		});
 	};
+
+	function startAnimation() {
+		if (fps30Mode) {
+			animate30fps();
+		} else {
+			animateRAF(performance.now());
+		}
+	}
+
+	function animate30fps() {
+		var timestamp = performance.now();
+		if (!lastFrameTime) lastFrameTime = timestamp;
+		var deltaTime = (timestamp - lastFrameTime) / 1000;
+		lastFrameTime = timestamp;
+
+		deltaTime = Math.min(deltaTime, 0.1);
+
+		draw();
+		update(deltaTime);
+
+		setTimeout(animate30fps, 1000 / 30);
+	}
+
+	function animateRAF(timestamp) {
+		if (!lastFrameTime) lastFrameTime = timestamp;
+		var deltaTime = (timestamp - lastFrameTime) / 1000;
+		lastFrameTime = timestamp;
+
+		deltaTime = Math.min(deltaTime, 0.1);
+
+		draw();
+		update(deltaTime);
+
+		animationId = requestAnimationFrame(animateRAF);
+	}
 
 	function updateCanvasDimensions() {
 	    var dpr = window.devicePixelRatio || 1;
@@ -145,19 +238,6 @@
 		if (pointCollection) pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
 	};
 
-	function animate(timestamp) {
-		if (!lastFrameTime) lastFrameTime = timestamp;
-		var deltaTime = (timestamp - lastFrameTime) / 1000; // Convert to seconds
-		lastFrameTime = timestamp;
-
-		// Clamp delta time to prevent large jumps (e.g., when tab becomes inactive)
-		deltaTime = Math.min(deltaTime, 0.1);
-
-		draw();
-		update(deltaTime);
-
-		requestAnimationFrame(animate);
-	};
 	
 	function draw() {
 		if (!ctx) {
@@ -258,7 +338,6 @@
 		this.velocity = new Vector(0.0, 0.0, 0.0);
 		
 		this.update = function(dt) {
-			// Target 30ms frame time (0.03s) for physics reference
 			var targetFrameTime = 0.03;
 			var timeScale = dt / targetFrameTime;
 
@@ -310,10 +389,11 @@
 	
 	<body>
 		<canvas id="c" width="400" height="400"></canvas>
-		<div style="position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); text-align: center; font-size: 12px;">
-			<a href="https://kernel.googleballs.com/" style="color: #56bff6; text-decoration: none;">Google Balls Kernel</a>
-			<br>
-			<a href="https://github.com/weeniemount/googleballs-app/" style="color: #56bff6; text-decoration: none;">Source Code</a>
+		<a href="https://kernel.googleballs.com">kernel</a>
+		<a href="https://github.com/weeniemount/googleballs-app/">github</a>
+		<div class="controls">
+			<label><input type="checkbox" id="darkBg"> dark background</label>
+			<label><input type="checkbox" id="fps30"> lock to 30 FPS</label>
 		</div>
 	</body>
 </html>
