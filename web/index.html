@@ -56,7 +56,7 @@
 	var canvasHeight;
 	var canvasWidth;
 	var ctx;
-	var dt = 0.1;
+	var lastFrameTime = 0;
 
 	var pointCollection;
 
@@ -78,7 +78,7 @@
 		pointCollection.points = g;
 
 		initEventListeners();
-		timeout();
+		requestAnimationFrame(animate);
 	};
 
 	function initEventListeners() {
@@ -144,12 +144,19 @@
 	function onTouchMove(e) {
 		if (pointCollection) pointCollection.mousePos.set(e.targetTouches[0].pageX, e.targetTouches[0].pageY);
 	};
-	
-	function timeout() {
+
+	function animate(timestamp) {
+		if (!lastFrameTime) lastFrameTime = timestamp;
+		var deltaTime = (timestamp - lastFrameTime) / 1000; // Convert to seconds
+		lastFrameTime = timestamp;
+
+		// Clamp delta time to prevent large jumps (e.g., when tab becomes inactive)
+		deltaTime = Math.min(deltaTime, 0.1);
+
 		draw();
-		update();
-		
-		setTimeout(function() { timeout() }, 30); // doing an interval should be easier bruh
+		update(deltaTime);
+
+		requestAnimationFrame(animate);
 	};
 	
 	function draw() {
@@ -161,9 +168,9 @@
 
 		if (pointCollection) pointCollection.draw();
 	};
-	
-	function update() {		
-		if (pointCollection) pointCollection.update();
+
+	function update(dt) {
+		if (pointCollection) pointCollection.update(dt);
 	};
 	
 	function Vector(x, y, z) {
@@ -200,20 +207,20 @@
 			return point;
 		};
 		
-		this.update = function() {		
+		this.update = function(dt) {
 			var pointsLength = this.points.length;
-			
+
 			for (var i = 0; i < pointsLength; i++) {
 				var point = this.points[i];
-				
+
 				if (point == null)
 					continue;
-				
+
 				var dx = this.mousePos.x - point.curPos.x;
 				var dy = this.mousePos.y - point.curPos.y;
 				var dd = (dx * dx) + (dy * dy);
 				var d = Math.sqrt(dd);
-				
+
 				if (d < 150) {
 					point.targetPos.x = (this.mousePos.x < point.curPos.x) ? point.curPos.x - dx : point.curPos.x - dx;
 					point.targetPos.y = (this.mousePos.y < point.curPos.y) ? point.curPos.y - dy : point.curPos.y - dy;
@@ -221,8 +228,8 @@
 					point.targetPos.x = point.originalPos.x;
 					point.targetPos.y = point.originalPos.y;
 				};
-				
-				point.update();
+
+				point.update(dt);
 			};
 		};
 		
@@ -250,31 +257,35 @@
 		this.targetPos = new Vector(x, y, z);
 		this.velocity = new Vector(0.0, 0.0, 0.0);
 		
-		this.update = function() {
+		this.update = function(dt) {
+			// Target 30ms frame time (0.03s) for physics reference
+			var targetFrameTime = 0.03;
+			var timeScale = dt / targetFrameTime;
+
 			var dx = this.targetPos.x - this.curPos.x;
-			var ax = dx * this.springStrength;
+			var ax = dx * this.springStrength * timeScale;
 			this.velocity.x += ax;
-			this.velocity.x *= this.friction;
-			this.curPos.x += this.velocity.x;
-			
+			this.velocity.x *= Math.pow(this.friction, timeScale);
+			this.curPos.x += this.velocity.x * timeScale;
+
 			var dy = this.targetPos.y - this.curPos.y;
-			var ay = dy * this.springStrength;
+			var ay = dy * this.springStrength * timeScale;
 			this.velocity.y += ay;
-			this.velocity.y *= this.friction;
-			this.curPos.y += this.velocity.y;
-			
+			this.velocity.y *= Math.pow(this.friction, timeScale);
+			this.curPos.y += this.velocity.y * timeScale;
+
 			var dox = this.originalPos.x - this.curPos.x;
 			var doy = this.originalPos.y - this.curPos.y;
 			var dd = (dox * dox) + (doy * doy);
 			var d = Math.sqrt(dd);
-			
+
 			this.targetPos.z = d/100 + 1;
 			var dz = this.targetPos.z - this.curPos.z;
-			var az = dz * this.springStrength;
+			var az = dz * this.springStrength * timeScale;
 			this.velocity.z += az;
-			this.velocity.z *= this.friction;
-			this.curPos.z += this.velocity.z;
-			
+			this.velocity.z *= Math.pow(this.friction, timeScale);
+			this.curPos.z += this.velocity.z * timeScale;
+
 			this.radius = this.size*this.curPos.z;
 			if (this.radius < 1) this.radius = 1;
 		};
