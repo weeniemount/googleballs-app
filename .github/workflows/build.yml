@@ -787,6 +787,26 @@ jobs:
         path: |
           ./3ds/*.3dsx
           ./3ds/*.smdh
+  build-ds:
+    runs-on: ubuntu-latest
+    container: skylyrac/blocksds:dev-latest
+    defaults:
+      run:
+        working-directory: ./ds
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build
+        run: |
+          make
+      
+      - name: Upload NDS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-balls-ds
+          path: ds/*.nds
   build-tizen:
     runs-on: ubuntu-latest
 

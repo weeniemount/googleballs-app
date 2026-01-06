@@ -17,7 +17,7 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *23* flavors!
+# Available in *24* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
@@ -42,6 +42,7 @@ We have:
 - Wii U (like the wii but you can use touschreen and analog) - Wii U
 - Haiku (yes, haiku os can also google balls now!) - Haiku
 - Terminal (just run it in your terminal) - Windows, macOS, Linux
+- DS (touch the google balls on your ds! thanks to @DieGo367) - DS
 
 # How 2 download:
 See [the docs](docs/installing.md)
