@@ -1,4 +1,4 @@
-const CACHE_NAME = 'googleballs-cache-v2';
+const CACHE_NAME = 'googleballs-cache-v3';
 const FILES = [
     '/',
 '/index.html',
