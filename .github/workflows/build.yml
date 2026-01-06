@@ -77,20 +77,19 @@ jobs:
       - name: Build Native App (Linux)
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          cd native
-          chmod +x compile.sh
-          ./compile.sh
+          cd native-sdl2
+          make linux
 
       - name: Build Native App (Windows)
         if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
-          cd native
-          ./compile.bat
+          cd native-sdl2
+          make windows
 
       - name: Rename Native Files
         run: |
-          cd native
+          cd native-sdl2
           # Rename executables to include 'native' suffix
           if [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
             for file in googleballs-desktop*; do
@@ -114,8 +113,8 @@ jobs:
         with:
           name: native-${{ matrix.platform }}_native
           path: |
-            native/googleballs-desktop*
-            native/*.exe
+            native-sdl2/googleballs-desktop*
+            native-sdl2/*.exe
 
   build-native-rust:
     strategy:

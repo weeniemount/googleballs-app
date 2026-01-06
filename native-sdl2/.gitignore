@@ -1,0 +1,6 @@
+googleballs-desktop-sdl2
+googleballs-desktop-macos
+googleballs-desktop.exe
+icon/balls.o
+icon/*.o
+GoogleBallsDesktopSDL2.app

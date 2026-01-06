@@ -1,2 +1,0 @@
-@echo off
-g++ -O2 balls.cpp icon/balls.c icon/resource.o -o googleballs-desktop.exe -Lsdl2/ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -mwindows -limm32 -lole32 -loleaut32 -luuid -lsetupapi -lwinmm -lversion -static -static-libgcc -static-libstdc++ -mwindows

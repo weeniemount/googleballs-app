@@ -1,0 +1,36 @@
+# Build directories
+build/
+dist/
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+balls
+balls-linux
+balls-macos
+balls-windows
+
+# Object files
+*.o
+*.obj
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# macOS
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Core dumps
+core
+core.*
