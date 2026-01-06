@@ -1,10 +1,10 @@
-const CACHE_NAME = 'googleballs-cache-v1';
+const CACHE_NAME = 'googleballs-cache-v2';
 const FILES = [
     '/',
-    '/index.html',
-    '/manifest.json',
-    '/balls.png',
-    'favicon.ico'
+'/index.html',
+'/manifest.json',
+'/balls.png',
+'favicon.ico'
 ];
 
 self.addEventListener('install', event => {
