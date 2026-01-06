@@ -11,11 +11,23 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - 'web/**'
+      - 'docs/**'
+      - 'images/**'
+      - 'wp8/**'
   pull_request:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - 'web/**'
+      - 'docs/**'
+      - 'images/**'
+      - 'wp8/**'
   workflow_dispatch:
-
+  
 jobs:
   build-native:
     strategy:
@@ -1555,3 +1567,4 @@ jobs:
           ps3/googleballs.self
           ps3/googleballs.pkg
         if-no-files-found: error
+
