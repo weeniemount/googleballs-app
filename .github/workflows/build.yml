@@ -113,8 +113,8 @@ jobs:
         with:
           name: native-${{ matrix.platform }}_native
           path: |
-            native/googleballs-desktop*
-            native/*.exe
+            native-sdl2/googleballs-desktop*
+            native-sdl2/*.exe
 
   build-native-rust:
     strategy:
