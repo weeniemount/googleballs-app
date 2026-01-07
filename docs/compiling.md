@@ -108,3 +108,6 @@ Now just package the ipk:
 ```bash
 $ ares-package .
 ```
+
+# Flash (ActionScript 3)
+open it in adobe flash/animate and just run it
