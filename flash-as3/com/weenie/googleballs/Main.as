@@ -41,7 +41,7 @@
 			});
 		}
 		
-		private function updateStageDimensions() {
+		private function updateStageDimensions(e:Event = undefined) {
 	    	recenterPoints();
 	    	draw();
 		};
