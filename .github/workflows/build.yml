@@ -1586,7 +1586,7 @@ jobs:
         echo "=== Downloading playerglobal.swc ==="
         wget https://github.com/nexussays/playerglobal/raw/refs/heads/master/11.2/playerglobal.swc -P apache-flex-sdk-4.16.1-bin/player/11.2
         echo "=== Building SWF ==="
-        mxmlc -source-path=flash-as3 -swf-version=15 -target-player=11.2 flash-as3/com/weenie/googleballs/Main.as -o googleballs.swf
+        apache-flex-sdk-4.16.1-bin/bin/mxmlc -source-path=flash-as3 -swf-version=15 -target-player=11.2 flash-as3/com/weenie/googleballs/Main.as -o googleballs.swf
 
     - name: Upload SWF artifact
       uses: actions/upload-artifact@v4
