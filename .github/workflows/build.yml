@@ -1567,4 +1567,27 @@ jobs:
           ps3/googleballs.self
           ps3/googleballs.pkg
         if-no-files-found: error
+  build-flash-as3:
+    runs-on: ubuntu-latest
 
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build SWF
+      run: |
+        echo "=== Downloading Apache Flex SDK ==="
+        wget https://www.apache.org/dyn/closer.lua/flex/4.16.1/binaries/apache-flex-sdk-4.16.1-bin.tar.gz
+        echo "=== Extracting Apache Flex SDK ==="
+        tar xzf apache-flex-sdk-4.16.1-bin.tar.gz
+        echo "$HOME/apache-flex-sdk-4.16.1-bin/bin" >> $GITHUB_PATH
+        echo "=== Downloading playerglobal.swc ==="
+        wget https://github.com/nexussays/playerglobal/raw/refs/heads/master/11.2/playerglobal.swc -P apache-flex-sdk-4.16.1-bin/player/11.2
+        echo "=== Building SWF ==="
+        mxmlc -source-path=flash-as3 -swf-version=15 -target-player=11.2 flash-as3/com/weenie/googleballs/Main.as -o googleballs.swf
+
+    - name: Upload SWF artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: googleballs-as3
+        path: googleballs.swf

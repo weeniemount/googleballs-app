@@ -4,7 +4,8 @@
 	import flash.events.TouchEvent;
 	import flash.events.Event;
 	import flash.utils.getTimer;
-	
+
+	[SWF(width="550", height="400", backgroundColor="#FFFFFF", frameRate="60")]	
 	public class Main extends MovieClip {
 		private var lastFrameTime:Number = getTimer();
 		private var pointCollection:PointCollection;

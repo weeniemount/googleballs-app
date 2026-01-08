@@ -109,5 +109,5 @@ Now just package the ipk:
 $ ares-package .
 ```
 
-# Flash (ActionScript 3)
+# Flash (ActionScript 2)
 open it in adobe flash/animate and just run it
