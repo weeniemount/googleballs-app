@@ -1577,7 +1577,7 @@ jobs:
     - name: Build SWF
       run: |
         echo "=== Downloading Apache Flex SDK ==="
-        wget https://www.apache.org/dyn/closer.lua/flex/4.16.1/binaries/apache-flex-sdk-4.16.1-bin.tar.gz
+        wget https://dlcdn.apache.org/flex/4.16.1/binaries/apache-flex-sdk-4.16.1-bin.tar.gz
         echo "=== Extracting Apache Flex SDK ==="
         tar xzf apache-flex-sdk-4.16.1-bin.tar.gz
         echo "$HOME/apache-flex-sdk-4.16.1-bin/bin" >> $GITHUB_PATH
