@@ -1580,7 +1580,7 @@ jobs:
         wget https://dlcdn.apache.org/flex/4.16.1/binaries/apache-flex-sdk-4.16.1-bin.tar.gz
         echo "=== Extracting Apache Flex SDK ==="
         tar xzf apache-flex-sdk-4.16.1-bin.tar.gz
-        echo "$HOME/apache-flex-sdk-4.16.1-bin/bin" >> $GITHUB_PATH
+        export PATH="$HOME/apache-flex-sdk-4.16.1-bin/bin:$PATH"
         echo "=== Downloading playerglobal.swc ==="
         wget https://github.com/nexussays/playerglobal/raw/refs/heads/master/11.2/playerglobal.swc -P apache-flex-sdk-4.16.1-bin/player/11.2
         echo "=== Building SWF ==="
