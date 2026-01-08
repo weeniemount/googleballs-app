@@ -6,7 +6,7 @@
     <sourceAttachmentPath/>
   </compiler>
   <applications>
-    <application path="com/weenie/googleballs/Main.as"/>
+    <application path="temp.as"/>
   </applications>
   <modules/>
   <buildCSSFiles/>

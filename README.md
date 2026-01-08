@@ -1,5 +1,5 @@
 # google balls app!!!
-[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![PSP](images/badges/psp.svg) ![webOS](images/badges/webos.svg) ![Wii](images/badges/wii.svg) ![Wii U](images/badges/wiiu.svg) ![PS3](images/badges/ps3.svg) ![Haiku](images/badges/haiku.svg) ![J2ME](images/badges/j2me.svg) ![DS](images/badges/ds.svg) ![Flash (AS3)](images/badges/flash-as3.svg)
+[![Build Apps](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml/badge.svg)](https://github.com/weeniemount/googleballs-app/actions/workflows/build.yml) ![Windows](images/badges/windows.svg) ![macOS](images/badges/macos.svg) ![Linux](images/badges/linux.svg) ![Android](images/badges/android.svg) ![iOS](images/badges/ios.svg) ![PS Vita](images/badges/psvita.svg) ![3DS](images/badges/3ds.svg) ![Tizen](images/badges/tizen.svg) ![Visual Studio Code](images/badges/vscode.svg) ![UWP](images/badges/uwp.svg) ![WP8](images/badges/wp8.svg) ![PSP](images/badges/psp.svg) ![webOS](images/badges/webos.svg) ![Wii](images/badges/wii.svg) ![Wii U](images/badges/wiiu.svg) ![PS3](images/badges/ps3.svg) ![Haiku](images/badges/haiku.svg) ![J2ME](images/badges/j2me.svg) ![DS](images/badges/ds.svg) ![Flash (AS3)](images/badges/flash-as3.svg) ![Flash (AS2)](images/badges/flash-as2.svg)
 
 <img src="images/balls.png" alt="google balls" width="200"/>
 
@@ -43,7 +43,7 @@ We have:
 - Haiku (yes, haiku os can also google balls now!) - Haiku
 - Terminal (just run it in your terminal) - Windows, macOS, Linux
 - DS (touch the google balls on your ds! thanks to @DieGo367) - DS
-- ActionScript 3 (google balls for those who don't have html5 capable browsers in the big 2026 for whatever reason! thanks to @leap0x7b) - Flash, non-HTML5 browsers
+- ActionScript 2/3 (google balls for those who don't have html5 capable browsers in the big 2026 for whatever reason! thanks to @leap0x7b) - Flash, non-HTML5 browsers
 
 # How 2 download:
 See [the docs](docs/installing.md)

@@ -109,5 +109,11 @@ Now just package the ipk:
 $ ares-package .
 ```
 
+# Flash (ActionScript 2)
+open it in adobe flash/animate and just run it (modern animate may not work i (leap the person who did both flash ports) used flash cs6 so i can't confirm)
+
 # Flash (ActionScript 3)
-open it in adobe flash/animate and just run it
+install [apache flex](https://flex.apache.org/) and run this to build the swf
+```bash
+mxmlc -source-path=flash-as3 flash-as3/com/weenie/googleballs/Main.as -o googleballs.swf
+```
