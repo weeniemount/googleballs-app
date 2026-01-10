@@ -63,8 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 
 	function isPWA() {
-		return window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-			window.matchMedia('(display-mode: standalone)').matches ||
+		return window.matchMedia('(display-mode: standalone)').matches ||
 			window.navigator.standalone === true;
 	}
 
