@@ -225,7 +225,14 @@
 
 			if (controls.style.display === 'none') {
 				controls.style.display = 'flex';
-				links.forEach(link => link.style.display = 'block');
+				if (window.matchMedia('(display-mode: standalone)').matches ||
+					window.navigator.standalone === true) {
+						document.querySelectorAll('body > a').forEach(link => {
+							link.style.display = 'none';
+						});
+				} else {
+					links.forEach(link => link.style.display = 'block');
+				}
 			} else {
 				controls.style.display = 'none';
 				links.forEach(link => link.style.display = 'none');
