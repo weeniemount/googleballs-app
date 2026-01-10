@@ -2,6 +2,10 @@
 #include <Application.h>
 #include <Bitmap.h>
 #include <File.h>
+#include <FindDirectory.h>
+#include <Menu.h>
+#include <MenuBar.h>
+#include <MenuItem.h>
 #include <OS.h>
 #include <Path.h>
 #include <Resources.h>
@@ -15,7 +19,12 @@
 #include <string>
 #include <vector>
 
+
 const uint32 MSG_PULSE = 'puls';
+const uint32 MSG_TOGGLE_VSYNC = 'vsyn';
+const uint32 MSG_TOGGLE_UNCAPPED = 'uncap';
+const uint32 MSG_TOGGLE_FPS_COUNTER = 'tfps';
+const uint32 MSG_TOGGLE_DARK_MODE = 'dark';
 
 struct Vector3 {
   double x, y, z;
@@ -204,7 +213,9 @@ public:
   BallsView(BRect frame)
       : BView(frame, "BallsView", B_FOLLOW_ALL_SIDES,
               B_WILL_DRAW | B_FRAME_EVENTS | B_PULSE_NEEDED),
-        fOffscreenBitmap(nullptr), fOffscreenView(nullptr), fLastTime(0) {
+        fOffscreenBitmap(nullptr), fOffscreenView(nullptr), fLastTime(0),
+        fFrameCount(0), fFpsTime(0), fCurrentFps(0.0), fShowFps(false),
+        fDarkMode(false) {
     SetViewColor(B_TRANSPARENT_COLOR);
     initPoints();
   }
@@ -223,11 +234,27 @@ public:
       return;
 
     if (fOffscreenBitmap->Lock()) {
-      fOffscreenView->SetHighColor(255, 255, 255);
+      if (fDarkMode) {
+        fOffscreenView->SetHighColor(26, 26, 26);
+      } else {
+        fOffscreenView->SetHighColor(255, 255, 255);
+      }
       fOffscreenView->FillRect(fOffscreenView->Bounds());
 
       fOffscreenView->SetDrawingMode(B_OP_ALPHA);
       pointCollection.draw(fOffscreenView);
+
+      if (fShowFps) {
+        char fpsText[32];
+        snprintf(fpsText, sizeof(fpsText), "FPS: %.1f", fCurrentFps);
+        if (fDarkMode) {
+          fOffscreenView->SetHighColor(255, 255, 255);
+        } else {
+          fOffscreenView->SetHighColor(0, 0, 0);
+        }
+        fOffscreenView->SetDrawingMode(B_OP_OVER);
+        fOffscreenView->DrawString(fpsText, BPoint(10, 20));
+      }
 
       fOffscreenView->Sync();
       fOffscreenBitmap->Unlock();
@@ -255,15 +282,39 @@ public:
     if (dt > 0.1)
       dt = 0.1;
 
+    fFrameCount++;
+    if (now - fFpsTime >= 1000000) {
+      fCurrentFps = fFrameCount * 1000000.0 / (now - fFpsTime);
+      fFrameCount = 0;
+      fFpsTime = now;
+    }
+
     pointCollection.update(dt);
     Invalidate();
   }
+
+  void SetShowFps(bool show) {
+    fShowFps = show;
+    Invalidate();
+  }
+
+  void SetDarkMode(bool dark) {
+    fDarkMode = dark;
+    Invalidate();
+  }
+
+  bool IsDarkMode() const { return fDarkMode; }
 
 private:
   PointCollection pointCollection;
   BBitmap *fOffscreenBitmap;
   BView *fOffscreenView;
   bigtime_t fLastTime;
+  int fFrameCount;
+  bigtime_t fFpsTime;
+  double fCurrentFps;
+  bool fShowFps;
+  bool fDarkMode;
 
   void _InitDoubleBuffering() {
     delete fOffscreenBitmap;
@@ -331,11 +382,23 @@ private:
   }
 
   void recenterPoints(float width, float height) {
+    // Offset delta calculation
+    double oldOffX =
+        (fOffscreenBitmap ? fOffscreenBitmap->Bounds().Width() / 2.0
+                          : width / 2.0) -
+        180;
+    double oldOffY =
+        (fOffscreenBitmap ? fOffscreenBitmap->Bounds().Height() / 2.0
+                          : height / 2.0) -
+        65;
+    double newOffX = (width / 2.0) - 180;
+    double newOffY = (height / 2.0) - 65;
+    double diffX = newOffX - oldOffX;
+    double diffY = newOffY - oldOffY;
+
     for (auto &point : pointCollection.points) {
-      double relX = point.originalPos.x - (width / 2 - 180);
-      double relY = point.originalPos.y - (height / 2 - 65);
-      point.originalPos.x = (width / 2 - 180) + relX;
-      point.originalPos.y = (height / 2 - 65) + relY;
+      point.originalPos.x += diffX;
+      point.originalPos.y += diffY;
       point.curPos.x = point.originalPos.x;
       point.curPos.y = point.originalPos.y;
     }
@@ -346,18 +409,83 @@ class BallsWindow : public BWindow {
 public:
   BallsWindow()
       : BWindow(BRect(100, 100, 900, 700), "Google Balls", B_TITLED_WINDOW,
-                B_ASYNCHRONOUS_CONTROLS | B_QUIT_ON_WINDOW_CLOSE) {
+                B_ASYNCHRONOUS_CONTROLS | B_QUIT_ON_WINDOW_CLOSE),
+        fUncapped(false) {
 
     BRect bounds = Bounds();
+
+    // Create menu bar
+    fMenuBar = new BMenuBar(BRect(0, 0, bounds.Width(), 18), "menubar");
+    AddChild(fMenuBar);
+
+    BMenu *fpsMenu = new BMenu("FPS");
+    fVSyncItem =
+        new BMenuItem("VSync (60 FPS)", new BMessage(MSG_TOGGLE_VSYNC));
+    fpsMenu->AddItem(fVSyncItem);
+
+    fUncappedItem =
+        new BMenuItem("Uncapped", new BMessage(MSG_TOGGLE_UNCAPPED));
+    fpsMenu->AddItem(fUncappedItem);
+
+    fpsMenu->AddSeparatorItem();
+
+    fShowFpsItem =
+        new BMenuItem("Show FPS", new BMessage(MSG_TOGGLE_FPS_COUNTER));
+    fpsMenu->AddItem(fShowFpsItem);
+
+    fMenuBar->AddItem(fpsMenu);
+
+    BMenu *viewMenu = new BMenu("View");
+    fDarkModeItem =
+        new BMenuItem("Dark Mode", new BMessage(MSG_TOGGLE_DARK_MODE), 'D');
+    viewMenu->AddItem(fDarkModeItem);
+
+    fMenuBar->AddItem(viewMenu);
+
+    // Initial state (will be overridden by LoadSettings)
+    fVSyncItem->SetMarked(true);
+    fUncappedItem->SetMarked(false);
+    fShowFpsItem->SetMarked(false);
+    fDarkModeItem->SetMarked(false);
+
+    // Adjust view to account for menu bar
+    bounds.top = fMenuBar->Frame().bottom + 1;
     fView = new BallsView(bounds);
     AddChild(fView);
 
-    // Start pulse - 30ms = ~33 fps
-    SetPulseRate(16000);
+    LoadSettings();
+
+    if (fUncapped)
+      SetPulseRate(1000);
+    else
+      SetPulseRate(16000);
   }
+
+  virtual ~BallsWindow() { SaveSettings(); }
 
   virtual void MessageReceived(BMessage *message) {
     switch (message->what) {
+    case MSG_TOGGLE_VSYNC:
+      fUncapped = false;
+      fVSyncItem->SetMarked(true);
+      fUncappedItem->SetMarked(false);
+      SetPulseRate(16000);
+      break;
+    case MSG_TOGGLE_UNCAPPED:
+      fUncapped = true;
+      fVSyncItem->SetMarked(false);
+      fUncappedItem->SetMarked(true);
+      SetPulseRate(1000);
+      break;
+    case MSG_TOGGLE_FPS_COUNTER:
+      fShowFpsItem->SetMarked(!fShowFpsItem->IsMarked());
+      fView->SetShowFps(fShowFpsItem->IsMarked());
+      break;
+    case MSG_TOGGLE_DARK_MODE:
+      fDarkModeItem->SetMarked(!fDarkModeItem->IsMarked());
+      fView->SetDarkMode(fDarkModeItem->IsMarked());
+      SaveSettings();
+      break;
     default:
       BWindow::MessageReceived(message);
       break;
@@ -370,7 +498,64 @@ public:
   }
 
 private:
+  void SaveSettings() {
+    BPath path;
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, &path) != B_OK)
+      return;
+    path.Append("GoogleBalls_settings");
+
+    BFile file(path.Path(), B_WRITE_ONLY | B_CREATE_FILE | B_ERASE_FILE);
+    if (file.InitCheck() != B_OK)
+      return;
+
+    BMessage settings;
+    settings.AddBool("uncapped", fUncapped);
+    settings.AddBool("showfps", fShowFpsItem->IsMarked());
+    settings.AddBool("darkmode", fDarkModeItem->IsMarked());
+    settings.Flatten(&file);
+  }
+
+  void LoadSettings() {
+    BPath path;
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, &path) != B_OK)
+      return;
+    path.Append("GoogleBalls_settings");
+
+    BFile file(path.Path(), B_READ_ONLY);
+    if (file.InitCheck() != B_OK)
+      return;
+
+    BMessage settings;
+    if (settings.Unflatten(&file) != B_OK)
+      return;
+
+    bool uncapped = false;
+    if (settings.FindBool("uncapped", &uncapped) == B_OK) {
+      fUncapped = uncapped;
+      fVSyncItem->SetMarked(!uncapped);
+      fUncappedItem->SetMarked(uncapped);
+    }
+
+    bool showfps = false;
+    if (settings.FindBool("showfps", &showfps) == B_OK) {
+      fShowFpsItem->SetMarked(showfps);
+      fView->SetShowFps(showfps);
+    }
+
+    bool darkmode = false;
+    if (settings.FindBool("darkmode", &darkmode) == B_OK) {
+      fDarkModeItem->SetMarked(darkmode);
+      fView->SetDarkMode(darkmode);
+    }
+  }
+
   BallsView *fView;
+  BMenuBar *fMenuBar;
+  BMenuItem *fVSyncItem;
+  BMenuItem *fUncappedItem;
+  BMenuItem *fShowFpsItem;
+  BMenuItem *fDarkModeItem;
+  bool fUncapped;
 };
 
 class BallsApp : public BApplication {
