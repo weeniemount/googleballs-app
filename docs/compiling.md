@@ -76,7 +76,7 @@ install [BlocksDS](https://blocksds.skylyrac.net/docs/setup/)
 and then run `make` in the `ds` directory
 
 # Tizen
-i have no clue
+its in installing.md :v: :joy: 
 
 # Visual Studio Code
 ```
@@ -116,4 +116,8 @@ open it in adobe flash/animate and just run it (modern animate may not work i (l
 install [apache flex](https://flex.apache.org/) and run this to build the swf
 ```bash
 mxmlc -source-path=flash-as3 flash-as3/com/weenie/googleballs/Main.as -o googleballs.swf
+```
+# Haiku
+```bash
+g++ -std=c++11 -O2 -o GoogleBalls-haiku main.cpp -lbe -lroot -ltranslation -ltracker
 ```
