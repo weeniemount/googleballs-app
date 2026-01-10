@@ -5,6 +5,7 @@
 	"start_url": "/",
 	"display": "standalone",
 	"background_color": "#FFFFFF",
+	"display_override": ["window-controls-overlay"],
 	"theme_color": "#FFFFFF",
 	"icons": [
 		{
