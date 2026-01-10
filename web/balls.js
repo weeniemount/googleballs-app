@@ -88,12 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
 		initOriginalMode();
 		initEventListeners();
 
-		if (window.matchMedia('(display-mode: standalone)').matches ||
-			window.navigator.standalone === true) {
-			document.querySelectorAll('.page-links a').forEach(link => {
+		if (isPWA()) {
+            document.querySelectorAll('.page-links a').forEach(link => {
 				link.remove();
 			});
-		}
+        }
 
 		if (originalMode) {
 			document.body.classList.add('original-mode');
