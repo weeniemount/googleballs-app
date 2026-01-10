@@ -1,4 +1,4 @@
-const CACHE_NAME = 'googleballs-cache-v6';
+const CACHE_NAME = 'googleballs-cache-v7';
 const FILES = [
     '/',
     '/sw.js',
