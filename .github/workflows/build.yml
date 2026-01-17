@@ -442,6 +442,27 @@ jobs:
             native-gtk/build/
             native-gtk/*.tar.gz
 
+  build-native-wayland:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Wayland Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libwayland-dev libwayland-bin wayland-protocols
+
+      - name: Build Native Wayland App
+        run: |
+          cd native-wayland
+          make
+
+      - name: Upload Native Wayland Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-wayland_linux
+          path: native-wayland/google-balls-wayland
+
   build-tauri:
     strategy:
       fail-fast: false
