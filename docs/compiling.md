@@ -121,3 +121,11 @@ mxmlc -source-path=flash-as3 flash-as3/com/weenie/googleballs/Main.as -o googleb
 ```bash
 g++ -std=c++11 -O2 -o GoogleBalls-haiku main.cpp -lbe -lroot -ltranslation -ltracker
 ```
+# Wayland
+if you don´t have these packages
+¨libwayland-dev libwayland-bin wayland-protocols build-essential¨
+have them now
+then just run 
+```bash
+make
+```
