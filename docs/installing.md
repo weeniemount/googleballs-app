@@ -193,5 +193,12 @@ i have no clue
 
 i have no clue
 
+## Terraria
+1. Visit the [Steam Workshop page](https://steamcommunity.com/sharedfiles/filedetails/?id=3657369994).
+2. Click **Subscribe**.
+3. Restart **tModLoader (tML)**.
+4. Go to **Workshop->Manage Mods** in tML.
+5. Search for **Google Balls** and click **Disabled** to enable it.
+
 # Nightly (actions)
 Click that actions tab above, pick the latest build and download the artifacts you need
