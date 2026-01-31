@@ -17,33 +17,34 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *24* flavors!
+# Available in *25* flavors!
 We have:
-- Electron (the og but bulky) - Windows, Linux, macOS
-- Tauri (like electron but not bulky) - Windows, Linux
-- SDL2 (it's sdl2 google balls!) - Windows, Linux
-- GTK3 (made in gtk3! personally my favourite! thanks to @ploszukiwacz) - Windows, Linux
-- Rust (uses macroquad framework! thanks to @tpglitch) - Windows, Linux, macOS
-- iOS (its only for iOS, lol. does use a webview) - iOS
-- Android (its only for Android based devices. does use a webview) - Android
-- PS Vita (yes, you can run google balls on the ps vita) - PS Vita
-- 3DS (same with ps vita, google balls on the 3ds) - 3DS
-- Tizen (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
-- Gurted (google balls on gurted!) - Windows, Linux
-- Visual Studio Code (yes, its a visual studio code extension too) - VS Code
-- Universal Windows Platform (mainly for Windows Phone 10 but works on desktop too) - UWP
-- Windows Phone 8.1 (goog balls on wp8) - WP8
-- PSP (ps vita and psp got google balls now) - PSP
-- webOS (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
-- web (just open it in your browser https://googleballs.com. also can be installed as a PWA which works offline) - Chrome/ChromeOS
-- J2ME (google balls on your java phone) - J2ME phones
-- PS3 (goog the balls on your play station 3, so epic) - PS3
-- Wii (you can now use your wiimote to play google balls!) - Wii
-- Wii U (like the wii but you can use touschreen and analog) - Wii U
-- Haiku (yes, haiku os can also google balls now!) - Haiku
-- Terminal (just run it in your terminal) - Windows, macOS, Linux
-- DS (touch the google balls on your ds! thanks to @DieGo367) - DS
-- ActionScript 2/3 (google balls for those who don't have html5 capable browsers in the big 2026 for whatever reason! thanks to @leap0x7b) - Flash, non-HTML5 browsers
+- **Electron** (the og but bulky) - Windows, Linux, macOS
+- **Tauri** (like electron but not bulky) - Windows, Linux
+- **SDL2** (it's sdl2 google balls!) - Windows, Linux
+- **GTK3** (made in gtk3! personally my favourite! thanks to @ploszukiwacz) - Windows, Linux
+- **Rust** (uses macroquad framework! thanks to @tpglitch) - Windows, Linux, macOS
+- **iOS** (its only for iOS, lol. does use a webview) - iOS
+- **Android** (its only for Android based devices. does use a webview) - Android
+- **PS Vita** (yes, you can run google balls on the ps vita) - PS Vita
+- **3DS** (same with ps vita, google balls on the 3ds) - 3DS
+- **Tizen** (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
+- **Gurted** (google balls on gurted!) - Windows, Linux
+- **Visual Studio Code** (yes, its a visual studio code extension too) - VS Code
+- **Universal Windows Platform** (mainly for Windows Phone 10 but works on desktop too) - UWP
+- **Windows Phone 8.1** (goog balls on wp8) - WP8
+- **PSP** (ps vita and psp got google balls now) - PSP
+- **webOS** (google balls on the LG Electronics tv! thanks to @freesmart) - webOS
+- **web** (just open it in your browser https://googleballs.com. also can be installed as a PWA which works offline) - Chrome/ChromeOS
+- **J2ME** (google balls on your java phone) - J2ME phones
+- **PS3** (goog the balls on your play station 3, so epic) - PS3
+- **Wii** (you can now use your wiimote to play google balls!) - Wii
+- **Wii U** (like the wii but you can use touschreen and analog) - Wii U
+- **Haiku** (yes, haiku os can also google balls now!) - Haiku
+- **Terminal** (just run it in your terminal) - Windows, macOS, Linux
+- **DS** (touch the google balls on your ds! thanks to @DieGo367) - DS
+- **ActionScript 2/3** (google balls for those who don't have html5 capable browsers in the big 2026 for whatever reason! thanks to @leap0x7b) - Flash, non-HTML5 browsers
+- **Terraria** - Available on all modern platforms with Steam Workshop access
 
 # How 2 download:
 See [the docs](docs/installing.md)
