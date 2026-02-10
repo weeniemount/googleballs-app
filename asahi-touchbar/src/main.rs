@@ -19,7 +19,7 @@ mod display;
 mod googleballs;
 
 use display::DrmBackend;
-use googleballs::{draw_circle, clear_buffer, GoogleBalls};
+use googleballs::{clear_buffer, draw_circle, GoogleBalls};
 
 struct Interface;
 
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     }
 
     println!("Opening Touch Bar...");
-    
+
     let _guard = ServiceGuard::new();
 
     let drm = DrmBackend::open_card()?;
@@ -54,13 +54,16 @@ fn main() -> Result<()> {
     let (disp_width, disp_height) = mode.size();
     let pitch = drm.db.pitch();
 
-    println!("Touch Bar: {}x{} (pitch: {})", disp_width, disp_height, pitch);
+    println!(
+        "Touch Bar: {}x{} (pitch: {})",
+        disp_width, disp_height, pitch
+    );
 
     let mut balls = GoogleBalls::new(disp_width, disp_height);
-    
+
     let buffer_size = (pitch * disp_height as u32) as usize;
     let mut back_buffer = vec![0u8; buffer_size];
-    
+
     let mut input = Libinput::new_with_udev(Interface);
     if let Err(e) = input.udev_assign_seat("seat-touchbar") {
         println!("Warning: Could not assign seat-touchbar: {:?}", e);
@@ -68,13 +71,15 @@ fn main() -> Result<()> {
             println!("Warning: Could not assign seat0 either: {:?}", e2);
         }
     }
-    
+
     let mut last_frame = Instant::now();
 
     println!("Running animation. Press Ctrl+C to exit.");
 
-    let DrmBackend { card, mut db, fb, .. } = drm;
-    
+    let DrmBackend {
+        card, mut db, fb, ..
+    } = drm;
+
     let mut map = card.map_dumb_buffer(&mut db)?;
 
     while !SHOULD_EXIT.load(Ordering::Relaxed) {
@@ -115,17 +120,25 @@ fn main() -> Result<()> {
         } else {
             (255, 255, 255)
         };
-        
-        clear_buffer(&mut back_buffer, pitch, disp_width, disp_height, bg_r, bg_g, bg_b);
-        
-        googleballs::draw_switch(
-            &mut back_buffer, 
-            pitch, 
-            balls.dark_mode, 
-            disp_width, 
-            disp_height
+
+        clear_buffer(
+            &mut back_buffer,
+            pitch,
+            disp_width,
+            disp_height,
+            bg_r,
+            bg_g,
+            bg_b,
         );
-        
+
+        googleballs::draw_switch(
+            &mut back_buffer,
+            pitch,
+            balls.dark_mode,
+            disp_width,
+            disp_height,
+        );
+
         for ball in &balls.balls {
             draw_circle(
                 &mut back_buffer,
@@ -148,13 +161,13 @@ fn main() -> Result<()> {
 
         last_frame = Instant::now();
     }
-    
+
     println!("Exiting...");
     Ok(())
 }
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static SHOULD_EXIT: AtomicBool = AtomicBool::new(false);
 
