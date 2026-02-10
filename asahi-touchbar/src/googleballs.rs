@@ -24,7 +24,11 @@ impl Color {
     pub fn from_hex(hex: &str) -> Self {
         let hex = hex.trim_start_matches('#');
         if hex.len() != 6 {
-            return Self { r: 255, g: 255, b: 255 };
+            return Self {
+                r: 255,
+                g: 255,
+                b: 255,
+            };
         }
         let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(255);
         let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(255);
@@ -72,7 +76,7 @@ impl Ball {
         let dox = self.original_pos.x - self.pos.x;
         let doy = self.original_pos.y - self.pos.y;
         let d = (dox * dox + doy * doy).sqrt();
-        
+
         let target_scale = d / 100.0 + 1.0;
         self.radius = self.base_radius * target_scale;
         if self.radius < 1.0 {
@@ -162,10 +166,10 @@ impl GoogleBalls {
 
         let original_width = 360.0;
         let original_height = 130.0;
-        
+
         let scale = 50.0 / original_height;
         let scaled_width = original_width * scale;
-        
+
         let offset_x = (disp_height as f32 - scaled_width) / 2.0;
         let offset_y = 7.0;
 
@@ -174,7 +178,7 @@ impl GoogleBalls {
             let fb_x = (disp_width as f32) - (offset_y + (oy * scale));
             let fb_y = offset_x + (ox * scale);
             let new_size = size * scale;
-            
+
             balls.push(Ball::new(fb_x, fb_y, new_size, color));
         }
 
@@ -212,9 +216,9 @@ impl GoogleBalls {
         for ball in &mut self.balls {
             if let Some(ref touch) = self.touch_pos {
                 if touch.y < self.switch_area.0 {
-                     ball.target_pos.x = ball.original_pos.x;
-                     ball.target_pos.y = ball.original_pos.y;
-                     continue;
+                    ball.target_pos.x = ball.original_pos.x;
+                    ball.target_pos.y = ball.original_pos.y;
+                    continue;
                 }
 
                 let dx = touch.x - ball.pos.x;
@@ -258,7 +262,7 @@ pub fn draw_circle(
             let dx = px as f32 - cx;
             let dy = py as f32 - cy;
             let dist_sq = dx * dx + dy * dy;
-            
+
             if dist_sq > (radius + 1.0) * (radius + 1.0) {
                 continue;
             }
@@ -276,7 +280,7 @@ pub fn draw_circle(
                 }
             } else if delta < 0.5 {
                 let alpha = 0.5 - delta;
-                
+
                 let offset = (py as u32 * pitch + px as u32 * 4) as usize;
                 if offset + 4 <= buffer.len() {
                     let bg_b = buffer[offset] as f32;
@@ -308,41 +312,57 @@ pub fn draw_switch(
     let width: f32 = 50.0;
     let height: f32 = 26.0;
     let radius: f32 = height / 2.0;
-    
+
     let pill_color = if dark_mode {
-        Color { r: 60, g: 60, b: 60 }
+        Color {
+            r: 60,
+            g: 60,
+            b: 60,
+        }
     } else {
-        Color { r: 200, g: 200, b: 200 }
+        Color {
+            r: 200,
+            g: 200,
+            b: 200,
+        }
     };
-    
+
     let toggle_color = if dark_mode {
-        Color { r: 255, g: 255, b: 255 }
+        Color {
+            r: 255,
+            g: 255,
+            b: 255,
+        }
     } else {
-        Color { r: 20, g: 20, b: 20 }
+        Color {
+            r: 20,
+            g: 20,
+            b: 20,
+        }
     };
 
     let rect_min_x = (center_x - radius).floor() as i32;
     let rect_max_x = (center_x + radius).ceil() as i32;
     let rect_min_y = (center_y - width / 2.0).floor() as i32;
     let rect_max_y = (center_y + width / 2.0).ceil() as i32;
-    
+
     for py in (rect_min_y - 2)..(rect_max_y + 2) {
         for px in (rect_min_x - 2)..(rect_max_x + 2) {
-             if px < 0 || px >= buf_width as i32 || py < 0 || py >= buf_height as i32 {
+            if px < 0 || px >= buf_width as i32 || py < 0 || py >= buf_height as i32 {
                 continue;
             }
 
             let cy_top = center_y - (width / 2.0) + radius;
             let cy_bot = center_y + (width / 2.0) - radius;
-            
+
             let px_f = px as f32;
             let py_f = py as f32;
-            
+
             let cx = center_x;
-            
+
             let mut dist = 0.0;
             let mut inside = false;
-            
+
             if py_f < cy_top {
                 dist = ((px_f - cx).powi(2) + (py_f - cy_top).powi(2)).sqrt();
                 inside = true;
@@ -353,20 +373,20 @@ pub fn draw_switch(
                 dist = (px_f - cx).abs();
                 inside = true;
             }
-            
+
             if inside {
-                 let delta = dist - radius;
-                 if delta <= -0.5 {
-                     let offset = (py as u32 * pitch + px as u32 * 4) as usize;
-                     if offset + 4 <= buffer.len() {
+                let delta = dist - radius;
+                if delta <= -0.5 {
+                    let offset = (py as u32 * pitch + px as u32 * 4) as usize;
+                    if offset + 4 <= buffer.len() {
                         buffer[offset] = pill_color.b;
                         buffer[offset + 1] = pill_color.g;
                         buffer[offset + 2] = pill_color.r;
-                     }
-                 } else if delta < 0.5 {
-                     let alpha = 0.5 - delta;
-                     let offset = (py as u32 * pitch + px as u32 * 4) as usize;
-                     if offset + 4 <= buffer.len() {
+                    }
+                } else if delta < 0.5 {
+                    let alpha = 0.5 - delta;
+                    let offset = (py as u32 * pitch + px as u32 * 4) as usize;
+                    if offset + 4 <= buffer.len() {
                         let bg_b = buffer[offset] as f32;
                         let bg_g = buffer[offset + 1] as f32;
                         let bg_r = buffer[offset + 2] as f32;
@@ -374,23 +394,32 @@ pub fn draw_switch(
                         let new_b = (pill_color.b as f32 * alpha + bg_b * (1.0 - alpha)) as u8;
                         let new_g = (pill_color.g as f32 * alpha + bg_g * (1.0 - alpha)) as u8;
                         let new_r = (pill_color.r as f32 * alpha + bg_r * (1.0 - alpha)) as u8;
-                        
+
                         buffer[offset] = new_b;
                         buffer[offset + 1] = new_g;
                         buffer[offset + 2] = new_r;
-                     }
-                 }
+                    }
+                }
             }
         }
     }
-    
+
     let toggle_off_y = center_y - (width / 2.0) + radius + 2.0;
     let toggle_on_y = center_y + (width / 2.0) - radius - 2.0;
-    
+
     let current_toggle_y = if dark_mode { toggle_on_y } else { toggle_off_y };
     let toggle_radius = radius - 4.0;
-    
-    draw_circle(buffer, pitch, center_x, current_toggle_y, toggle_radius, &toggle_color, buf_width, buf_height);
+
+    draw_circle(
+        buffer,
+        pitch,
+        center_x,
+        current_toggle_y,
+        toggle_radius,
+        &toggle_color,
+        buf_width,
+        buf_height,
+    );
 }
 
 pub fn clear_buffer(buffer: &mut [u8], pitch: u32, width: u16, height: u16, r: u8, g: u8, b: u8) {
@@ -406,5 +435,3 @@ pub fn clear_buffer(buffer: &mut [u8], pitch: u32, width: u16, height: u16, r: u
         }
     }
 }
-
-

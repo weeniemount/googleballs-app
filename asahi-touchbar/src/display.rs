@@ -2,10 +2,8 @@ use anyhow::{anyhow, Result};
 use drm::{
     buffer::DrmFourcc,
     control::{
-        atomic, connector,
-        dumbbuffer::DumbBuffer,
-        framebuffer, property, AtomicCommitFlags, ClipRect, Device as ControlDevice, Mode,
-        ResourceHandle,
+        atomic, connector, dumbbuffer::DumbBuffer, framebuffer, property, AtomicCommitFlags,
+        ClipRect, Device as ControlDevice, Mode, ResourceHandle,
     },
     ClientCapability, Device as DrmDevice,
 };
@@ -41,8 +39,6 @@ pub struct DrmBackend {
     pub db: DumbBuffer,
     pub fb: framebuffer::Handle,
 }
-
-
 
 fn find_prop_id<T: ResourceHandle>(
     card: &Card,
@@ -85,18 +81,30 @@ fn try_open_card(path: &Path) -> Result<DrmBackend> {
     println!("Available modes:");
     for (i, m) in con.modes().iter().enumerate() {
         let (w, h) = m.size();
-        println!("  Mode {}: {}x{} @ {}Hz (clock: {} kHz)", i, w, h, m.vrefresh(), m.clock());
+        println!(
+            "  Mode {}: {}x{} @ {}Hz (clock: {} kHz)",
+            i,
+            w,
+            h,
+            m.vrefresh(),
+            m.clock()
+        );
     }
 
     let &mode = con.modes().first().ok_or(anyhow!("No modes found"))?;
-    println!("Selected Mode: {}x{} @ {}Hz", mode.size().0, mode.size().1, mode.vrefresh());
+    println!(
+        "Selected Mode: {}x{} @ {}Hz",
+        mode.size().0,
+        mode.size().1,
+        mode.vrefresh()
+    );
     let (disp_width, disp_height) = mode.size();
-    
+
     let buffer_width = if disp_width == 60 { 64 } else { disp_width };
 
     let crtc = crtcinfo.first().ok_or(anyhow!("No crtcs found"))?;
     let fmt = DrmFourcc::Xrgb8888;
-    
+
     let db = card.create_dumb_buffer((buffer_width.into(), disp_height.into()), fmt, 32)?;
 
     let fb = card.add_framebuffer(&db, 24, 32)?;
@@ -133,7 +141,7 @@ fn try_open_card(path: &Path) -> Result<DrmBackend> {
         find_prop_id(&card, plane, "CRTC_ID")?,
         property::Value::CRTC(Some(crtc.handle())),
     );
-    
+
     atomic_req.add_property(
         plane,
         find_prop_id(&card, plane, "SRC_X")?,
@@ -154,7 +162,7 @@ fn try_open_card(path: &Path) -> Result<DrmBackend> {
         find_prop_id(&card, plane, "SRC_H")?,
         property::Value::UnsignedRange((disp_height as u64) << 16),
     );
-    
+
     atomic_req.add_property(
         plane,
         find_prop_id(&card, plane, "CRTC_X")?,
@@ -203,7 +211,7 @@ impl DrmBackend {
             errors.join(",\n    ")
         ))
     }
-    
+
     pub fn mode(&self) -> Mode {
         self.mode
     }
@@ -211,7 +219,7 @@ impl DrmBackend {
     pub fn map(&mut self) -> Result<drm::control::dumbbuffer::DumbMapping> {
         Ok(self.card.map_dumb_buffer(&mut self.db)?)
     }
-    
+
     pub fn dirty(&self, clips: &[ClipRect]) -> Result<()> {
         Ok(self.card.dirty_framebuffer(self.fb, clips)?)
     }
