@@ -1621,17 +1621,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Enable arm64 apt architecture
         run: |
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -cs) main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -cs)-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
+
+      - name: Install cross-compilation dependencies
+        run: |
           sudo apt-get install -y \
-            libinput-dev \
-            libudev-dev \
-            libdrm-dev \
-            pkg-config
+            gcc-aarch64-linux-gnu \
+            pkg-config \
+            libinput-dev:arm64 \
+            libudev-dev:arm64 \
+            libdrm-dev:arm64
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -1640,17 +1652,29 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             asahi-touchbar/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('asahi-touchbar/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-aarch64-${{ hashFiles('asahi-touchbar/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-aarch64-
+
+      - name: Configure cross-compilation
+        run: |
+          mkdir -p asahi-touchbar/.cargo
+          cat > asahi-touchbar/.cargo/config.toml <<EOF
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+
+          [env]
+          PKG_CONFIG_ALLOW_CROSS = "1"
+          PKG_CONFIG_PATH = "/usr/lib/aarch64-linux-gnu/pkgconfig"
+          EOF
 
       - name: Build
         working-directory: asahi-touchbar
-        run: cargo build --release
+        run: cargo build --release --target aarch64-unknown-linux-gnu
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: touchbar-googleballs
-          path: asahi-touchbar/target/release/touchbar-googleballs
+          name: touchbar-googleballs-aarch64
+          path: asahi-touchbar/target/aarch64-unknown-linux-gnu/release/touchbar-googleballs
 
