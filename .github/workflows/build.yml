@@ -1624,12 +1624,24 @@ jobs:
       - name: Enable arm64 apt architecture
         run: |
           sudo dpkg --add-architecture arm64
-          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -cs) main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -cs)-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+
+          # Restrict ALL existing sources (sources.list + sources.list.d/) to amd64 only.
+          # security.ubuntu.com does NOT serve arm64 -- only ports.ubuntu.com does.
+          sudo sed -i 's/^deb \[arch=/deb [arch=amd64,/; s/^deb http/deb [arch=amd64] http/' /etc/apt/sources.list
+          sudo find /etc/apt/sources.list.d/ -name '*.list' \
+            -exec sudo sed -i 's/^deb \[arch=/deb [arch=amd64,/; s/^deb http/deb [arch=amd64] http/' {} +
+
+          # Add ports.ubuntu.com as the sole source for arm64
+          CODENAME=$(lsb_release -cs)
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe multiverse"          | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe multiverse"  | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+
           sudo apt-get update
 
       - name: Install cross-compilation dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
@@ -1637,8 +1649,6 @@ jobs:
             libinput-dev:arm64 \
             libudev-dev:arm64 \
             libdrm-dev:arm64
-        env:
-          DEBIAN_FRONTEND: noninteractive
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -1677,4 +1687,3 @@ jobs:
         with:
           name: touchbar-googleballs-aarch64
           path: asahi-touchbar/target/aarch64-unknown-linux-gnu/release/touchbar-googleballs
-
