@@ -179,10 +179,11 @@ public:
         pointCount = count;
         points = new Point*[count];
 
-        // Scale so the logo fits with some padding (80% of the shorter axis)
-        double scaleX = (SCREEN_WIDTH  * 0.8) / LOGO_CANVAS_W;
-        double scaleY = (SCREEN_HEIGHT * 0.8) / LOGO_CANVAS_H;
-        double scale  = (scaleX < scaleY) ? scaleX : scaleY;
+        // Target: logo occupies ~40% of screen height, centred.
+        // Cap so the logo never exceeds 90% of screen width.
+        double scaleY = (SCREEN_HEIGHT * 0.40) / LOGO_CANVAS_H;
+        double scaleX = (SCREEN_WIDTH  * 0.90) / LOGO_CANVAS_W;
+        double scale  = (scaleY < scaleX) ? scaleY : scaleX;
 
         double scaledW = LOGO_CANVAS_W * scale;
         double scaledH = LOGO_CANVAS_H * scale;
