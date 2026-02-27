@@ -1655,3 +1655,73 @@ jobs:
         with:
           name: touchbar-googleballs-aarch64
           path: asahi-touchbar/target/release/touchbar-googleballs
+  build-ogxbox:
+    name: Build XBE (NXDK)
+    runs-on: ubuntu-22.04
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Checkout repo
+      # -----------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # 2. Install NXDK system dependencies
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            libssl-dev \
+            nasm \
+            clang \
+            lld \
+            python3 \
+            python3-pip \
+            libsdl2-dev   # only used for host-side tooling checks
+
+      # -----------------------------------------------------------------------
+      # 3. Cache NXDK so we don't rebuild it every run
+      # -----------------------------------------------------------------------
+      - name: Cache NXDK
+        id: cache-nxdk
+        uses: actions/cache@v4
+        with:
+          path: ~/nxdk
+          key: nxdk-${{ runner.os }}-${{ hashFiles('.github/workflows/ogxbox.yml') }}
+
+      # -----------------------------------------------------------------------
+      # 4. Clone & build NXDK (only if cache miss)
+      # -----------------------------------------------------------------------
+      - name: Clone NXDK
+        if: steps.cache-nxdk.outputs.cache-hit != 'true'
+        run: |
+          git clone --recurse-submodules https://github.com/XboxDev/nxdk.git ~/nxdk
+
+      - name: Build NXDK tools
+        if: steps.cache-nxdk.outputs.cache-hit != 'true'
+        run: |
+          cd ~/nxdk
+          make tools -j$(nproc)
+
+      # -----------------------------------------------------------------------
+      # 5. Build the balls!!!
+      # -----------------------------------------------------------------------
+      - name: Build Google Balls XBE
+        run: |
+          cd ogxbox
+          make NXDK_DIR=$HOME/nxdk -j$(nproc)
+
+
+      # -----------------------------------------------------------------------
+      # 6. Upload artifact
+      # -----------------------------------------------------------------------
+      - name: Upload XBE
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-balls-ogxbox-xbe
+          path: ogxbox/balls.xbe
