@@ -1615,45 +1615,25 @@ jobs:
         name: googleballs-as3
         path: googleballs.swf
   build-touchbar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable arm64 apt architecture
+      - name: Install dependencies
         run: |
-          sudo dpkg --add-architecture arm64
-
-          # Restrict ALL existing sources (sources.list + sources.list.d/) to amd64 only.
-          # security.ubuntu.com does NOT serve arm64 -- only ports.ubuntu.com does.
-          sudo sed -i 's/^deb \[arch=/deb [arch=amd64,/; s/^deb http/deb [arch=amd64] http/' /etc/apt/sources.list
-          sudo find /etc/apt/sources.list.d/ -name '*.list' \
-            -exec sudo sed -i 's/^deb \[arch=/deb [arch=amd64,/; s/^deb http/deb [arch=amd64] http/' {} +
-
-          # Add ports.ubuntu.com as the sole source for arm64
-          CODENAME=$(lsb_release -cs)
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted universe multiverse"          | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted universe multiverse"  | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-
           sudo apt-get update
-
-      - name: Install cross-compilation dependencies
+          sudo apt-get install -y \
+            libinput-dev \
+            libudev-dev \
+            libdrm-dev \
+            pkg-config
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            pkg-config \
-            libinput-dev:arm64 \
-            libudev-dev:arm64 \
-            libdrm-dev:arm64
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-unknown-linux-gnu
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -1662,28 +1642,16 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             asahi-touchbar/target
-          key: ${{ runner.os }}-cargo-aarch64-${{ hashFiles('asahi-touchbar/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('asahi-touchbar/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-aarch64-
-
-      - name: Configure cross-compilation
-        run: |
-          mkdir -p asahi-touchbar/.cargo
-          cat > asahi-touchbar/.cargo/config.toml <<EOF
-          [target.aarch64-unknown-linux-gnu]
-          linker = "aarch64-linux-gnu-gcc"
-
-          [env]
-          PKG_CONFIG_ALLOW_CROSS = "1"
-          PKG_CONFIG_PATH = "/usr/lib/aarch64-linux-gnu/pkgconfig"
-          EOF
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
 
       - name: Build
         working-directory: asahi-touchbar
-        run: cargo build --release --target aarch64-unknown-linux-gnu
+        run: cargo build --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: touchbar-googleballs-aarch64
-          path: asahi-touchbar/target/aarch64-unknown-linux-gnu/release/touchbar-googleballs
+          path: asahi-touchbar/target/release/touchbar-googleballs
