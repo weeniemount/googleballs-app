@@ -179,16 +179,28 @@ public:
         pointCount = count;
         points = new Point*[count];
 
-        // Target: logo occupies ~40% of screen height, centred.
-        // Cap so the logo never exceeds 90% of screen width.
-        double scaleY = (SCREEN_HEIGHT * 0.40) / LOGO_CANVAS_H;
-        double scaleX = (SCREEN_WIDTH  * 0.90) / LOGO_CANVAS_W;
-        double scale  = (scaleY < scaleX) ? scaleY : scaleX;
+        // Find actual min/max bounds of the point data (it doesn't start at 0,0)
+        int minX = 99999, maxX = -99999;
+        int minY = 99999, maxY = -99999;
+        for (int i = 0; i < count; i++) {
+            if (data[i].x < minX) minX = data[i].x;
+            if (data[i].x > maxX) maxX = data[i].x;
+            if (data[i].y < minY) minY = data[i].y;
+            if (data[i].y > maxY) maxY = data[i].y;
+        }
+        double dataW = (double)(maxX - minX);
+        double dataH = (double)(maxY - minY);
 
-        double scaledW = LOGO_CANVAS_W * scale;
-        double scaledH = LOGO_CANVAS_H * scale;
-        double offsetX = (SCREEN_WIDTH  - scaledW) / 2.0;
-        double offsetY = (SCREEN_HEIGHT - scaledH) / 2.0;
+        // Scale so logo is ~50% of screen width, no taller than 35% of screen height
+        double scaleX = (SCREEN_WIDTH  * 0.50) / dataW;
+        double scaleY = (SCREEN_HEIGHT * 0.35) / dataH;
+        double scale  = (scaleX < scaleY) ? scaleX : scaleY;
+
+        // Centre based on actual data bounds, not assumed 0,0 origin
+        double scaledW = dataW * scale;
+        double scaledH = dataH * scale;
+        double offsetX = (SCREEN_WIDTH  - scaledW) / 2.0 - minX * scale;
+        double offsetY = (SCREEN_HEIGHT - scaledH) / 2.0 - minY * scale;
 
         for (int i = 0; i < count; i++) {
             double x = offsetX + data[i].x * scale;
