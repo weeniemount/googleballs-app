@@ -1706,9 +1706,6 @@ jobs:
         run: |
           cd ~/nxdk
           make tools -j$(nproc)
-      
-      - name: Find sal.h in NXDK
-        run: find ~/nxdk -name "sal.h" 2>/dev/null
 
       # -----------------------------------------------------------------------
       # 5. Build the balls!!!
@@ -1716,11 +1713,17 @@ jobs:
       - name: Add NXDK tools to PATH
         run: echo "$HOME/nxdk/bin" >> $GITHUB_PATH
 
+      - name: Stub missing sal.h (MSVC annotation header, not needed on clang)
+        run: |
+          mkdir -p ~/nxdk/lib/sdl/SDL2/include/stubs
+          touch ~/nxdk/lib/sdl/SDL2/include/stubs/sal.h
+
       - name: Build Google Balls XBE
         run: |
           cd ogxbox
-          make NXDK_DIR=$HOME/nxdk -j$(nproc)
+          make NXDK_DIR=$HOME/nxdk CXXFLAGS="-I$HOME/nxdk/lib/sdl/SDL2/include/stubs" -j$(nproc)
 
+      
 
       # -----------------------------------------------------------------------
       # 6. Upload artifact
