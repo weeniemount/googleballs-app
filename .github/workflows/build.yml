@@ -1706,9 +1706,6 @@ jobs:
         run: |
           cd ~/nxdk
           make tools -j$(nproc)
-        
-      - name: Find SDL headers in NXDK
-        run: find ~/nxdk -name "SDL.h" 2>/dev/null
 
       # -----------------------------------------------------------------------
       # 5. Build the balls!!!
