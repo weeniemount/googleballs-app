@@ -193,5 +193,8 @@ i have no clue
 
 i have no clue
 
+## DS
+[Download .nds](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ds.nds)
+
 # Nightly (actions)
 Click that actions tab above, pick the latest build and download the artifacts you need
