@@ -1711,6 +1711,9 @@ jobs:
       # -----------------------------------------------------------------------
       # 5. Build the balls!!!
       # -----------------------------------------------------------------------
+      - name: Add NXDK tools to PATH
+        run: echo "$HOME/nxdk/bin" >> $GITHUB_PATH
+
       - name: Build Google Balls XBE
         run: |
           cd ogxbox
