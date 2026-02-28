@@ -1706,6 +1706,9 @@ jobs:
         run: |
           cd ~/nxdk
           make tools -j$(nproc)
+      
+      - name: Find sal.h in NXDK
+        run: find ~/nxdk -name "sal.h" 2>/dev/null
 
       # -----------------------------------------------------------------------
       # 5. Build the balls!!!
