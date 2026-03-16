@@ -1,0 +1,471 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		718BB4F72F681D4300F23CB2 /* BallPoint.m in Sources */ = {isa = PBXBuildFile; fileRef = 718BB4F42F681D4300F23CB2 /* BallPoint.m */; };
+		718BB4F82F681D4300F23CB2 /* BallsView.m in Sources */ = {isa = PBXBuildFile; fileRef = 718BB4F62F681D4300F23CB2 /* BallsView.m */; };
+		718BB4FA2F68228D00F23CB2 /* balls-old.icns in Resources */ = {isa = PBXBuildFile; fileRef = 718BB4F92F68228D00F23CB2 /* balls-old.icns */; };
+		718BB4FC2F6823B400F23CB2 /* balls.icns in Resources */ = {isa = PBXBuildFile; fileRef = 718BB4FB2F6823B400F23CB2 /* balls.icns */; };
+		71E419A72F68183500EF27A3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E419A62F68183500EF27A3 /* Cocoa.framework */; };
+		71E419B12F68183500EF27A3 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 71E419AF2F68183500EF27A3 /* InfoPlist.strings */; };
+		71E419B32F68183500EF27A3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 71E419B22F68183500EF27A3 /* main.m */; };
+		71E419B72F68183500EF27A3 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 71E419B52F68183500EF27A3 /* Credits.rtf */; };
+		71E419BA2F68183500EF27A3 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 71E419B92F68183500EF27A3 /* AppDelegate.m */; };
+		71E419BD2F68183500EF27A3 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 71E419BB2F68183500EF27A3 /* MainMenu.xib */; };
+		71E419C52F68183500EF27A3 /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E419C42F68183500EF27A3 /* SenTestingKit.framework */; };
+		71E419C62F68183500EF27A3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E419A62F68183500EF27A3 /* Cocoa.framework */; };
+		71E419CE2F68183500EF27A3 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 71E419CC2F68183500EF27A3 /* InfoPlist.strings */; };
+		71E419D12F68183500EF27A3 /* Google_BallsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 71E419D02F68183500EF27A3 /* Google_BallsTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		71E419C72F68183500EF27A3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 71E419992F68183400EF27A3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 71E419A12F68183500EF27A3;
+			remoteInfo = "Google Balls";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		718BB4F32F681D4300F23CB2 /* BallPoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BallPoint.h; sourceTree = "<group>"; };
+		718BB4F42F681D4300F23CB2 /* BallPoint.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BallPoint.m; sourceTree = "<group>"; };
+		718BB4F52F681D4300F23CB2 /* BallsView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BallsView.h; sourceTree = "<group>"; };
+		718BB4F62F681D4300F23CB2 /* BallsView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BallsView.m; sourceTree = "<group>"; };
+		718BB4F92F68228D00F23CB2 /* balls-old.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "balls-old.icns"; sourceTree = "<group>"; };
+		718BB4FB2F6823B400F23CB2 /* balls.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = balls.icns; sourceTree = "<group>"; };
+		71E419A22F68183500EF27A3 /* Google Balls.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Google Balls.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		71E419A62F68183500EF27A3 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		71E419A92F68183500EF27A3 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		71E419AA2F68183500EF27A3 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		71E419AB2F68183500EF27A3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		71E419AE2F68183500EF27A3 /* Google Balls-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Google Balls-Info.plist"; sourceTree = "<group>"; };
+		71E419B02F68183500EF27A3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		71E419B22F68183500EF27A3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		71E419B42F68183500EF27A3 /* Google Balls-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Google Balls-Prefix.pch"; sourceTree = "<group>"; };
+		71E419B62F68183500EF27A3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
+		71E419B82F68183500EF27A3 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		71E419B92F68183500EF27A3 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		71E419BC2F68183500EF27A3 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		71E419C32F68183500EF27A3 /* Google BallsTests.octest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Google BallsTests.octest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		71E419C42F68183500EF27A3 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
+		71E419CB2F68183500EF27A3 /* Google BallsTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Google BallsTests-Info.plist"; sourceTree = "<group>"; };
+		71E419CD2F68183500EF27A3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		71E419CF2F68183500EF27A3 /* Google_BallsTests.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Google_BallsTests.h; sourceTree = "<group>"; };
+		71E419D02F68183500EF27A3 /* Google_BallsTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Google_BallsTests.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		71E4199F2F68183500EF27A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419A72F68183500EF27A3 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71E419BF2F68183500EF27A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419C52F68183500EF27A3 /* SenTestingKit.framework in Frameworks */,
+				71E419C62F68183500EF27A3 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		71E419972F68183400EF27A3 = {
+			isa = PBXGroup;
+			children = (
+				71E419AC2F68183500EF27A3 /* Google Balls */,
+				71E419C92F68183500EF27A3 /* Google BallsTests */,
+				71E419A52F68183500EF27A3 /* Frameworks */,
+				71E419A32F68183500EF27A3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		71E419A32F68183500EF27A3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				71E419A22F68183500EF27A3 /* Google Balls.app */,
+				71E419C32F68183500EF27A3 /* Google BallsTests.octest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		71E419A52F68183500EF27A3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				71E419A62F68183500EF27A3 /* Cocoa.framework */,
+				71E419C42F68183500EF27A3 /* SenTestingKit.framework */,
+				71E419A82F68183500EF27A3 /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		71E419A82F68183500EF27A3 /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				71E419A92F68183500EF27A3 /* AppKit.framework */,
+				71E419AA2F68183500EF27A3 /* CoreData.framework */,
+				71E419AB2F68183500EF27A3 /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		71E419AC2F68183500EF27A3 /* Google Balls */ = {
+			isa = PBXGroup;
+			children = (
+				71E419B82F68183500EF27A3 /* AppDelegate.h */,
+				71E419B92F68183500EF27A3 /* AppDelegate.m */,
+				71E419BB2F68183500EF27A3 /* MainMenu.xib */,
+				71E419AD2F68183500EF27A3 /* Supporting Files */,
+			);
+			path = "Google Balls";
+			sourceTree = "<group>";
+		};
+		71E419AD2F68183500EF27A3 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				718BB4F32F681D4300F23CB2 /* BallPoint.h */,
+				718BB4F42F681D4300F23CB2 /* BallPoint.m */,
+				718BB4F52F681D4300F23CB2 /* BallsView.h */,
+				718BB4F62F681D4300F23CB2 /* BallsView.m */,
+				718BB4FB2F6823B400F23CB2 /* balls.icns */,
+				718BB4F92F68228D00F23CB2 /* balls-old.icns */,
+				71E419AE2F68183500EF27A3 /* Google Balls-Info.plist */,
+				71E419AF2F68183500EF27A3 /* InfoPlist.strings */,
+				71E419B22F68183500EF27A3 /* main.m */,
+				71E419B42F68183500EF27A3 /* Google Balls-Prefix.pch */,
+				71E419B52F68183500EF27A3 /* Credits.rtf */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		71E419C92F68183500EF27A3 /* Google BallsTests */ = {
+			isa = PBXGroup;
+			children = (
+				71E419CF2F68183500EF27A3 /* Google_BallsTests.h */,
+				71E419D02F68183500EF27A3 /* Google_BallsTests.m */,
+				71E419CA2F68183500EF27A3 /* Supporting Files */,
+			);
+			path = "Google BallsTests";
+			sourceTree = "<group>";
+		};
+		71E419CA2F68183500EF27A3 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				71E419CB2F68183500EF27A3 /* Google BallsTests-Info.plist */,
+				71E419CC2F68183500EF27A3 /* InfoPlist.strings */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		71E419A12F68183500EF27A3 /* Google Balls */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 71E419D42F68183500EF27A3 /* Build configuration list for PBXNativeTarget "Google Balls" */;
+			buildPhases = (
+				71E4199E2F68183500EF27A3 /* Sources */,
+				71E4199F2F68183500EF27A3 /* Frameworks */,
+				71E419A02F68183500EF27A3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Google Balls";
+			productName = "Google Balls";
+			productReference = 71E419A22F68183500EF27A3 /* Google Balls.app */;
+			productType = "com.apple.product-type.application";
+		};
+		71E419C22F68183500EF27A3 /* Google BallsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 71E419D72F68183500EF27A3 /* Build configuration list for PBXNativeTarget "Google BallsTests" */;
+			buildPhases = (
+				71E419BE2F68183500EF27A3 /* Sources */,
+				71E419BF2F68183500EF27A3 /* Frameworks */,
+				71E419C02F68183500EF27A3 /* Resources */,
+				71E419C12F68183500EF27A3 /* ShellScript */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				71E419C82F68183500EF27A3 /* PBXTargetDependency */,
+			);
+			name = "Google BallsTests";
+			productName = "Google BallsTests";
+			productReference = 71E419C32F68183500EF27A3 /* Google BallsTests.octest */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		71E419992F68183400EF27A3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0420;
+				ORGANIZATIONNAME = 123123123;
+			};
+			buildConfigurationList = 71E4199C2F68183400EF27A3 /* Build configuration list for PBXProject "Google Balls" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 71E419972F68183400EF27A3;
+			productRefGroup = 71E419A32F68183500EF27A3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				71E419A12F68183500EF27A3 /* Google Balls */,
+				71E419C22F68183500EF27A3 /* Google BallsTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		71E419A02F68183500EF27A3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419B12F68183500EF27A3 /* InfoPlist.strings in Resources */,
+				71E419B72F68183500EF27A3 /* Credits.rtf in Resources */,
+				71E419BD2F68183500EF27A3 /* MainMenu.xib in Resources */,
+				718BB4FA2F68228D00F23CB2 /* balls-old.icns in Resources */,
+				718BB4FC2F6823B400F23CB2 /* balls.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71E419C02F68183500EF27A3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419CE2F68183500EF27A3 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		71E419C12F68183500EF27A3 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Run the unit tests in this test bundle.\n\"${SYSTEM_DEVELOPER_DIR}/Tools/RunUnitTests\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		71E4199E2F68183500EF27A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419B32F68183500EF27A3 /* main.m in Sources */,
+				71E419BA2F68183500EF27A3 /* AppDelegate.m in Sources */,
+				718BB4F72F681D4300F23CB2 /* BallPoint.m in Sources */,
+				718BB4F82F681D4300F23CB2 /* BallsView.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71E419BE2F68183500EF27A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71E419D12F68183500EF27A3 /* Google_BallsTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		71E419C82F68183500EF27A3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 71E419A12F68183500EF27A3 /* Google Balls */;
+			targetProxy = 71E419C72F68183500EF27A3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		71E419AF2F68183500EF27A3 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				71E419B02F68183500EF27A3 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		71E419B52F68183500EF27A3 /* Credits.rtf */ = {
+			isa = PBXVariantGroup;
+			children = (
+				71E419B62F68183500EF27A3 /* en */,
+			);
+			name = Credits.rtf;
+			sourceTree = "<group>";
+		};
+		71E419BB2F68183500EF27A3 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				71E419BC2F68183500EF27A3 /* en */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+		71E419CC2F68183500EF27A3 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				71E419CD2F68183500EF27A3 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		71E419D22F68183500EF27A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		71E419D32F68183500EF27A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		71E419D52F68183500EF27A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Google Balls/Google Balls-Prefix.pch";
+				INFOPLIST_FILE = "Google Balls/Google Balls-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		71E419D62F68183500EF27A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Google Balls/Google Balls-Prefix.pch";
+				INFOPLIST_FILE = "Google Balls/Google Balls-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		71E419D82F68183500EF27A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Google Balls.app/Contents/MacOS/Google Balls";
+				FRAMEWORK_SEARCH_PATHS = "$(DEVELOPER_LIBRARY_DIR)/Frameworks";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Google Balls/Google Balls-Prefix.pch";
+				INFOPLIST_FILE = "Google BallsTests/Google BallsTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = octest;
+			};
+			name = Debug;
+		};
+		71E419D92F68183500EF27A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Google Balls.app/Contents/MacOS/Google Balls";
+				FRAMEWORK_SEARCH_PATHS = "$(DEVELOPER_LIBRARY_DIR)/Frameworks";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Google Balls/Google Balls-Prefix.pch";
+				INFOPLIST_FILE = "Google BallsTests/Google BallsTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = octest;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		71E4199C2F68183400EF27A3 /* Build configuration list for PBXProject "Google Balls" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71E419D22F68183500EF27A3 /* Debug */,
+				71E419D32F68183500EF27A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		71E419D42F68183500EF27A3 /* Build configuration list for PBXNativeTarget "Google Balls" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71E419D52F68183500EF27A3 /* Debug */,
+				71E419D62F68183500EF27A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		71E419D72F68183500EF27A3 /* Build configuration list for PBXNativeTarget "Google BallsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71E419D82F68183500EF27A3 /* Debug */,
+				71E419D92F68183500EF27A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 71E419992F68183400EF27A3 /* Project object */;
+}
