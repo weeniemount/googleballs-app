@@ -191,7 +191,7 @@ i have no clue
 [Download .self](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ps3.self)
 [Download .pkg](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ps3.pkg)
 
-i have no clue
+put it on your usb go to package installer select usb install pkg boom bobs your family member
 
 ## DS
 [Download .nds](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ds.nds)
