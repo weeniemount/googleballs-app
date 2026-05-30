@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.Build;
+import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -106,7 +108,11 @@ public class BallsView extends View {
             canvas.drawText("FPS: " + (int) currentFps, 20, 120, paint);
         }
 
-        postInvalidateOnAnimation();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            postInvalidateOnAnimation();
+        } else {
+            postInvalidate();
+        }
     }
 
     @Override
@@ -126,5 +132,14 @@ public class BallsView extends View {
 
         // Return true to continue consuming events (movement)
         return true;
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD &&
+                (event.getSource() & InputDevice.SOURCE_CLASS_POINTER) != 0) {
+            return onTouchEvent(event);
+        }
+        return super.onGenericMotionEvent(event);
     }
 }
