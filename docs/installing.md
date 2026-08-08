@@ -198,5 +198,10 @@ put it on your usb go to package installer select usb install pkg boom bobs your
 ## DS
 [Download .nds](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ds.nds)
 
+## Flash
+[Download AS2 .swf](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-flash-as2.swf) [Download AS3 .swf](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-flash-as3.swf)
+
+open in flash player
+
 # Nightly (actions)
 Click that actions tab above, pick the latest build and download the artifacts you need
