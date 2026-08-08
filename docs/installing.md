@@ -34,6 +34,8 @@ install instructions coming soon :bangbang:
 | :--- | :--- | :--- |
 | mac os architecture idfk | Electron | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.dmg) |
 | mac os architecture idfk | Terminal | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-terminal-macos) |
+| mac os architecture idfk | Swift | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/GoogleBalls-swift.zip) |
+| mac os architecture idfk | OS X 10.6 | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/GoogleBalls-OSX10.6.zip) |
 
 
 install instructions coming soon :bangbang:
