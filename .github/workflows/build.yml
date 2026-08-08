@@ -624,55 +624,6 @@ jobs:
           name: googleballs-desktop-${{ matrix.platform }}_electron
           path: electron/dist/
 
-  build-ios:
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build iOS App
-        run: |
-          cd ios
-          xcodebuild clean archive \
-            -project "Google Balls.xcodeproj" \
-            -scheme "Google Balls" \
-            -configuration Release \
-            -archivePath ./unsigned.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Create IPA
-        run: |
-          cd ios
-          # Navigate into the archive and locate the app
-          cd unsigned.xcarchive/Products/Applications/
-          
-          # Create a temporary directory for IPA creation
-          mkdir -p ../../../ipa_temp/Payload
-          
-          # Copy the app to Payload directory
-          cp -R "Google Balls.app" ../../../ipa_temp/Payload/
-          
-          # Navigate to the temp directory and create the IPA
-          cd ../../../ipa_temp
-          zip -r "../Google Balls-ios.ipa" Payload/
-          
-          # Clean up temp directory
-          cd ..
-          rm -rf ipa_temp
-          
-          echo "IPA created successfully"
-          ls -la "Google Balls-ios.ipa"
-
-      - name: Upload iOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-app_ios
-          path: |
-            ios/Google Balls-ios.ipa
-            ios/unsigned.xcarchive
-
   build-android:
     runs-on: ubuntu-latest
     steps:
