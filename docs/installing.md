@@ -26,6 +26,7 @@ install instructions coming soon :bangbang:
 | x86_64 | Electron (AppImage) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/Google.Balls.Desktop-electron.AppImage)
 | x86_64 | Rust (Macroquad Native) | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-rust)
 | x86_64 | Terminal | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-terminal-linux)
+| arm64 | Asahi Linux Touchbar | [Download](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-asahi-touchbar)
 
 install instructions coming soon :bangbang:
 
