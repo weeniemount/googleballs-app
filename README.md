@@ -29,7 +29,6 @@ We have:
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 - 3DS (same with ps vita, google balls on the 3ds) - 3DS
 - Tizen (google balls on the smasnug tv! thanks to @TwisstedToast) - Tizen
-- Gurted (google balls on gurted!) - Windows, Linux
 - Visual Studio Code (yes, its a visual studio code extension too) - VS Code
 - Universal Windows Platform (mainly for Windows Phone 10 but works on desktop too) - UWP
 - Windows Phone 8.1 (goog balls on wp8) - WP8
