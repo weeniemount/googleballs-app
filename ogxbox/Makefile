@@ -1,8 +1,7 @@
 TARGET = balls.xbe
 SRCS   = main.cpp
 
-SDL2       = y
-SDL2_IMAGE = n
+NXDK_SDL = y
 
 include $(NXDK_DIR)/Makefile
 
