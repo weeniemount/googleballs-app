@@ -1631,13 +1631,18 @@ jobs:
             nasm \
             clang \
             lld \
-            llvm \
+            llvm-14 \
             python3 \
             python3-pip
 
       - name: Symlink llvm-dlltool
         run: |
-          DLLTOOL=$(dpkg -L llvm | grep '/bin/llvm-dlltool-' | head -n1)
+          DLLTOOL=$(dpkg -L llvm-14 2>/dev/null | grep '/bin/llvm-dlltool-' | head -n1)
+          if [ -z "$DLLTOOL" ]; then
+            DLLTOOL=$(find /usr -type f -name 'llvm-dlltool-*' 2>/dev/null | head -n1)
+          fi
+          echo "Resolved llvm-dlltool: $DLLTOOL"
+          test -n "$DLLTOOL"
           sudo ln -sf "$DLLTOOL" /usr/local/bin/llvm-dlltool
           llvm-dlltool --version
 
