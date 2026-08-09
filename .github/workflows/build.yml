@@ -1635,17 +1635,10 @@ jobs:
             python3 \
             python3-pip
 
-      - name: Symlink llvm-dlltool
+      - name: Add unversioned LLVM tools to PATH
         run: |
-          DLLTOOL=$(dpkg -L llvm-14 2>/dev/null | grep '/bin/llvm-dlltool-' | head -n1)
-          if [ -z "$DLLTOOL" ]; then
-            DLLTOOL=$(find /usr -type f -name 'llvm-dlltool-*' 2>/dev/null | head -n1)
-          fi
-          echo "Resolved llvm-dlltool: $DLLTOOL"
-          test -n "$DLLTOOL"
-          sudo ln -sf "$DLLTOOL" /usr/local/bin/llvm-dlltool
-          test -x /usr/local/bin/llvm-dlltool
-          echo "llvm-dlltool symlinked OK"
+          test -d /usr/lib/llvm-14/bin
+          echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
 
       # -----------------------------------------------------------------------
       # 3. Cache NXDK so we don't rebuild it every run
