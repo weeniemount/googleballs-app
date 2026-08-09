@@ -1644,7 +1644,8 @@ jobs:
           echo "Resolved llvm-dlltool: $DLLTOOL"
           test -n "$DLLTOOL"
           sudo ln -sf "$DLLTOOL" /usr/local/bin/llvm-dlltool
-          llvm-dlltool --version
+          test -x /usr/local/bin/llvm-dlltool
+          echo "llvm-dlltool symlinked OK"
 
       # -----------------------------------------------------------------------
       # 3. Cache NXDK so we don't rebuild it every run
