@@ -24,7 +24,7 @@ We have:
 - SDL2 (it's sdl2 google balls!) - Windows, Linux
 - GTK3 (made in gtk3! personally my favourite! thanks to @ploszukiwacz) - Windows, Linux
 - Rust (uses macroquad framework! thanks to @tpglitch) - Windows, Linux, macOS
-- Swuft (native swift port for iDevices) iOS, macOS
+- Swift (native swift port for iDevices) iOS, macOS
 - Android (its only for Android based devices. does use a webview) - Android
 - PS Vita (yes, you can run google balls on the ps vita) - PS Vita
 - 3DS (same with ps vita, google balls on the 3ds) - 3DS
