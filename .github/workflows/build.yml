@@ -1689,4 +1689,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: googleballs-ogxbox-xbe
-          path: ogxbox/balls.xbe
+          path: ogxbox/bin/default.xbe
