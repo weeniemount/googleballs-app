@@ -6,7 +6,6 @@
 html, body {
     height: 100%;
     overflow: hidden;
-    -webkit-app-region: drag;
 }
 
 body {
@@ -47,6 +46,7 @@ a + a {
     color: #ccc;
     display: flex;
     gap: 15px;
+    -webkit-app-region: drag;
 }
 
 @media not (display-mode: window-controls-overlay) {
