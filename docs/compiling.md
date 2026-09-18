@@ -75,6 +75,20 @@ your on your own gang
 install [BlocksDS](https://blocksds.skylyrac.net/docs/setup/)
 and then run `make` in the `ds` directory
 
+# Switch
+
+Get the [toolchain from devkitPro](https://switchbrew.org/wiki/Setting_up_Development_Environment) then run:
+
+```bash
+make
+```
+
+or if you don't feel like doing that you can install Docker instead and build it inside [a container](https://hub.docker.com/r/devkitpro/devkita64) with:
+
+```bash
+make -f docker.mk build
+```
+
 # Tizen
 its in installing.md :v: :joy: 
 

@@ -17,7 +17,7 @@ Google for making the original doodle back in 2010!
 
 [Rob Hawkes](https://github.com/robhawkes) for making the remake of the doodle that this project uses as a base!
 
-# Available in *24* flavors!
+# Available in *25* flavors!
 We have:
 - Electron (the og but bulky) - Windows, Linux, macOS
 - Tauri (like electron but not bulky) - Windows, Linux
@@ -43,6 +43,7 @@ We have:
 - Terminal (just run it in your terminal) - Windows, macOS, Linux
 - DS (touch the google balls on your ds! thanks to @DieGo367) - DS
 - ActionScript 2/3 (google balls for those who don't have html5 capable browsers in the big 2026 for whatever reason! thanks to @leap0x7b) - Flash, non-HTML5 browsers
+- Nintendo Switch (native libnx port with touch and controller support) - Nintendo Switch
 
 # How 2 download:
 See [the docs](docs/installing.md)

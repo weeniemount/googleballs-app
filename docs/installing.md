@@ -199,6 +199,10 @@ put it on your usb go to package installer select usb install pkg boom bobs your
 ## DS
 [Download .nds](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-ds.nds)
 
+## Switch
+
+[Download .nro](https://github.com/weeniemount/googleballs-app/releases/latest/download/google-balls-switch.nro)
+
 ## Flash
 [Download AS2 .swf](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-flash-as2.swf) [Download AS3 .swf](https://github.com/weeniemount/googleballs-app/releases/latest/download/googleballs-flash-as3.swf)
 
