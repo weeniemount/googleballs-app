@@ -123,3 +123,9 @@ body.original-mode #original-container {
     position: absolute;
     right: 40px;
 }
+
+@media (display-mode: standalone) or (display-mode: window-controls-overlay) {
+    .page-links {
+        display: none !important;
+    }
+}
