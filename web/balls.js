@@ -62,23 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 	}
 
-	function isPWA() {
-		return window.matchMedia('(display-mode: standalone) or (display-mode: window-controls-overlay)').matches ||
-			window.navigator.standalone === true;
-	}
-
 	function init() {
 		loadSettings();
 		updateCanvasDimensions();
 
 		initOriginalMode();
 		initEventListeners();
-
-		if (isPWA()) {
-            document.querySelectorAll('.page-links a').forEach(link => {
-				link.remove();
-			});
-        }
 
 		if (originalMode) {
 			document.body.classList.add('original-mode');
@@ -94,20 +83,12 @@ document.addEventListener('DOMContentLoaded', function() {
 			const controls = document.querySelector('.controls');
 			const links = document.querySelectorAll('.page-links');
 
-			if (isPWA()) {
-				if (controls.style.display === 'none') {
-					controls.style.display = 'flex';
-				} else {
-					controls.style.display = 'none';
-				}
+			if (controls.style.display === 'none') {
+				controls.style.display = 'flex';
+				links.forEach(link => link.style.display = 'block');
 			} else {
-				if (controls.style.display === 'none') {
-					controls.style.display = 'flex';
-					links.forEach(link => link.style.display = 'block');
-				} else {
-					controls.style.display = 'none';
-					links.forEach(link => link.style.display = 'none');
-				}
+				controls.style.display = 'none';
+				links.forEach(link => link.style.display = 'none');
 			}
 		}
 	});
